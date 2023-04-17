@@ -3,7 +3,7 @@ from datetime import datetime
 import pandas as pd
 
 # load the table into a pandas DataFrame
-df = pd.read_csv('../data/Gro_handelspreise_2018_2023_hour.csv', sep=';')
+df = pd.read_csv('../data/og/Gro_handelspreise_2018_2023_hour.csv', sep=';')
 
 df['Date'] = df['Date'].apply(lambda x: datetime.strptime(x, '%d.%m.%Y'))
 
