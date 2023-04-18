@@ -1,7 +1,7 @@
 import pandas as pd
 
 # load the table into a pandas DataFrame
-df = pd.read_csv('../data/og/solar_values_produkt_st_stunde_20090101_20230228_00691.csv', sep=';')
+df = pd.read_csv('../data/original/solar_values_produkt_st_stunde_20090101_20230228_00691.csv', sep=';')
 
 # convert the "MESS_DATUM" column to a datetime object
 df['MESS_DATUM_WOZ'] = pd.to_datetime(df['MESS_DATUM_WOZ'], format='%Y%m%d%H:%M')
