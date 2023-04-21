@@ -25,6 +25,11 @@ while current_date < end_date:
 # remove values  after the 2022-12-31
 result_df = result_df[result_df['Zeit'] < datetime(2023, 1, 1)]
 
+# convert the columns to float
+for column in result_df.columns:
+    if column != 'Zeit':
+        result_df[column] = result_df[column].str.replace('.', '').str.replace(',', '.').astype(float)
+
 # Save the new dataframe to a csv file
 result_df.to_csv('../data/clean/solar_power_01102018_01012023.csv', index=False, sep='\t')
 result_df.to_excel('../data/clean/solar_power_01102018_01012023.xlsx', index=False)

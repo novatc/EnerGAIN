@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 
+from sklearn.preprocessing import MinMaxScaler
+
 energy_consumption = pd.read_csv('data/clean/energy_consumption_01102018_01012023.csv', index_col=0)
 energy_prediction = pd.read_csv('data/clean/energy_prediction_01102018_01012023.csv', index_col=0)
 energy_price = pd.read_csv('data/clean/trading_prices_01102018_01012023.csv', index_col=0)
@@ -54,5 +56,11 @@ solar_power = solar_power.set_index('date')
 # make the index a datetime object
 solar_power.index = pd.to_datetime(solar_power.index)
 
+# scale the data
+scaler = MinMaxScaler()
+scaled_data = scaler.fit_transform(solar_power)
+
+dataset = pd.DataFrame(scaled_data, columns=solar_power.columns, index=solar_power.index)
+
 # save the dataframe to a csv file
-solar_power.to_csv('data/clean/dataset_01102018_01012023.csv')
+dataset.to_csv('data/clean/dataset_01102018_01012023.csv')
