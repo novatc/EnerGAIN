@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import gym
 from gym import spaces
-from gym.core import ActType, ObsType
 
 
 class EnergyMarkets(gym.Env):
@@ -43,5 +42,5 @@ class EnergyMarkets(gym.Env):
         :param action:
         :return: reward
         """
-        reward = 0
+        reward = np.random.uniform(-1, 1)
         return reward
