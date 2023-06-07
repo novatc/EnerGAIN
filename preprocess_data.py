@@ -47,7 +47,7 @@ energy_consumption_series = energy_consumption_series.reset_index(drop=True)
 solar_power['date'] = date_column
 solar_power = solar_power.reset_index(drop=True)
 solar_power['prediction'] = energy_prediction_series
-solar_power['prize'] = energy_price_series
+solar_power['price'] = energy_price_series
 solar_power['consumption'] = energy_consumption_series
 
 # make the date column the index
@@ -59,8 +59,8 @@ solar_power.index = pd.to_datetime(solar_power.index)
 # scale the data
 scaler = MinMaxScaler()
 scaled_data = scaler.fit_transform(solar_power)
-
+#
 dataset = pd.DataFrame(scaled_data, columns=solar_power.columns, index=solar_power.index)
 
 # save the dataframe to a csv file
-dataset.to_csv('data/clean/dataset_01102018_01012023.csv')
+solar_power.to_csv('data/clean/dataset_01102018_01012023.csv')
