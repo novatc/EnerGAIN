@@ -1,0 +1,191 @@
+% Ganz einfaches Template für das Proposal von studentischen Arbeiten
+% von der Abteilung Digitalisierte Energiesysteme - 
+% Carl von Ossietzky Universität Oldenburg
+% Stand: 10.09.2020
+%
+\documentclass[a4paper, 11pt]{article}
+\usepackage{dirtytalk}
+\usepackage{pgfgantt} % if you have not included this yet
+\usepackage{rotating} % this is the new package
+\input{config/config.tex}
+
+
+%% Variables
+\newcommand{\Titel}{Reinforcement Learning basierter Abitraghandel an mehreren Märkten} % Titel der Arbeit
+\newcommand{\Author}{Lucas Wagner} % Autor der Arbeit
+
+%
+\begin{document}
+% -----------------------------------------------------------------------------
+%               Titel
+% -----------------------------------------------------------------------------
+\Author \hfill \today\\
+\newline
+%
+\begin{center}
+	\iflanguage{ngerman}
+		{\large{Proposal zur Masterarbeit}}
+		{\large{Proposal for a master thesis}} \\
+  	\vspace*{0.5cm}
+  	\iflanguage{ngerman}
+  		{\Large{\bf "`\Titel{}"'}}
+  		{\Large{\bf ``\Titel{}''}}
+\end{center}
+%
+\setlength{\parskip}{1.5ex plus0.5ex minus 0.5ex}
+
+% -----------------------------------------------------------------------------
+%\section{Einleitung}
+\section{Einleitung}% (one page)
+\label{introduction}
+Die Nachfrage nach nachhaltigen Energiequellen nimmt aufgrund der globalen Erderwärmung zu, während die weltweiten Erzeugungskapazitäten signifikant wachsen, um Treibhausgase einzusparen. Nach dem Bericht der Internationalen Agentur für Erneuerbare Energien aus dem Jahr 2021 stieg die globale Erzeugungskapazität durch erneuerbare Quellen innerhalb von zehn Jahren (2010 - 2020) auf das 2,3-fache, von 1,2 TW auf 2,8 TW \cite{noauthor_renewable_nodate}. Die Erzeugung dieser Energie unterliegt Umweltbedingungen und hat somit eine höhere Volatilität als konventionelle Energiequellen wie Gas oder Kohle \cite{leonard_substitution_2018}. Die Diskrepanz zwischen Energieangebot und Nachfrage kann zu überschüssiger Produktion, steigenden Strompreisen und zur Gefahr der Netzstabilität führen.
+Ein weiterer Anstieg der Nachfrage ist zu erwarten, wenn immer mehr Autos mit Elektroantrieb auf die Straße kommen \cite{noauthor_global_nodate}. Aber auch die Umstellung auf eine nachhaltige Stahlproduktion oder die zunehmende Produktion von grünem Wasserstoff tragen zu einer steigenden Nachfrage bei. \\
+In dieser zukünftigen Energieinfrastruktur, geprägt von volatilen Stromerzeugern, könnten Großbatteriespeicher eine entscheidende Rolle bei der Stabilisierung des europäischen Verbundnetzes einnehmen. Verschiedene Märkte könnten hierbei für die Integration solcher Speichersysteme von Bedeutung sein: Auf dem traditionellen Energiemarkt könnten Batterien als Arbitrageure agieren, indem sie Strom während kostengünstiger Phasen speichern und in Zeiten hoher Preise abgeben. Darüber hinaus könnten sie zur Bereitstellung von Primärreserven zur kurzfristigen Frequenzstabilisierung herangezogen werden \cite{wu_optimal_2022}. Besonders interessant wird die Nutzung von Großbatteriespeichern, wenn sie mehrere Märkte bedienen und effizient mit umfangreichen Solarparks kombiniert werden können. 
+Die effektive Betriebsführung des Batteriespeichers stellt eine Herausforderung dar, da es um das Finden eines geeigneten Zeitpunkts, des besten Preises und der richtigen Menge geht. Zudem kommt die Auswahl des Marktes, an dem gehandelt werden soll, hinzu. Dies ist besonders anspruchsvoll in einem Umfeld mit volatiler Stromerzeugung und fluktuierenden Strompreisen \cite{grasl_evaluating_2014}. Es bedarf einer intelligenten Steuerung, die in der Lage ist, die komplexen Zusammenhänge zwischen den verschiedenen Märkten zu berücksichtigen und gute Entscheidungen zu treffen. Reinforcement Learning (RL) bietet eine vielversprechende Lösung für diese Herausforderung. Durch die Anwendung von RL kann die Batteriesteuerung lernen, auf Basis von Rückmeldungen aus der Umgebung (wie Strompreise und Frequenzabweichungen) die besten Lade- und Entladeentscheidungen zu treffen. Das RL-Modell sollte die Marktdynamik erfassen können, um die Auswahl der Märkte und den geeigneten Zeitpunkt für den Energiefluss zu erlernen. Im Vergleich zu bereits implementierten und erprobten Strategien kann eine intelligente Batteriesteuerung auf RL-Basis flexibler und anpassungsfähiger sein, da sie kontinuierlich aus Erfahrungen lernt und ihre Entscheidungsstrategie verbessert. Dadurch kann sie möglicherweise bessere wirtschaftliche Ergebnisse erzielen und zur Stabilisierung des europäischen Verbundnetzes beitragen. 
+
+
+
+% -----------------------------------------------------------------------------
+%\section{Zielsetzung}
+\section{Zielsetzung}
+\label{objective}
+Das Hauptziel dieser Arbeit besteht in der Entwicklung einer intelligenten Gebotsstrategie, welche die zu handelnde Strommenge, den Preis, den Zeitpunkt des Handels und den zu bedienenden Markt umfasst. Der Fokus soll dabei auf dem Day-Ahead-Markt und dem Primärregelleistungsmarkt liegen. Somit wird ein regulärer Energiemarkt, sowie ein nachgelagerter Markt betrachtet und bedient.
+Mittels Gebotsstrategie müssen Menge, Zeitpunkt, Preis und Markt gewählt werden, wobei es entscheidend ist, die Marktanforderungen zu erfüllen und nur valide Angebote zu generieren. Es sollte beachtet werden, dass ein valides Angebot zwar den Marktregeln entspricht, jedoch nicht zwangsläufig ein strategisch sinnvolles Angebot darstellt. Basierend auf dem Profit der generierten Gebote soll analysiert werden, ob die gewählte Strategie tatsächlich gute Entscheidungen trifft. Aus dieser Zielsetzung ergibt sich die Notwendigkeit eines Reinforcement Learning Systems, wobei die Definition der Umgebung, der Aktionen und der Belohnungsfunktion von zentraler Bedeutung ist. Diese Arbeit zielt darauf ab, besagte Frage zu diskutieren: Wie könnte eine intelligente Batteriesteuerung im Kontext von mehreren Absatzmärkten aussehen und wie würde sie sich im Vergleich zu bereits implementierten und erprobten Strategien verhalten?
+
+% -----------------------------------------------------------------------------
+\section{Grundlagen}
+\subsection{Reinforcement Learning}
+Wie zuvor erwähnt, besteht das Kernziel dieser Forschungsarbeit in der Entwicklung eines Systems basierend auf Reinforcement Learning (RL). Das Gebiet des RL stellt einen umfangreichen Teilbereich innerhalb des maschinellen Lernens dar. Reinforcement Learning beschreibt das erfahrungsbasierte Lernen zur Maximierung eines numerischen Belohnungssignals. Das lernende System erhält keine Anweisungen, sondern muss diese auf der Grundlage der Belohnung für jede Handlung selbst ausprobieren. In den meisten Fällen wirken sich die Handlungen auch auf die Zukunft und damit auf die zukünftigen Belohnungen aus. Versuch und Irrtum sowie eine verzögerte Belohnung sind die beiden charakteristischsten Merkmale des Reinforcement Learning \cite[S. 23]{sutton_reinforcement_2018}.
+In der Literatur wird das Feld des RL typischerweise in zwei Unterkategorien unterteilt: das modellbasierte und das modellfreie RL, wie in \cite[S. 181]{sutton_reinforcement_2018} dargelegt. Die Differenzierung dieser beiden Kategorien basiert primär auf der Strategie zur Entscheidungsfindung.
+Im modellbasierten RL wird eine interne Repräsentation oder ein Modell der Umgebung konstruiert, welches Zustandsübergänge und die unmittelbaren Ergebnisse von Aktionen prognostiziert. Diese Modellierung resultiert aus der Analyse von Erfahrungswerten, die durch Interaktionen mit der Umgebung erlangt werden. Auf Grundlage dieses konzipierten Weltmodells werden adäquate Aktionen durch Such- oder Planungsverfahren ausgewählt, mit dem Ziel, ein optimales Verhalten zu erzielen.
+Im Gegensatz dazu, nutzt das modellfreie RL direkt Erfahrungswerte, um entweder den Wert von Zuständen oder Aktionen zu lernen, oder aber um geeignete Strategien abzuleiten, ohne dabei auf die Erstellung eines internen Weltmodells zurückzugreifen. Innerhalb des wertebasierten Ansatzes werden Zuständen oder Aktionen Werte zugeordnet, die den erwarteten zukünftigen Nutzen repräsentieren. Diese Werte können mittels verschiedener Algorithmen, etwa Q-Learning \cite{watkins_q-learning_1992} oder Temporal Difference Learning \cite{tesauro_temporal_1995}, ermittelt werden. Der Strategieansatz hingegen entwickelt eine Policy, die definiert, welche Aktionen in unterschiedlichen Zuständen ausgeführt werden sollen, um adäquate Entscheidungen zu treffen.
+Zusammenfassend lässt sich festhalten, dass das modellbasierte Lernen die Umgebung zu modellieren versucht und auf Basis dieses erlernten Modells eine optimale Strategie auswählt, während sich das modellfreie Lernen auf den Prozess von Versuch und Irrtum stützt, um die geeignete Strategie zu ermitteln.
+Im Kontext dieser Forschungsarbeit liegt der Fokus auf dem modellfreien RL, da eine optimale Handelsstrategie unbekannt ist und erst durch Experimente ermittelt werden muss.
+Zudem stellt der Stromhandel ein hochkomplexes System dar, was die Erstellung eines präzisen Modells der Börse und deren Reaktion auf unterschiedliche Handelsstrategien zu einer enormen Herausforderung macht. Der modellfreie Ansatz ermöglicht das Lernen direkt aus historischen Daten, ohne auf ein prädiktives Modell angewiesen zu sein. Ein weiterer Beweggrund, diesen Ansatz zu wählen, ist die Fähigkeit, neue Strategien durch den Prozess des kontinuierlichen Lernens zu testen und dabei vorteilhaftere Optionen zu entdecken und diese dann auszunutzen, was als Exploration-Exploitation-Trade-off bezeichnet wird \cite[S. 3]{sutton_reinforcement_2018}. Die Batterie, die dem Agenten zur Verfügung gestellt wird, könnte jedoch als Modell zur Verfügung gestellt werden. Lade- und Entladevorgänge sowie deren Konsequenzen lassen sich im Vergleich zu einem Markt leichter in ein Modell überführen.
+An der Börse gibt es oft das Abwägen zwischen dem Ausprobieren neuer Strategien und dem Ausnutzen bereits bekannter Handelsstrategien. Der modellfreie Ansatz kann somit dem Agenten durch kontinuierliches Ausprobieren ermöglichen, neue Strategien zu testen und dabei bessere Möglichkeiten zu finden. Ein vordefiniertes Modell wirkt dagegen einschränkender. \\
+\subsection{Strommarkt}
+Zwei relevante Märkte in diesem Kontext sind der Day-Ahead-Markt und der Markt der primären Regelenergie. Der Day-Ahead-Markt ermöglicht den Handel mit Strom für den darauf folgenden Tag, wobei Gebote bis 12:00 Uhr mittags abgegeben werden müssen und Energiemengen üblicherweise stundenweise gehandelt werden \cite{noauthor_day-ahead-handel_nodate}. Der Regelenergiemarkt, der dem Day-Ahead-Markt nachgeschaltet ist, ist hauptsächlich für die Aufrechterhaltung der Netzstabilität verantwortlich. Die Regelenergie unterscheidet sich nochmal in drei Unterkategorien, die Primär- und Sekundärenergie, sowie die Minutenreserve. Für diese Arbeit soll ausschließlich die Primärregelenergie berücksichtigt werden, welche die schnellste Reserve darstellt und innerhalb von 30 Sekunden reagieren muss \cite{noauthor_bundesnetzagentur_nodate-1}.
+Im Kontext der Regelenergie werden diejenigen Energiemengen bezeichnet, die von den Netzbetreibern zur Kompensation unvorhergesehener Leistungsschwankungen im Stromnetz benötigt werden. In diesem Kontext wird zwischen positiver und negativer Regelenergie unterschieden, die je nach Zustand des Netzes eingespeist oder aus dem Netz entnommen wird. In beiden Szenarien erweisen sich Batterien als besonders vorteilhaft, da sie innerhalb kürzester Zeit Energie ins Netz einspeisen oder speichern können \cite{denholm_role_2010}.
+Das zu entwickelnde System hat somit die Möglichkeit, zwischen zwei Märkten auszuwählen: dem Day-Ahead-Markt und dem Markt der Primärregelenergie, auf dem sich eine Batterie als besonders nützlich erweisen kann.
+
+
+\section{Forschungskontext}
+\label{basics}
+In der aktuellen Forschungslandschaft sind die Möglichkeiten und Herausforderungen von Großbatteriespeichern und ihre Integration in verschiedene Energiemärkte ein zunehmend diskutiertes Thema. Während bereits einige Strategien zur Batteriesteuerung vorgeschlagen wurden, bleibt die Frage nach einer optimalen, adaptiven Gebotsstrategie, die die spezifischen Eigenschaften und Möglichkeiten der verschiedenen Märkte berücksichtigt, weitgehend unbeantwortet. So untersuchen Han et al. \cite{han_deep-learning-_2021} den Ansatz von RL in Kombination mit einem Energiespeicher im Kontext des Day-Ahead-Marktes. Nitsch et al. Der Artikel stellt einen neuartigen Ansatz zur Lösung des Kapazitätsplanungsproblems von Batteriespeichersystemen vor, indem er auf Reinforcement Learning basiert und den Proximal Policy Optimization Algorithmus verwendet. Der vorgeschlagene Ansatz kann den Aktionsraum problemlos bewältigen, die Betriebsbeschränkungen der Batterie einhalten und weist eine hohe Konvergenzleistung auf.
+\cite{nitsch_economic_2021} betrachtet eine Implementierung von Abitrage Handel mittels AMIRIS \cite{schimeczek_amiris_2023} und lineares Optimierungsmodelle sowohl am Day-Ahead-Markt als auch in der Primärregelleistung. Der Artikel stellt einen neuen Ansatz vor, um den Markt für automatische Frequenzwiederherstellungsreserven parallel zum Day-Ahead-Markt zu simulieren. Die Berechnung der Gebote basiert auf den Opportunitätskosten der Marktteilnehmer. Das Modell wurde für Deutschland im Jahr 2019 getestet und zeigte eine gute Übereinstimmung. Die Ergebnisse zeigen, dass die Fähigkeit, kurzfristig Strom zur Verfügung zu stellen, zu höheren Erlösen führt und dass Hochleistungsbatteriespeichersysteme in den gegebenen Szenarien die besten Ergebnisse erzielen.
+Auch Dong et al. \cite{dong_strategic_2021} zeigen, dass es möglich ist, mittels RL und Batterien eine gewinnbringende Strategie am Day-Ahead-Markt zu finden. In dieser Arbeit wird ein neuartiges Markov-basiertes Auktionsmodell vorgestellt, das die optimale Auktionsstrategie für ein Batteriespeichersystem (BESS) auf dem Day-Ahead-Energiemarkt und dem Regelenergiemarkt bestimmt. Durch die Anwendung des auf Funktionsapproximation basierenden Reinforcement Learning (FARL) wird das Problem des Bietens mit mehreren Konkurrenten effizient gelöst. Die vorgeschlagene Bietstrategie des BESS-Eigentümers berücksichtigt den Energiemarkt und den Regulierungsmarkt und zeigt Flexibilität gegenüber unsicheren Bietsituationen. Der FARL-Algorithmus erzielt den höchsten Umsatz und eine signifikante Verbesserung im Vergleich zu anderen Methoden.
+Wang et al \cite{wang_energy_2018} diskutiert in ihrem Artikel eine Arbitrage-Politik für den Betrieb von Energiespeichern in Echtzeit-Märkten mit Reinforcement Learning. Durch die Verwendung einer Belohnungsfunktion, die historische Informationen einbezieht, erzielt der vorgeschlagene Algorithmus einen signifikanten Gewinnanstieg im Vergleich zu bestehenden Verfahren. Zukünftige Arbeiten sollen die Berücksichtigung von Batteriedegradation und Selbstentladung untersuchen.
+So gibt es bereits Ansätze, die zeigen, dass Batterien sinnvoll Abitrage Handel betreiben können. Der Fokus lag bisher allerdings immer auf einem der Märkte, es wurde noch nicht untersucht, wie es sich verhält, wenn die Marktwahl bereist ein Parameter ist, welcher von einem RL Agenten erlernt werden kann. Bisherige Erkenntnisse können als Grund- und Ausgangslage betrachtet und um diese Option erweitert werden.
+Diese Arbeit zielt darauf ab, besagte Lücke zu füllen und einen Beitrag zur Forschung auf diesem Gebiet zu leisten.
+% -----------------------------------------------------------------------------
+%\section{Geplante Herangehensweise}
+\section{Ansatz}
+\label{approach}
+Der vorgeschlagene Ansatz für diese Studie umfasst drei zentrale Elemente: eine Batterie, zwei unterschiedliche Strommärkte und eine Gebotsstrategie. Im Fokus steht dabei die Entwicklung einer Gebotsstrategie mittels Reinforcement Learning (RL). In diesem Kontext bilden die Batterie und die Märkte die Umgebung, in der der RL-Agent agiert. Daraus folgt die Notwendigkeit einer Simulationsumgebung, die sowohl die Batterie als auch die Marktbedingungen realistisch abbildet.
+Die Batteriekomponente liefert nicht nur aktuelle Informationen über den Energiebestand, sondern auch Prognosen über zukünftige Energieverfügbarkeiten. Diese Prognosen basieren auf der geplanten Leistung des Solarparks, welche wiederum auf Wetterdaten beruht. Durch die Integration dieser Werte erhält der RL-Agent nicht nur Informationen über die aktuell zur Verfügung stehende Energie, sondern auch Einsichten in zukünftige Energieverfügbarkeiten.
+Die Marktumgebung hingegen reagiert auf die vom RL-Agenten erzeugten Angebote, indem sie diese entweder annimmt oder ablehnt. Dieses Feedback wird in Kombination mit dem erreichten Profit während des Trainings des RL-Agenten als Belohnungssignal genutzt. Der Agent erhält somit unmittelbare Rückmeldungen über die Akzeptanz seiner Gebote, was ein zentrales Element für das Lernen und die Anpassung seiner Strategie ist.
+Die Umgebung des Marktes wird mithilfe historischer Daten, vom 01.10.2018 bis 31.12.2022 (stündliche Auflösung, 37.273 Datenpunkte), erzeugt. Dieser Zeitraum ergibt sich vor allem durch die letzte Umstrukturierung der Regelenergiemärkte \cite{noauthor_bundesnetzagentur_nodate}. 
+Innerhalb dieses Zeitraums stehen Daten für Day-Ahead-Markt, Primärregelenergie, Bedarf und die Vorhersage des Bedarfs in stündlicher Auflösung zur Verfügung. Quelle für diese Daten ist die Bundesnetzagentur mit dem Service \say{SMARD} \cite{noauthor_smard_nodate}. Für die Daten der Stromerzeugung wird eine Simulation eines Solarparks mit der Leistung 1 MW als Quelle verwendet. Dies liefert die Menge an erzeugtem Strom, über die die Batterie, zusätzlich zu der im Abitraghandel gekauften Energiemengen, geladen werden kann. Auch diese Daten liegen in stündlicher Auflösung vor. Als Simulationssoftware für die Erzeugung des Solarparks wird \say{energyPRO} von EMD International \footnote{\url{https://www.emd-international.com/energypro/}} verwendet.
+Zusammengefasst besteht der vorgeschlagene Ansatz aus der Entwicklung und Implementierung einer RL-basierten Gebotsstrategie, die in einer simulierten Umgebung, bestehend aus einer Batterie und mehreren Strommärkten, agiert. Durch den Einsatz von RL soll die Strategie in der Lage sein, sich an die Bedingungen der Umgebung anzupassen und adäquate Entscheidungen hinsichtlich der Gebote zu treffen, basierend auf aktuellen und zukünftigen Informationen über die Energieverfügbarkeit und Marktbedingungen.
+\newpage
+% -----------------------------------------------------------------------------
+\section{Vorläufige Gliederung}
+
+\label{structure}
+
+\begin{enumerate}
+	\item Einleitung (2)
+	\begin{enumerate}
+		\item Motivation
+          \item Ziel
+		\item Aufbau
+	\end{enumerate}
+ \item Grundlagen (4)
+ \begin{enumerate}
+     \item Reinforcement Learning
+     \item Day-Ahead-Markt
+     \item Regelenergie
+ \end{enumerate}
+ \item Strommarkt (7)
+ \begin{enumerate}
+     \item Strommarkt und erneuerbare Energien
+     \item Wirtschaftlichkeit der Energiespeicherung
+     \item Anwendungen von Energiespeicherung
+     \item Kosten der Integration von Solarenergie
+     \item Begrenzende Faktoren für die Integration von Solarenergie
+ \end{enumerate}
+ \item Daten (3)
+ \begin{enumerate}
+     \item Datenbeschaffung
+     \item Datenaufbereitung
+     \item Herausforderungen
+ \end{enumerate}
+ \item Implementierung
+ \begin{enumerate}
+     \item Arten von RL
+     \item Modellfreies RL
+     \item Aufbau des RL Agenten
+     \item Umgebung
+ \end{enumerate}
+ \item Ergebnisse (5)
+\item Diskussion der Ergebnisse (3)
+\item Ausblick (1)
+\item Fazit (2)
+\end{enumerate}
+\newpage
+% -----------------------------------------------------------------------------
+\section {Zeit- und Arbeitsplan}
+
+
+\label{schedule}
+	\centering
+	\def\pgfcalendarmonthshortgerman#1{%
+		\ifcase#1 Dez\or Jan\or Feb\or Mär\or Apr\or Mai\or Jun\or Jul\or Aug\or Sept\or Okt\or Nov\or Dez\fi%
+	}
+
+	\begin{ganttchart}[
+		title/.append style={fill=black!10},
+		x unit=1.8pt,
+		time slot format=isodate,
+		milestone/.append style={ultra thick}
+		]{2023-06-15}{2023-12-31}
+		\iflanguage{ngerman}
+			{\gantttitlecalendar{year, month=shortgerman}}
+			{\gantttitlecalendar{year, month=shortname}}
+		\\
+        \ganttmilestone{Anmeldung der Arbeit}{2023-06-15}\\
+		\ganttbar{Literaturrecherche}{2023-06-15}{2023-07-20}\\
+		\ganttbar{Konzipierung des Systems}{2023-07-15}{2023-08-15}\\
+		\ganttbar{Entwicklungsarbeit}{2023-07-15}{2023-11-15}\\
+        \ganttbar{Auswertung}{2023-11-15}{2023-12-01}\\
+		\ganttbar{Proofreading}{2023-11-01}{2023-12-14}\\
+
+		\ganttmilestone{Submission}{2023-12-14}\\
+		\ganttmilestone{Presentation}{2023-12-28}\\
+	\end{ganttchart}
+
+\begin{itemize}
+	\item 15.06.2023: Anmeldung der Arbeit
+	\item 15.06.2023: Literaturrecherche
+	\item 15.07.2023: Konzipierung des Systems
+	\item 15.07.2023: Entwicklungsarbeit
+    \item 07.09.2023 Zwischenpräsentation
+	\item 15.11.2023: Auswertung
+    \item 20.11.2023: Proofreading
+	\item 14.12.2024: Abgabe
+    \item 28.12.2024: Präsentation
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+%               Literaturliste
+% -----------------------------------------------------------------------------
+\newpage
+\bibliographystyle{bmc-des} % Style BST file (bmc-mathphys)
+%\bibliographystyle{alpha}
+%\bibliographystyle{abbrvdin}
+\newpage
+\newpage
+
+\addcontentsline{toc}{chapter}{Literatur}
+\bibliography{references}
+\end{document}
