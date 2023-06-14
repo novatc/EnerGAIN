@@ -62,5 +62,39 @@ scaled_data = scaler.fit_transform(solar_power)
 #
 dataset = pd.DataFrame(scaled_data, columns=solar_power.columns, index=solar_power.index)
 
+env_data = dataset[['price', 'consumption', 'prediction', 'Einstrahlung auf die Horizontale (kWh/m²)',
+                    'Diffusstrahlung auf die Horizontale (kWh/m²)']].copy()
+
+# save the number of the day of the week in a new column
+env_data['day_of_week'] = env_data.index.dayofweek
+# save the number of the month in a new column
+env_data['month'] = env_data.index.month
+# save the number of the hour in a new column
+env_data['hour'] = env_data.index.hour
+
+# Apply cyclical encoding using sine and cosine transformations
+env_data['hour_sin'] = np.sin(2 * np.pi * env_data['hour'] / 24)
+env_data['hour_cos'] = np.cos(2 * np.pi * env_data['hour'] / 24)
+
+env_data['day_of_week_sin'] = np.sin(2 * np.pi * env_data['day_of_week'] / 7)
+env_data['day_of_week_cos'] = np.cos(2 * np.pi * env_data['day_of_week'] / 7)
+
+env_data['month_sin'] = np.sin(2 * np.pi * env_data['month'] / 12)
+env_data['month_cos'] = np.cos(2 * np.pi * env_data['month'] / 12)
+
+# Drop the original 'day_of_week' column if no longer needed
+env_data.drop('day_of_week', axis=1, inplace=True)
+
+# Drop the original 'month' column if no longer needed
+env_data.drop('month', axis=1, inplace=True)
+
+# Drop the original 'hour' column if no longer needed
+env_data.drop('hour', axis=1, inplace=True)
+
+# set the price column as the index
+env_data = env_data.set_index('price')
+
+
+env_data.to_csv('data/clean/env_data.csv')
 # save the dataframe to a csv file
 solar_power.to_csv('data/clean/dataset_01102018_01012023.csv')
