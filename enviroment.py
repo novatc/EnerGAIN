@@ -25,15 +25,9 @@ class EnergyMarketEnv(gym.Env):
         self.charge_percentages = [50]  # History of charge percentages
 
         # Load the dataset
-        self.df = pd.read_csv('data/clean/dataset_01102018_01012023.csv')
-        self.df['date'] = pd.to_datetime(self.df['date']).apply(lambda x: x.timestamp())
-        # only keep the date and the price
-        self.df = self.df[['date', 'price', 'consumption', 'prediction', 'Einstrahlung auf die Horizontale (kWh/m²)',
-                           'Diffusstrahlung auf die Horizontale (kWh/m²)']]
-        # normalize everything except the date
-        self.df.iloc[:, 1:] = (self.df.iloc[:, 1:] - self.df.iloc[:, 1:].mean()) / self.df.iloc[:, 1:].std()
+        self.df = pd.read_csv('data/clean/env_data.csv')
 
-        self.max_steps = len(self.df)
+        self.max_steps = 37272
         self.market = Market(self.df)
 
         # Define action and observation space
@@ -58,36 +52,39 @@ class EnergyMarketEnv(gym.Env):
         # Initialize the reward to 0
         reward = 0
 
-        # Implement the logic of the environment
-        # How the state is updated depends on the action taken
         # Here, we implement the logic of buying, selling or doing nothing
         if charge_discharge == 0:  # buy
-            if amount <= 10:
-                reward = -100
             if price > self.current_savings or amount > self.max_battery_charge - self.current_charge:
                 reward = -100
+                return self.get_observation().astype(np.float32), reward, False, {}
+
             elif self.market.accept_offer(price, 'buy'):
-                self.log_trade(price, amount, 'buy', self.current_step)
                 self.buy_sell_history.append(-1)
                 if self.current_savings - price < 0:  # Check if the agent would lose too many savings
                     reward = -100  # Hard penalty
                 else:
                     self.current_savings -= price * amount
                     self.current_charge += amount
-                    reward = price * amount  # Reward based on the profit
+                    reward = (price * amount) + 10  # Reward based on the profit
+                    self.log_trade(price, amount, 'buy', self.current_step, reward)
 
         elif charge_discharge == 1:
-            if amount <= 0:
+            if amount <= 0 or price < 0:
                 reward = -100
+                return self.get_observation().astype(np.float32), reward, False, {}
+
             # sell
             if self.current_charge - amount < 0:  # check if the battery can be discharged
                 reward = -100
+                return self.get_observation().astype(np.float32), reward, False, {}
+
             elif self.market.accept_offer(price, 'sell'):
-                self.log_trade(price, amount, 'sell', self.current_step)
                 self.buy_sell_history.append(1)
                 self.current_savings += price * amount
                 self.current_charge -= amount
-                reward = price * amount  # Reward based on the profit
+                reward = (price * amount) + 10  # Reward based on the profit
+                self.log_trade(price, amount, 'sell', self.current_step, reward)
+
 
         elif charge_discharge == 2:  # do nothing
             reward = 0  # No reward for doing nothing
@@ -98,12 +95,11 @@ class EnergyMarketEnv(gym.Env):
         self.savings_history.append(self.current_savings)
         self.calculate_charge_percentage()
 
-        done = self.current_step > self.max_steps
+        done = self.current_step >= self.max_steps -1
         if done:
-            self.reset()
-        if self.current_charge == 0 and self.current_savings == 0:
-            reward = -1000
-            self.reset()
+            print("Episode finished after {} timesteps".format(self.current_step + 1))
+            self.render()
+
 
         observation = self.get_observation()
         return observation.astype(np.float32), reward, done, {}
@@ -116,7 +112,7 @@ class EnergyMarketEnv(gym.Env):
         # Reset the state of the environment to an initial state
         self.current_step = 0
         self.current_charge = 500
-        self.current_savings = 0
+        self.current_savings = 50
         self.reward_history = [0]
         self.savings_history = [0]
         self.battery_charge_history = [50]
@@ -132,7 +128,7 @@ class EnergyMarketEnv(gym.Env):
         fig, axs = plt.subplots(3)
 
         # Plot the battery charge level in the second subplot
-        axs[0].plot(self.battery_charge_history[:self.current_step])
+        axs[0].plot(self.battery_charge_history)
         axs[0].set_xlabel('Time step')
         axs[0].set_ylabel('Battery Charge Level')
         axs[0].set_title('Battery Charge Level Over Time')
@@ -147,12 +143,10 @@ class EnergyMarketEnv(gym.Env):
         axs[1].set_ylabel('Average Reward')
         axs[1].set_title('Average Reward Over Time')
 
-
-
-        # Plot the buy/sell history in the third subplot as a barl plot starting from 0 and positive for buying and
-        # negative for selling also use color green for buying and red for selling
+        # Plot the buy/sell history in the third subplot as a barl plot starting from 0 and negative for buying and
+        # positive for selling also use color green for buying and red for selling
         axs[2].bar(range(len(self.buy_sell_history)), self.buy_sell_history,
-                   color=['red' if x < 0 else 'green' for x in self.buy_sell_history])
+                   color=['green' if x < 0 else 'red' for x in self.buy_sell_history])
         axs[2].set_xlabel('Time step')
         axs[2].set_ylabel('Buy/Sell')
         axs[2].set_title('Buy/Sell Over Time')
@@ -184,78 +178,9 @@ class EnergyMarketEnv(gym.Env):
     def calculate_charge_percentage(self):
         self.charge_percentages.append(self.current_charge / self.max_battery_charge * 100)
 
-    def log_trade(self, price, amount, trade_type, date):
-        self.trade_log.append([price, amount, trade_type, date, self.market.get_current_price()])
+    def log_trade(self, price, amount, trade_type, date, reward):
+        self.trade_log.append([price, amount, trade_type, date, self.market.get_current_price(), reward])
+
     def get_trade_log(self):
         # return the trade log as a pandas dataframe
-        return pd.DataFrame(self.trade_log, columns=['price', 'amount', 'trade_type', 'date', 'market_price'])
-
-    def extra_reward_step(self, action):
-
-        # Execute one time step within the environment
-        self.current_step += 1
-        self.market.step()
-
-        if self.current_step >= len(self.df):
-            # If it does, reset the current step to 0
-            self.current_step = 0
-
-        # Extract the components of the action
-        price = action[0]
-        charge_discharge = action[1]
-        amount = action[2]
-
-        # Initialize the reward to 0
-        reward = 0
-
-        # Here, we implement the logic of buying, selling or doing nothing
-        if charge_discharge == 0:  # buy
-            if price > self.current_savings or amount > self.max_battery_charge - self.current_charge:
-                reward = -10
-            elif self.market.accept_offer(price):
-                self.buy_sell_history.append(-1)
-                if self.current_savings - price < 0:  # Check if the agent would lose too much savings
-                    reward = -20  # Hard penalty
-                else:
-                    self.current_savings -= price
-                    self.current_charge += amount
-                    # Less reward for buying when battery is charged
-                    reward = price * amount * (1 - self.current_charge / self.max_battery_charge)
-                    if amount > 0.5 * self.max_battery_charge:  # Bonus for large amounts
-                        reward += 10
-                        # Penalty for buying when battery is highly charged
-                    if self.current_charge > 0.9 * self.max_battery_charge:
-                        reward -= 10
-                    if self.current_charge < 0.1 * self.max_battery_charge:  # Bonus for buying when battery is low
-                        reward += 10
-
-        elif charge_discharge == 1:  # sell
-            if self.current_charge - amount < 0:  # check if the battery can be discharged
-                reward = -10
-            elif self.market.accept_offer(price):
-                self.buy_sell_history.append(1)
-                self.current_savings += price
-                self.current_charge -= amount
-                # More reward for selling when battery is charged
-                reward = price * amount * (self.current_charge / self.max_battery_charge)
-                if amount > 0.5 * self.max_battery_charge:  # Bonus for large amounts
-                    reward += 10
-                    # Bonus for selling when battery is highly charged
-                if self.current_charge > 0.9 * self.max_battery_charge:
-                    reward += 10
-                if self.current_charge < 0.1 * self.max_battery_charge:  # Penalty for selling when battery is low
-                    reward -= 10
-
-        elif charge_discharge == 2:  # do nothing
-            reward = 0  # No reward for doing nothing
-
-        # Append the current charge level to the history
-        self.battery_charge_history.append(self.current_charge)
-        self.reward_history.append(reward)
-        self.savings_history.append(self.current_savings)
-        self.calculate_charge_percentage()
-
-        done = self.current_step > self.max_steps
-
-        observation = self.get_observation()
-        return observation.astype(np.float32), reward, done, {}
+        return pd.DataFrame(self.trade_log, columns=['price', 'amount', 'trade_type', 'date', 'market_price', 'reward'])

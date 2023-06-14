@@ -9,11 +9,33 @@ check_env(env, warn=True)
 # Create the agent
 
 model = PPO("MlpPolicy", env, verbose=0)
-model.learn(total_timesteps=1_000_00, progress_bar=True)
+model.learn(total_timesteps=74_544)
 # print the sum of env.price_history
 env.render()
 trades = env.get_trade_log()
-print(trades)
+trades.to_csv('trades.csv')
+
+# plot the trades dataframe with the columns: price', 'amount', 'trade_type', 'date', 'market_price', 'reward
+trades.plot(x='date', y='price', kind='scatter')
+trades.plot(x='date', y='amount', kind='scatter')
+trades.plot(x='date', y='reward', kind='scatter')
+trades.plot(x='date', y='market_price', kind='scatter')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Test the trained agent
 obs = env.reset()
