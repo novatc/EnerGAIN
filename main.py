@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 from stable_baselines3 import PPO
 from enviroment import EnergyMarketEnv
 from stable_baselines3.common.env_checker import check_env
@@ -9,17 +10,14 @@ check_env(env, warn=True)
 # Create the agent
 
 model = PPO("MlpPolicy", env, verbose=0)
-model.learn(total_timesteps=74_544)
+model.learn(total_timesteps=50_000)
 # print the sum of env.price_history
 env.render()
 trades = env.get_trade_log()
 trades.to_csv('trades.csv')
 
-# plot the trades dataframe with the columns: price', 'amount', 'trade_type', 'date', 'market_price', 'reward
-trades.plot(x='date', y='price', kind='scatter')
-trades.plot(x='date', y='amount', kind='scatter')
-trades.plot(x='date', y='reward', kind='scatter')
-trades.plot(x='date', y='market_price', kind='scatter')
+
+
 
 
 

@@ -56,10 +56,10 @@ solar_power = solar_power.set_index('date')
 # make the index a datetime object
 solar_power.index = pd.to_datetime(solar_power.index)
 
-# scale the data
-scaler = MinMaxScaler()
+# scale the data between -1 and 1
+scaler = MinMaxScaler(feature_range=(-1, 1))
 scaled_data = scaler.fit_transform(solar_power)
-#
+
 dataset = pd.DataFrame(scaled_data, columns=solar_power.columns, index=solar_power.index)
 
 env_data = dataset[['price', 'consumption', 'prediction', 'Einstrahlung auf die Horizontale (kWh/m²)',
@@ -94,6 +94,8 @@ env_data.drop('hour', axis=1, inplace=True)
 # set the price column as the index
 env_data = env_data.set_index('price')
 
+# randomly shuffle the data
+env_data = env_data.sample(frac=1)
 
 env_data.to_csv('data/clean/env_data.csv')
 # save the dataframe to a csv file
