@@ -8,7 +8,7 @@ from market import Market
 
 
 class EnergyMarketEnv(gym.Env):
-    def __init__(self):
+    def __init__(self, dataset):
         super(EnergyMarketEnv, self).__init__()
 
         # Initialize state
@@ -20,7 +20,7 @@ class EnergyMarketEnv(gym.Env):
         self.reward_history = []  # History of rewards
 
         # Load the dataset
-        self.df = pd.read_csv('data/clean/env_data.csv')
+        self.df = pd.read_csv(dataset)
 
         self.max_steps = 37272
         self.market = Market(self.df)

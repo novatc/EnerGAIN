@@ -94,6 +94,10 @@ env_data.drop('hour', axis=1, inplace=True)
 # set the price column as the index
 env_data = env_data.set_index('price')
 
+# cut the last 8760 rows of the dataframe and save them as the test set
+test_set = env_data.tail(8760)
+test_set.to_csv('data/clean/test_set.csv')
+
 # randomly shuffle the data
 env_data = env_data.sample(frac=1)
 
