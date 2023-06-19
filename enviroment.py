@@ -1,5 +1,4 @@
 import gym
-from gym import spaces
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
@@ -8,28 +7,28 @@ from market import Market
 
 
 class EnergyMarketEnv(gym.Env):
-    def __init__(self, dataset):
+    def __init__(self):
         super(EnergyMarketEnv, self).__init__()
 
         # Initialize state
         self.trade_log = []
         self.current_step = 0
-        self.current_savings = 50  # Current profit in €
-        self.current_charge = 500  # Current battery charge
+        self.current_savings = 0.5  # Current profit in €
+        self.current_charge = 0.5  # Current battery charge
         self.max_battery_charge = 1000  # kWh
         self.reward_history = []  # History of rewards
 
         # Load the dataset
-        self.df = pd.read_csv(dataset)
+        self.df = pd.read_csv("data/clean/env_data.csv")
 
         self.max_steps = 37272
         self.market = Market(self.df)
 
-        # Define action and observation space
-        self.action_space = spaces.Box(low=np.array([-1, -1]), high=np.array([1, 1]), dtype=np.float32)
+        # Define action with two continuous variables
+        self.action_space = gym.spaces.box.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
 
         # assuming the original shape of df is (n, m)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(self.df.shape[1] + 2,))
+        self.observation_space = gym.spaces.box.Box(low=-1, high=1, shape=(self.df.shape[1] + 2,))
 
     def step(self, action):
         # Execute one time step within the environment
@@ -92,13 +91,13 @@ class EnergyMarketEnv(gym.Env):
     def reset(self):
         # Reset the state of the environment to an initial state
         self.current_step = 0
-        self.current_charge = 500
-        self.current_savings = 50
+        self.current_charge = 0.5
+        self.current_savings = 0.5
         self.reward_history = [0]
 
         # Return the initial observation
         initial_observation = self.get_observation()
-        return initial_observation.astype(np.float32)
+        return initial_observation.astype(np.float32), {}  # return a tuple with observation and an empty dictionary
 
     def render(self, mode='human'):
         # calculate the average reward over 100 steps and plot it
