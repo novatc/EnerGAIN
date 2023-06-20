@@ -10,7 +10,7 @@ from market import Market
 class EnergyEnv(gym.Env):
     def __init__(self):
         super(EnergyEnv, self).__init__()
-        self.dataframe = pd.read_csv("../data/clean/env_data.csv")
+        self.dataframe = pd.read_csv("data/clean/env_data.csv")
         self.market = Market(self.dataframe)
         self.savings = 0.5
         self.charge = 0.5
@@ -99,6 +99,11 @@ class EnergyEnv(gym.Env):
         return self.get_observation().astype(np.float32), {}
 
     def render(self, mode='human'):
+        """
+
+        :param mode:
+        :return:
+        """
         # calculate the average reward over 100 steps and plot it
         avg_rewards = []
         scaler = 100
