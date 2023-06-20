@@ -1,21 +1,22 @@
-import gym
-from gym.utils.env_checker import check_env
+from stable_baselines3.common.env_checker import check_env
+from gymnasium import register
+from gymnasium import make
 from stable_baselines3 import PPO
-from gym import register
+from stable_baselines3.common.monitor import Monitor
 
+from energy_RL.env import EnergyEnv
 
-# Register the environment
 register(
-    id='EnergyMarketEnv-v0',
-    entry_point='enviroment:EnergyMarketEnv',
-    max_episode_steps=37272,
+    id='energy-v0',
+    entry_point='energy_RL.env:EnergyEnv',
+    max_episode_steps=1000,
 )
 
-energy = gym.make('EnergyMarketEnv-v0')
-check_env(energy, warn=True)
+env = make('energy-v0')
+env = Monitor(env, filename="logging/", allow_early_resets=True)
+check_env(env)
 
-print("Observation Space: ", energy.observation_space)
-print("Action Space: ", energy.action_space)
-
-# model = PPO("MlpPolicy", energy, verbose=0)
-# model.learn(total_timesteps=100_000)
+model = PPO("MlpPolicy", env, verbose=0)
+model.learn(total_timesteps=5_000)
+model.save("ppo_energy")
+env.render()
