@@ -42,7 +42,7 @@ class EnergyEnv(gym.Env):
                 return self.get_observation().astype(np.float32), reward, done, truncated, info
 
             if self.market.accept_offer(price, 'buy'):
-                print("Buying with price: ", price, " and amount: ", amount)
+                # print("Buying with price: ", price, " and amount: ", amount)
                 self.charge += abs(amount)
                 self.savings -= price
                 reward = abs(float(self.market.get_current_price()) * amount)
@@ -60,7 +60,7 @@ class EnergyEnv(gym.Env):
                 return self.get_observation().astype(np.float32), reward, done, truncated, info
 
             if self.market.accept_offer(price, 'sell'):
-                print("Selling with price: ", price, " and amount: ", amount)
+                # print("Selling with price: ", price, " and amount: ", amount)
                 self.savings += price
                 self.charge -= abs(amount)
                 reward = abs(float(self.market.get_current_price()) * amount)
@@ -72,7 +72,6 @@ class EnergyEnv(gym.Env):
                 return self.get_observation().astype(np.float32), reward, done, truncated, info
 
         else:  # if amount is 0
-            print("hold")
             reward = 0
             self.rewards.append(reward)
             return self.get_observation().astype(np.float32), reward, done, truncated, info
@@ -100,8 +99,13 @@ class EnergyEnv(gym.Env):
         return self.get_observation().astype(np.float32), {}
 
     def render(self, mode='human'):
-        plt.plot(self.rewards)
-        plt.xlabel('Steps')
-        plt.ylabel('Reward')
-        plt.title('Reward over time')
+        # calculate the average reward over 100 steps and plot it
+        avg_rewards = []
+        scaler = 100
+        for i in range(0, len(self.rewards), scaler):
+            avg_rewards.append(sum(self.rewards[i:i+scaler])/scaler)
+        plt.plot(avg_rewards)
+        plt.ylabel('Average Reward')
+        plt.xlabel('Number of Episodes')
         plt.show()
+

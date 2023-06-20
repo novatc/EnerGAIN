@@ -1,21 +1,24 @@
 from stable_baselines3.common.env_checker import check_env
+from gymnasium import register
+from gymnasium import make
+from stable_baselines3 import PPO
 
 from energy_RL.env import EnergyEnv
 
-env = EnergyEnv()
-check_env(env, warn=True)
+register(
+    id='energy-v0',
+    entry_point='energy_RL.env:EnergyEnv',
+    max_episode_steps=1000,
+)
 
-obs = env.reset()
+env = make('energy-v0')
+check_env(env)
 
-print(env.observation_space)
-print(env.action_space)
-print(env.action_space.sample())
-
-n_steps = 20
-for step in range(n_steps):
-    obs, reward, done, truncated, info = env.step(env.action_space.sample())
-
+model = PPO("MlpPolicy", env, verbose=0)
+model.learn(total_timesteps=500_000)
+model.save("ppo_energy")
 env.render()
+
 
 
 
