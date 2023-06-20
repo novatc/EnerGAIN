@@ -8,9 +8,9 @@ from market import Market
 
 
 class EnergyEnv(gym.Env):
-    def __init__(self):
+    def __init__(self, data_path):
         super(EnergyEnv, self).__init__()
-        self.dataframe = pd.read_csv("data/clean/env_data.csv")
+        self.dataframe = pd.read_csv(data_path)
         self.market = Market(self.dataframe)
         self.savings = 0.5
         self.charge = 0.5
@@ -18,6 +18,8 @@ class EnergyEnv(gym.Env):
         self.current_step = 0
         self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-1, high=1, shape=(self.dataframe.shape[1] + 2,))
+        self.latest_price_buy = 0
+        self.latest_price_sell = 0
 
         self.rewards = []
 
@@ -45,6 +47,7 @@ class EnergyEnv(gym.Env):
                 # print("Buying with price: ", price, " and amount: ", amount)
                 self.charge += abs(amount)
                 self.savings -= price
+                self.latest_price_buy = price
                 reward = abs(float(self.market.get_current_price()) * amount)
                 self.rewards.append(reward)
                 return self.get_observation().astype(np.float32), reward, done, truncated, info
@@ -63,6 +66,7 @@ class EnergyEnv(gym.Env):
                 # print("Selling with price: ", price, " and amount: ", amount)
                 self.savings += price
                 self.charge -= abs(amount)
+                self.latest_price_sell = price
                 reward = abs(float(self.market.get_current_price()) * amount)
                 self.rewards.append(reward)
                 return self.get_observation().astype(np.float32), reward, done, truncated, info
