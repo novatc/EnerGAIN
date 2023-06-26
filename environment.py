@@ -88,8 +88,8 @@ class EnergyEnv(gym.Env):
         return self.get_observation().astype(np.float32), reward, done, truncated, info
 
     def get_observation(self):
-        # Return the current state of the environment
-        return np.concatenate([self.dataframe.iloc[self.current_step].values, [self.savings], [self.charge]])
+        # Return the current state of the environment as a numpy array
+        return np.concatenate((self.dataframe.iloc[self.current_step].to_numpy(), [self.savings, self.charge]))
 
     def reset(self, seed=None, options=None):
         """

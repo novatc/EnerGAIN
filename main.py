@@ -43,29 +43,10 @@ env = make('energy-v0')
 env = Monitor(env, filename="logging/", allow_early_resets=True)
 check_env(env)
 
-model = PPO("MlpPolicy", env, verbose=0, tensorboard_log="logging/", learning_rate=linear_schedule(0.001))
-model.learn(total_timesteps=500_000)
-model.save("agents/ppo_energy")
+model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="logging/", learning_rate=linear_schedule(0.001),
+            device="mps")
+model.learn(total_timesteps=1_000_000)
+model.save("agents/ppo_energy_testing")
 env.render()
 
-# Testing phase
 
-register(
-    id='energy_test-v1',
-    entry_point='environment:EnergyEnv',
-    kwargs={'data_path': "data/clean/test_set.csv"}
-)
-num_test_episodes = 100
-total_rewards = []
-test_env = make('energy_test-v1')
-for _ in range(num_test_episodes):
-    obs = test_env.reset()
-    done = False
-    episode_reward = 0
-    while not done:
-        action, _ = model.predict(obs, deterministic=True)
-        obs, reward, done, truncated, info = test_env.step(action)
-        episode_reward += reward
-        total_rewards.append(episode_reward)
-
-print(f"Mean reward over {num_test_episodes} episodes: {np.mean(total_rewards)}")
