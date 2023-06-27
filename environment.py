@@ -21,6 +21,8 @@ class EnergyEnv(gym.Env):
         self.latest_price_buy = 0
         self.latest_price_sell = 0
 
+        self.trade_log = []
+
         self.rewards = []
 
     def step(self, action):
@@ -50,6 +52,7 @@ class EnergyEnv(gym.Env):
                 self.latest_price_buy = price
                 reward = abs(float(self.market.get_current_price()) * amount)
                 self.rewards.append(reward)
+                self.trade_log.append([self.current_step, self.market.get_current_price(), amount, 'buy'])
                 return self.get_observation().astype(np.float32), reward, done, truncated, info
             else:
                 reward = -1  # adjust this as needed for your specific case
@@ -60,6 +63,7 @@ class EnergyEnv(gym.Env):
             if amount < -self.charge or price <= 0:  # Check if the agent has enough energy to sell
                 reward = -1
                 self.rewards.append(reward)
+                self.trade_log.append([self.current_step, self.market.get_current_price(), amount, 'sell'])
                 return self.get_observation().astype(np.float32), reward, done, truncated, info
 
             if self.market.accept_offer(price, 'sell'):
@@ -112,9 +116,11 @@ class EnergyEnv(gym.Env):
         avg_rewards = []
         scaler = 100
         for i in range(0, len(self.rewards), scaler):
-            avg_rewards.append(sum(self.rewards[i:i+scaler])/scaler)
+            avg_rewards.append(sum(self.rewards[i:i + scaler]) / scaler)
         plt.plot(avg_rewards)
         plt.ylabel('Average Reward')
         plt.xlabel('Number of Episodes')
         plt.show()
 
+    def get_trades(self):
+        return self.trade_log

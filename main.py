@@ -9,6 +9,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import ProgressBarCallback
 
 from callbacks.tensorboard_callback import LoggingCallback
+from custom_wrappers import NormalizeObservation
 
 
 def linear_schedule(initial_value: float) -> Callable[[float], float]:
@@ -41,12 +42,11 @@ register(
 
 env = make('energy-v0')
 env = Monitor(env, filename="logging/", allow_early_resets=True)
+env = NormalizeObservation(env, max_savings=1, max_charge=1)
 check_env(env)
 
-model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="logging/", learning_rate=linear_schedule(0.001),
-            device="mps")
-model.learn(total_timesteps=1_000_000)
+model = PPO("MlpPolicy", env, verbose=0, tensorboard_log="logging/",
+            device="auto")
+model.learn(total_timesteps=2_000)
 model.save("agents/ppo_energy_testing")
 env.render()
-
-
