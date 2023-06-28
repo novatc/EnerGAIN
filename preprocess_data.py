@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
+import joblib  # for saving the scaler objects
 
 from sklearn.preprocessing import MinMaxScaler
 
@@ -56,6 +57,22 @@ solar_power = solar_power.set_index('date')
 # make the index a datetime object
 solar_power.index = pd.to_datetime(solar_power.index)
 
+# get price and amount separately
+price_values = solar_power['price'].values.reshape(-1, 1)
+amount_values = solar_power['consumption'].values.reshape(-1, 1)
+
+# Create separate scaler objects for 'price' and 'amount'
+price_scaler = MinMaxScaler(feature_range=(-1, 1))
+amount_scaler = MinMaxScaler(feature_range=(-1, 1))
+
+# Fit the scalers to the 'price' and 'amount' data and transform the data
+scaled_price_values = price_scaler.fit_transform(price_values)
+scaled_amount_values = amount_scaler.fit_transform(amount_values)
+
+# Save the scaler objects for later use
+joblib.dump(price_scaler, 'price_scaler.pkl')
+joblib.dump(amount_scaler, 'amount_scaler.pkl')
+
 # scale the data between -1 and 1
 scaler = MinMaxScaler(feature_range=(-1, 1))
 scaled_data = scaler.fit_transform(solar_power)
@@ -99,7 +116,7 @@ test_set = env_data.tail(5040)
 test_set.to_csv('data/clean/test_set.csv')
 
 # randomly shuffle the data
-env_data = env_data.sample(frac=1)
+# env_data = env_data.sample(frac=1)
 
 env_data.to_csv('data/clean/env_data.csv')
 # save the dataframe to a csv file
