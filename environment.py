@@ -12,12 +12,20 @@ class EnergyEnv(gym.Env):
         super(EnergyEnv, self).__init__()
         self.dataframe = pd.read_csv(data_path)
         self.market = Market(self.dataframe)
+
+        # this causes the error: obs >= -1.0, actual min value: -0.004628769587725401 which makes no sense
+        # since the value observed is indeed greater than -1
         self.max_obs_array = self.dataframe.max().to_numpy()
         self.max_obs_array = np.append(self.max_obs_array, [10_000, 10_000])  # max savings and max charge
         self.min_obs_array = self.dataframe.min().to_numpy()
         self.min_obs_array = np.append(self.min_obs_array, [0, 0])  # min savings and min charge
 
-        self.max_action_array = np.array([10_000, 10_000])
+        # workaround for the weird error above
+        self.max_obs_array = np.full((self.dataframe.shape[1] + 2,), np.inf)
+        self.min_obs_array = np.full((self.dataframe.shape[1] + 2,), -np.inf)
+
+
+        self.max_action_array = np.array([100, 1000])
         self.min_action_array = np.array([0, 0])
 
         self.action_space = spaces.Box(low=self.min_action_array, high=self.max_action_array, shape=(2,),
@@ -51,7 +59,11 @@ class EnergyEnv(gym.Env):
         truncated = False
         info = {}
 
-        reward = -1  # default reward
+        if price == 0:
+            reward = -10
+            return self.get_observation().astype(np.float32), reward, done, truncated, info
+
+        reward = -10  # default reward
 
         if amount > 0:  # buy
             reward = self.buy(price, amount)
@@ -66,7 +78,7 @@ class EnergyEnv(gym.Env):
     def buy(self, price, amount):
         # Check if the agent has enough money to buy
         if price > self.savings or amount > self.max_battery_charge - self.charge or amount <= 0:
-            return -1
+            return -10
 
         if self.market.accept_offer(price, 'buy'):
             self.charge += abs(amount)
@@ -74,13 +86,13 @@ class EnergyEnv(gym.Env):
             self.charge_log.append(self.charge)
             self.savings_log.append(self.savings)
             self.trade_log.append((self.current_step, self.current_step, price, amount, 'buy'))
-            return abs(float(self.market.get_current_price()) * amount)
+            return abs(float(price) * amount)*10
 
         return -1
 
     def sell(self, price, amount):
         if amount < -self.charge or price <= 0:  # Check if the agent has enough energy to sell
-            return -1
+            return -10
 
         if self.market.accept_offer(price, 'sell'):
             self.savings += price
@@ -88,9 +100,9 @@ class EnergyEnv(gym.Env):
             self.charge_log.append(self.charge)
             self.savings_log.append(self.savings)
             self.trade_log.append((self.current_step, self.current_step, price, amount, 'sell'))
-            return abs(float(self.market.get_current_price()) * amount)
+            return abs(float(price) * amount)*10
 
-        return -1  # adjust this as needed for your specific case
+        return -10  # adjust this as needed for your specific case
 
     def get_observation(self):
         # Return the current state of the environment as a numpy array

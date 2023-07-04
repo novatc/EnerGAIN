@@ -39,6 +39,7 @@ register(
     id='energy-v0',
     entry_point='environment:EnergyEnv',
     kwargs={'data_path': "data/clean/env_data.csv"}
+
 )
 
 env = make('energy-v0')
@@ -47,8 +48,8 @@ norm_obs_env = NormalizeObservation(env)
 cast_obs_env = CastObservation(norm_obs_env)
 check_env(cast_obs_env)
 
-# model = PPO("MlpPolicy", env, verbose=0, tensorboard_log="logging/",
-#             device="auto")
-# model.learn(total_timesteps=1_000_000)
-# model.save("agents/ppo_energy_testing")
-# env.render()
+model = PPO("MlpPolicy", cast_obs_env, verbose=0, tensorboard_log="logging/",
+            device="auto")
+model.learn(total_timesteps=1_000_000)
+model.save("agents/ppo_energy_testing")
+env.render()

@@ -20,4 +20,4 @@ class CastObservation(Wrapper):
 
     def step(self, action):
         observation, reward, done, truncated, info = self.env.step(action)
-        return observation.astype(np.float32), reward, done, info
+        return observation.astype(np.float32), reward, done, truncated, info

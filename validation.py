@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from stable_baselines3 import PPO
 
 try:
-    model = PPO.load("agents/ppo_energy_testing.zip")
+    model = PPO.load("agents/ppo_energy_testing")
 except Exception as e:
     print("Error loading model: ", e)
     exit()
@@ -34,11 +34,13 @@ for _ in range(num_episodes):
     while not done:
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, done, truncated, info = eval_env.step(action)
+        print("Action:", action, "Reward:", reward, "Done:", done, "Truncated:", truncated, "Info:", info)
         episode_reward += reward
     episode_rewards.append(episode_reward)
     obs, _ = eval_env.reset()
 
 trades = eval_env.get_trades()
+print("Trades:", trades)
 
 print("Total reward:", sum(episode_rewards))
 print("Total trades:", len(trades))
