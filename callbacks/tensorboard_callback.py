@@ -1,3 +1,4 @@
+import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 
 
@@ -51,6 +52,8 @@ class LoggingCallback(BaseCallback):
 
         :return: (bool) If the callback returns False, training is aborted early.
         """
+
+        self.logger.record('train/random_value', np.random.random())
         return True
 
     def _on_rollout_end(self) -> None:

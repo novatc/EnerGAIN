@@ -69,7 +69,7 @@ class EnergyEnv(gym.Env):
             reward = self.buy(price, amount)
         elif amount < 0:  # sell
             reward = self.sell(price, amount)
-        else:  # if amount is 0
+        if amount == 0 and price == 0:
             reward = 0
 
         self.rewards.append(reward)
@@ -77,7 +77,7 @@ class EnergyEnv(gym.Env):
 
     def buy(self, price, amount):
         # Check if the agent has enough money to buy
-        if price > self.savings or amount > self.max_battery_charge - self.charge or amount <= 0:
+        if price > self.savings or amount > self.max_battery_charge - self.charge or amount == 0:
             return -10
 
         if self.market.accept_offer(price, 'buy'):
@@ -91,7 +91,7 @@ class EnergyEnv(gym.Env):
         return -1
 
     def sell(self, price, amount):
-        if amount < -self.charge or price <= 0:  # Check if the agent has enough energy to sell
+        if amount < -self.charge or price <= 0 or amount == 0:  # Check if the agent has enough energy to sell
             return -10
 
         if self.market.accept_offer(price, 'sell'):

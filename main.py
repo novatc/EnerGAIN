@@ -9,6 +9,7 @@ from gymnasium.wrappers import NormalizeObservation
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 
+from callbacks.tensorboard_callback import LoggingCallback
 from cutsom_wrappers.cast_wrapper import CastObservation
 
 os.makedirs('logging', exist_ok=True)
@@ -50,6 +51,6 @@ check_env(cast_obs_env)
 
 model = PPO("MlpPolicy", cast_obs_env, verbose=0, tensorboard_log="logging/",
             device="auto")
-model.learn(total_timesteps=1_000_000)
+model.learn(total_timesteps=10_000, callback=LoggingCallback())
 model.save("agents/ppo_energy_testing")
 env.render()
