@@ -48,7 +48,7 @@ energy_consumption_series = energy_consumption_series.reset_index(drop=True)
 solar_power['date'] = date_column
 solar_power = solar_power.reset_index(drop=True)
 solar_power['prediction'] = energy_prediction_series
-solar_power['price'] = energy_price_series
+solar_power['price'] = energy_price_series / 1000  # convert to €/kWh
 solar_power['consumption'] = energy_consumption_series
 
 # make the date column the index
@@ -77,7 +77,7 @@ joblib.dump(amount_scaler, 'amount_scaler.pkl')
 scaler = MinMaxScaler(feature_range=(-1, 1))
 scaled_data = scaler.fit_transform(solar_power)
 
-dataset = pd.DataFrame(scaled_data, columns=solar_power.columns, index=solar_power.index)
+dataset = pd.DataFrame(solar_power, columns=solar_power.columns, index=solar_power.index)
 
 env_data = dataset[['price', 'consumption', 'prediction', 'Einstrahlung auf die Horizontale (kWh/m²)',
                     'Diffusstrahlung auf die Horizontale (kWh/m²)']].copy()

@@ -12,12 +12,23 @@ class EnergyEnv(gym.Env):
         super(EnergyEnv, self).__init__()
         self.dataframe = pd.read_csv(data_path)
         self.market = Market(self.dataframe)
+        self.max_obs_array = self.dataframe.max().to_numpy()
+        self.max_obs_array = np.append(self.max_obs_array, [10_000, 10_000])  # max savings and max charge
+        self.min_obs_array = self.dataframe.min().to_numpy()
+        self.min_obs_array = np.append(self.min_obs_array, [0, 0])  # min savings and min charge
+
+        self.max_action_array = np.array([10_000, 10_000])
+        self.min_action_array = np.array([0, 0])
+
+        self.action_space = spaces.Box(low=self.min_action_array, high=self.max_action_array, shape=(2,),
+                                       dtype=np.float32)
+        self.observation_space = spaces.Box(low=self.min_obs_array, high=self.max_obs_array,
+                                            shape=(self.dataframe.shape[1] + 2,), dtype=np.float32)
+
         self.savings = 0
         self.charge = 0
         self.max_battery_charge = 1
         self.current_step = 0
-        self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-1, high=1, shape=(self.dataframe.shape[1] + 2,))
         self.charge_log = []
         self.savings_log = []
         self.trade_log = []
@@ -83,7 +94,8 @@ class EnergyEnv(gym.Env):
 
     def get_observation(self):
         # Return the current state of the environment as a numpy array
-        return np.concatenate((self.dataframe.iloc[self.current_step].to_numpy(), [self.savings, self.charge]))
+        return np.concatenate((self.dataframe.iloc[self.current_step].to_numpy(), [self.savings, self.charge]),
+                              dtype=np.float32)
 
     def reset(self, seed=None, options=None):
         """

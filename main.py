@@ -5,8 +5,11 @@ import numpy as np
 from stable_baselines3.common.env_checker import check_env
 from gymnasium import register
 from gymnasium import make
+from gymnasium.wrappers import NormalizeObservation
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
+
+from cutsom_wrappers.cast_wrapper import CastObservation
 
 os.makedirs('logging', exist_ok=True)
 
@@ -40,10 +43,12 @@ register(
 
 env = make('energy-v0')
 env = Monitor(env, filename="logging/", allow_early_resets=True)
-check_env(env)
+norm_obs_env = NormalizeObservation(env)
+cast_obs_env = CastObservation(norm_obs_env)
+check_env(cast_obs_env)
 
-model = PPO("MlpPolicy", env, verbose=0, tensorboard_log="logging/",
-            device="auto")
-model.learn(total_timesteps=1_000_000)
-model.save("agents/ppo_energy_testing")
-env.render()
+# model = PPO("MlpPolicy", env, verbose=0, tensorboard_log="logging/",
+#             device="auto")
+# model.learn(total_timesteps=1_000_000)
+# model.save("agents/ppo_energy_testing")
+# env.render()
