@@ -7,6 +7,7 @@ from gymnasium import register
 from gymnasium import make
 from gymnasium.wrappers import NormalizeObservation
 from stable_baselines3 import PPO
+from stable_baselines3 import SAC
 from stable_baselines3.common.monitor import Monitor
 
 from callbacks.tensorboard_callback import LoggingCallback
@@ -49,8 +50,7 @@ norm_obs_env = NormalizeObservation(env)
 cast_obs_env = CastObservation(norm_obs_env)
 check_env(cast_obs_env)
 
-model = PPO("MlpPolicy", cast_obs_env, verbose=0, tensorboard_log="logging/",
-            device="auto")
-model.learn(total_timesteps=10_000, callback=LoggingCallback())
+model = SAC("MlpPolicy", env, verbose=0, tensorboard_log="logging/",)
+model.learn(total_timesteps=100_000)
 model.save("agents/ppo_energy_testing")
 env.render()

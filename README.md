@@ -3,6 +3,14 @@
 Entwicklung einer intelligenten Gebotsstrategie für den Strommarkt mittels Reinforcement Learning: Eine Untersuchung am
 Day-Ahead-Markt und Primärregelleistungsmarkt
 
+relative strength index
+I.I.D -> annahme für die verteilung der daten
+
+random samplen eines datenpunkts-> davon dann eine Woche laufen -> dann neuer zufälliger Datenpunkt
+obs grenzen durch np arrays für jedes feature übergeben -> man kann mit natürlichen Daten arbeiten
+vergleich on policy model mit off policy model
+
+
 ## Installation
 
 ```bash
@@ -11,7 +19,6 @@ pip install -r requirements.txt
 pip install stable-baselines3==2.0.0a13
 ```
 
-## PPO Training Metrics Explanation
 ## PPO Training Metrics Explanation
 
 When training a PPO model and tracking the progress using TensorBoard, you will come across several important metrics. Here's a breakdown of each metric and its significance:
