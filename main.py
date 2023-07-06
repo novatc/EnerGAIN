@@ -42,7 +42,7 @@ register(
 env = make('energy-v0')
 check_env(env)
 
-model = SAC("MlpPolicy", env, verbose=0, tensorboard_log="logging/",)
-model.learn(total_timesteps=100_000)
-model.save("agents/ppo_energy_testing")
+model = SAC("MlpPolicy", env, verbose=0, tensorboard_log="logging/")
+model.learn(total_timesteps=500_000, log_interval=4)
+model.save("agents/sac_energy_testing")
 env.render()

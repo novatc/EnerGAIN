@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from stable_baselines3 import PPO, SAC
 
 try:
-    model = SAC.load("agents/ppo_energy_testing.zip")
+    model = SAC.load("agents/sac_energy_testing.zip")
 except Exception as e:
     print("Error loading model: ", e)
     exit()
