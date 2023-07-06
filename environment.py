@@ -26,7 +26,7 @@ class EnergyEnv(gym.Env):
 
     def step(self, action):
         self.current_step += 1
-        self.market.step()
+        self.market.random_move()
 
         done = False
 
