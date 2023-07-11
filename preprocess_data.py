@@ -82,6 +82,8 @@ dataset = pd.DataFrame(scaled_data, columns=solar_power.columns, index=solar_pow
 env_data = dataset[['price', 'consumption', 'prediction', 'Einstrahlung auf die Horizontale (kWh/m²)',
                     'Diffusstrahlung auf die Horizontale (kWh/m²)']].copy()
 
+# env_data = dataset[['price', 'consumption', 'prediction']].copy()
+
 # save the number of the day of the week in a new column
 env_data['day_of_week'] = env_data.index.dayofweek
 # save the number of the month in a new column
@@ -112,7 +114,7 @@ env_data.drop('hour', axis=1, inplace=True)
 env_data = env_data.set_index('price')
 
 # cut the last 5040 (one month) rows of the dataframe and save them as the test set
-test_set = env_data.tail(5040)
+test_set = env_data.tail(24 * 5)
 test_set.to_csv('data/clean/test_set.csv')
 
 # randomly shuffle the data

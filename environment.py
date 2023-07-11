@@ -1,4 +1,5 @@
 import gymnasium as gym
+import joblib
 import pandas as pd
 from gymnasium import spaces
 import numpy as np
@@ -62,7 +63,7 @@ class EnergyEnv(gym.Env):
             self.savings -= price
             self.charge_log.append(self.charge)
             self.savings_log.append(self.savings)
-            self.trade_log.append((self.current_step, self.current_step, price, amount, 'buy'))
+            self.trade_log.append((self.current_step, price, amount, 'buy'))
             return abs(float(self.market.get_current_price()) * amount)
 
         return -1
@@ -76,7 +77,7 @@ class EnergyEnv(gym.Env):
             self.charge -= abs(amount)
             self.charge_log.append(self.charge)
             self.savings_log.append(self.savings)
-            self.trade_log.append((self.current_step, self.current_step, price, amount, 'sell'))
+            self.trade_log.append((self.current_step, price, amount, 'sell'))
             return abs(float(self.market.get_current_price()) * amount)
 
         return -1  # adjust this as needed for your specific case
@@ -97,14 +98,48 @@ class EnergyEnv(gym.Env):
         return self.get_observation().astype(np.float32), {}
 
     def render(self, mode='human'):
-        # calculate the average reward over 100 steps and plot it
+        price_scaler = joblib.load('price_scaler.pkl')
+        amount_scaler = joblib.load('amount_scaler.pkl')
+
+        # Calculate the average reward over 100 steps and plot it
         avg_rewards = []
-        scaler = 100
+        scaler = 1
         for i in range(0, len(self.rewards), scaler):
             avg_rewards.append(sum(self.rewards[i:i + scaler]) / scaler)
+        plt.figure(figsize=(10, 6))
+        plt.subplot(3, 1, 1)
         plt.plot(avg_rewards)
         plt.ylabel('Average Reward')
         plt.xlabel(f'Number of Steps (/ {scaler})')
+
+        # Plot the history of trades
+        buys = [trade for trade in self.trade_log if trade[3] == 'buy']
+        sells = [trade for trade in self.trade_log if trade[3] == 'sell']
+
+        if buys:
+            buy_steps, buy_prices, buy_amounts, _ = zip(*buys)
+            # Rescale the prices and amounts using the scaler objects
+            buy_prices = price_scaler.inverse_transform(np.array(buy_prices).reshape(-1, 1))
+            buy_amounts = amount_scaler.inverse_transform(np.array(buy_amounts).reshape(-1, 1))
+            plt.subplot(3, 1, 2)
+            plt.scatter(buy_steps, buy_prices / 10, c='green', label='Buy', alpha=0.6)
+            plt.ylabel('Trade Price (€/MWh)')
+            plt.subplot(3, 1, 3)
+            plt.scatter(buy_steps, buy_amounts / 100, color='green', label='Buy', alpha=0.6)
+            plt.ylabel('Trade Amount (MWh)')
+        if sells:
+            sell_steps, sell_prices, sell_amounts, _ = zip(*sells)
+            # Rescale the prices and amounts using the scaler objects
+            sell_prices = price_scaler.inverse_transform(np.array(sell_prices).reshape(-1, 1))
+            sell_amounts = amount_scaler.inverse_transform(np.array(sell_amounts).reshape(-1, 1))
+            plt.subplot(3, 1, 2)
+            plt.scatter(sell_steps, sell_prices / 10, c='red', label='Sell', alpha=0.6)
+            plt.subplot(3, 1, 3)
+            plt.scatter(sell_steps, sell_amounts / 100, color='red', label='Sell', alpha=0.6)
+
+        plt.xlabel('Steps')
+        plt.legend()
+        plt.tight_layout()
         plt.show()
 
     def get_trades(self):

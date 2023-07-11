@@ -1,6 +1,7 @@
 import random
 import numpy as np
 
+
 class Market:
     def __init__(self, dataset):
         """
@@ -44,7 +45,7 @@ class Market:
         random_position = random.randint(0, dataset_length - 1)
 
         # Increment the current step by 1200 starting from the random position
-        for _ in range(1200):
+        for _ in range(120):
             random_position = (random_position + 1) % dataset_length
             self.current_step = random_position
 
