@@ -13,8 +13,8 @@ class EnergyEnv(gym.Env):
         super(EnergyEnv, self).__init__()
         self.dataframe = pd.read_csv(data_path)
         self.market = Market(self.dataframe)
-        self.savings = 0
-        self.charge = 0
+        self.savings = None
+        self.charge = None
         self.max_battery_charge = 1
         self.current_step = 0
         self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
@@ -27,18 +27,13 @@ class EnergyEnv(gym.Env):
 
     def step(self, action):
         self.current_step += 1
-        self.market.random_move()
+        self.market.week_walk()
 
-        done = False
+        price = action[0].item()
+        amount = action[1].item()
 
-        if self.current_step >= len(self.dataframe):
-            self.current_step = 0
-            done = True
-
-        price = float(action[0].item())
-        amount = float(action[1].item())
-
-        truncated = False
+        terminated = False  # Whether the agent reaches the terminal state
+        truncated = False  # this can be Fasle all the time since there is no failure condition the agent could trigger
         info = {}
 
         reward = -1  # default reward
@@ -51,7 +46,8 @@ class EnergyEnv(gym.Env):
             reward = 0
 
         self.rewards.append(reward)
-        return self.get_observation().astype(np.float32), reward, done, truncated, info
+        # Return the current state of the environment as a numpy array, the reward,
+        return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
     def buy(self, price, amount):
         # Check if the agent has enough money to buy
@@ -60,7 +56,7 @@ class EnergyEnv(gym.Env):
 
         if self.market.accept_offer(price, 'buy'):
             self.charge += abs(amount)
-            self.savings -= price
+            self.savings -= self.market.get_current_price() * amount
             self.charge_log.append(self.charge)
             self.savings_log.append(self.savings)
             self.trade_log.append((self.current_step, price, amount, 'buy'))
@@ -73,7 +69,7 @@ class EnergyEnv(gym.Env):
             return -1
 
         if self.market.accept_offer(price, 'sell'):
-            self.savings += price
+            self.savings += self.market.get_current_price() * amount
             self.charge -= abs(amount)
             self.charge_log.append(self.charge)
             self.savings_log.append(self.savings)
@@ -93,6 +89,8 @@ class EnergyEnv(gym.Env):
         """
         # Reset the state of the environment to an initial state
         super().reset(seed=seed, options=options)
+        self.savings = 0
+        self.charge = 0
         self.current_step = 0
         self.market.reset()
         return self.get_observation().astype(np.float32), {}
