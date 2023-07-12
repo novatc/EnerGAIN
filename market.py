@@ -12,6 +12,7 @@ class Market:
         self.successful_trades = []  # List to store successful trades
         self.dataset = dataset
         self.current_step = 0
+        self.steps_since_last_random_start = 0
 
     def get_current_price(self):
         """
@@ -33,25 +34,22 @@ class Market:
         """
         self.current_step += 1
 
-    def random_move(self):
+    def week_walk(self):
         """
         Choose a random starting position and increment the current step by 1200 (5 days) from that position.
         After completing the 1200 steps, select a new random starting position.
         """
-        # Get the total length of the dataset
-        dataset_length = len(self.dataset)
+        # If this is the first call or 120 steps have been taken since the last random start,
+        # choose a new random starting position
+        if self.current_step == 0 or self.steps_since_last_random_start >= 120:
+            dataset_length = len(self.dataset)
+            self.current_step = random.randint(0, dataset_length - 1)
+            self.steps_since_last_random_start = 0  # Reset the step counter
 
-        # Choose a random starting position
-        random_position = random.randint(0, dataset_length - 1)
-
-        # Increment the current step by 1200 starting from the random position
-        for _ in range(120):
-            random_position = (random_position + 1) % dataset_length
-            self.current_step = random_position
-
-        # Choose a new random starting position
-        random_position = random.randint(0, dataset_length - 1)
-        self.current_step = random_position
+        # Increment the current step by 120 starting from the current position
+        for _ in range(24*5):
+            self.current_step = (self.current_step + 1) % len(self.dataset)
+            self.steps_since_last_random_start += 1  # Increment the step counter
 
     def accept_offer(self, offer_price, intent):
         """
