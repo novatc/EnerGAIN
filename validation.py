@@ -66,3 +66,5 @@ print("Average amount:", sum([trade[2] for trade in trades]) / len(trades))
 
 
 eval_env.render()
+eval_env.plot_savings()
+eval_env.plot_charge()

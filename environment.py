@@ -53,7 +53,6 @@ class EnergyEnv(gym.Env):
                 return -1
             if self.market.accept_offer(price, 'buy'):
                 self.charge += abs(amount)
-                self.charge_log.append(self.charge)
                 self.savings -= self.market.get_current_price() * amount
         elif trade_type == 'sell':
             if amount < -self.charge or price <= 0:
@@ -61,7 +60,6 @@ class EnergyEnv(gym.Env):
             if self.market.accept_offer(price, 'sell'):
                 self.savings += self.market.get_current_price() * amount
                 self.charge -= abs(amount)
-                self.charge_log.append(self.charge)
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
 
@@ -141,3 +139,25 @@ class EnergyEnv(gym.Env):
 
     def get_charge(self):
         return self.charge_log
+
+    def plot_charge(self):
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.charge_log)
+        plt.title('Battery Charge Over Time')
+        plt.xlabel('Step')
+        plt.ylabel('Charge')
+        plt.show()
+
+    def plot_savings(self):
+        # Load the scaler
+        price_scaler = joblib.load('price_scaler.pkl')
+
+        # Get the original savings values
+        savings_original = price_scaler.inverse_transform(np.array(self.savings_log).reshape(-1, 1))
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(savings_original / 10)
+        plt.title('Savings Over Time')
+        plt.xlabel('Step')
+        plt.ylabel('Savings')
+        plt.show()
