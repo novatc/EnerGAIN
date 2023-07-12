@@ -16,7 +16,6 @@ class EnergyEnv(gym.Env):
         self.savings = None
         self.charge = None
         self.max_battery_charge = 1
-        self.current_step = 0
         self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-1, high=1, shape=(self.dataframe.shape[1] + 2,))
         self.charge_log = []
@@ -26,7 +25,6 @@ class EnergyEnv(gym.Env):
         self.rewards = []
 
     def step(self, action):
-        self.current_step += 1
         self.market.week_walk()
 
         price = action[0].item()
@@ -39,9 +37,9 @@ class EnergyEnv(gym.Env):
         reward = -1  # default reward
 
         if amount > 0:  # buy
-            reward = self.buy(price, amount)
+            reward = self.trade(price, amount, 'buy')
         elif amount < 0:  # sell
-            reward = self.sell(price, amount)
+            reward = self.trade(price, amount, 'sell')
         else:  # if amount is 0
             reward = 0
 
@@ -49,38 +47,31 @@ class EnergyEnv(gym.Env):
         # Return the current state of the environment as a numpy array, the reward,
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
-    def buy(self, price, amount):
-        # Check if the agent has enough money to buy
-        if price > self.savings or amount > self.max_battery_charge - self.charge or amount <= 0:
-            return -1
+    def trade(self, price, amount, trade_type):
+        if trade_type == 'buy':
+            if price > self.savings or amount > self.max_battery_charge - self.charge or amount <= 0:
+                return -1
+            if self.market.accept_offer(price, 'buy'):
+                self.charge += abs(amount)
+                self.savings -= self.market.get_current_price() * amount
+        elif trade_type == 'sell':
+            if amount < -self.charge or price <= 0:
+                return -1
+            if self.market.accept_offer(price, 'sell'):
+                self.savings += self.market.get_current_price() * amount
+                self.charge -= abs(amount)
+        else:
+            raise ValueError(f"Invalid trade type: {trade_type}")
 
-        if self.market.accept_offer(price, 'buy'):
-            self.charge += abs(amount)
-            self.savings -= self.market.get_current_price() * amount
-            self.charge_log.append(self.charge)
-            self.savings_log.append(self.savings)
-            self.trade_log.append((self.current_step, price, amount, 'buy'))
-            return abs(float(self.market.get_current_price()) * amount)
+        self.charge_log.append(self.charge)
+        self.savings_log.append(self.savings)
+        self.trade_log.append((self.market.get_current_step(), price, amount, trade_type))
 
-        return -1
-
-    def sell(self, price, amount):
-        if amount < -self.charge or price <= 0:  # Check if the agent has enough energy to sell
-            return -1
-
-        if self.market.accept_offer(price, 'sell'):
-            self.savings += self.market.get_current_price() * amount
-            self.charge -= abs(amount)
-            self.charge_log.append(self.charge)
-            self.savings_log.append(self.savings)
-            self.trade_log.append((self.current_step, price, amount, 'sell'))
-            return abs(float(self.market.get_current_price()) * amount)
-
-        return -1  # adjust this as needed for your specific case
+        return abs(float(self.market.get_current_price()) * amount)
 
     def get_observation(self):
         # Return the current state of the environment as a numpy array
-        return np.concatenate((self.dataframe.iloc[self.current_step].to_numpy(), [self.savings, self.charge]))
+        return np.concatenate((self.dataframe.iloc[self.market.get_current_step()].to_numpy(), [self.savings, self.charge]))
 
     def reset(self, seed=None, options=None):
         """
@@ -91,7 +82,6 @@ class EnergyEnv(gym.Env):
         super().reset(seed=seed, options=options)
         self.savings = 0
         self.charge = 0
-        self.current_step = 0
         self.market.reset()
         return self.get_observation().astype(np.float32), {}
 
