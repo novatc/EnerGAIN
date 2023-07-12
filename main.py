@@ -4,7 +4,6 @@ from typing import Callable
 from stable_baselines3.common.env_checker import check_env
 from gymnasium import register
 from gymnasium import make
-from stable_baselines3 import PPO
 from stable_baselines3 import SAC
 
 os.makedirs('logging', exist_ok=True)

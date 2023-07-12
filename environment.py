@@ -53,6 +53,7 @@ class EnergyEnv(gym.Env):
                 return -1
             if self.market.accept_offer(price, 'buy'):
                 self.charge += abs(amount)
+                self.charge_log.append(self.charge)
                 self.savings -= self.market.get_current_price() * amount
         elif trade_type == 'sell':
             if amount < -self.charge or price <= 0:
@@ -60,6 +61,7 @@ class EnergyEnv(gym.Env):
             if self.market.accept_offer(price, 'sell'):
                 self.savings += self.market.get_current_price() * amount
                 self.charge -= abs(amount)
+                self.charge_log.append(self.charge)
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
 
@@ -71,7 +73,8 @@ class EnergyEnv(gym.Env):
 
     def get_observation(self):
         # Return the current state of the environment as a numpy array
-        return np.concatenate((self.dataframe.iloc[self.market.get_current_step()].to_numpy(), [self.savings, self.charge]))
+        return np.concatenate(
+            (self.dataframe.iloc[self.market.get_current_step()].to_numpy(), [self.savings, self.charge]))
 
     def reset(self, seed=None, options=None):
         """

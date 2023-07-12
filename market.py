@@ -34,6 +34,14 @@ class Market:
         """
         self.current_step += 1
 
+    def get_current_step(self):
+        """
+        Get the current step.
+
+        :return: the current step
+        """
+        return self.current_step
+
     def week_walk(self):
         """
         Choose a random starting position and increment the current step by 1200 (5 days) from that position.
@@ -47,7 +55,7 @@ class Market:
             self.steps_since_last_random_start = 0  # Reset the step counter
 
         # Increment the current step by 120 starting from the current position
-        for _ in range(24*5):
+        for _ in range(24 * 5):
             self.current_step = (self.current_step + 1) % len(self.dataset)
             self.steps_since_last_random_start += 1  # Increment the step counter
 
