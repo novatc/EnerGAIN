@@ -17,9 +17,11 @@ class EnergyEnv(gym.Env):
         self.charge = None
         self.max_battery_charge = 1
         self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
+        # TODO obs space 4 * current obs to fit trend data
         self.observation_space = spaces.Box(low=-1, high=1, shape=(self.dataframe.shape[1] + 2,))
         self.charge_log = []
         self.savings_log = []
+
         self.trade_log = []
 
         self.rewards = []
@@ -29,6 +31,8 @@ class EnergyEnv(gym.Env):
 
         price = action[0].item()
         amount = action[1].item()
+
+        # TODO: rescale price and amount for logging
 
         terminated = False  # Whether the agent reaches the terminal state
         truncated = False  # this can be Fasle all the time since there is no failure condition the agent could trigger
@@ -48,18 +52,19 @@ class EnergyEnv(gym.Env):
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
     def trade(self, price, amount, trade_type):
+        # TODO everything in one case, check boundaries remains
         if trade_type == 'buy':
-            if price > self.savings or amount > self.max_battery_charge - self.charge or amount <= 0:
+            if price * amount > self.savings or amount > self.max_battery_charge - self.charge or amount <= 0:
                 return -1
-            if self.market.accept_offer(price, 'buy'):
-                self.charge += abs(amount)
-                self.savings -= self.market.get_current_price() * amount
+            if self.market.accept_offer(price, trade_type):
+                self.savings -= self.market.get_current_price() * amount  # amount is positive here
+                self.charge += amount  # amount is positive here
         elif trade_type == 'sell':
             if amount < -self.charge or price <= 0:
                 return -1
-            if self.market.accept_offer(price, 'sell'):
-                self.savings += self.market.get_current_price() * amount
-                self.charge -= abs(amount)
+            if self.market.accept_offer(price, trade_type):
+                self.savings += self.market.get_current_price() * abs(amount)  # amount is negative here
+                self.charge -= abs(amount)  # amount is negative here, so it can be added to the charge
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
 
@@ -71,6 +76,7 @@ class EnergyEnv(gym.Env):
 
     def get_observation(self):
         # Return the current state of the environment as a numpy array
+        # TODO: look up the last 4 entries before the current market step
         return np.concatenate(
             (self.dataframe.iloc[self.market.get_current_step()].to_numpy(), [self.savings, self.charge]))
 

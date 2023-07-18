@@ -28,7 +28,7 @@ ep_length = eval_env.dataframe.shape[0]
 
 # Evaluate the agent
 episode_rewards = []
-num_episodes = 1
+num_episodes = 15
 
 for _ in range(num_episodes):
     episode_reward = 0
@@ -55,16 +55,13 @@ for trade in trades:
     elif trade[2] < 0:
         sell_count += 1
 
-print("Buy count:", buy_count)
-print("Sell count:", sell_count)
-
 print("Total reward:", sum(episode_rewards))
 print("Total trades:", len(trades))
+print("Buy count:", buy_count)
+print("Sell count:", sell_count)
 print("Average reward:", sum(episode_rewards) / len(trades))
 print("Average price:", sum([trade[1] for trade in trades]) / len(trades))
 print("Average amount:", sum([trade[2] for trade in trades]) / len(trades))
 
-
 eval_env.render()
-eval_env.plot_savings()
 eval_env.plot_charge()

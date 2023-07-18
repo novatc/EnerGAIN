@@ -18,7 +18,7 @@ env = make('energy-v0')
 check_env(env)
 
 model = SAC("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=100_000)
+model.learn(total_timesteps=1_000_000)
 model.save("agents/sac")
 
 
