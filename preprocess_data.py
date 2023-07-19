@@ -79,10 +79,10 @@ scaled_data = scaler.fit_transform(solar_power)
 
 dataset = pd.DataFrame(scaled_data, columns=solar_power.columns, index=solar_power.index)
 
-env_data = dataset[['price', 'consumption', 'prediction', 'Einstrahlung auf die Horizontale (kWh/m²)',
-                    'Diffusstrahlung auf die Horizontale (kWh/m²)']].copy()
+# env_data = dataset[['price', 'consumption', 'prediction', 'Einstrahlung auf die Horizontale (kWh/m²)',
+#                     'Diffusstrahlung auf die Horizontale (kWh/m²)']].copy()
 
-# env_data = dataset[['price', 'consumption', 'prediction']].copy()
+env_data = dataset[['price', 'consumption', 'prediction']].copy()
 
 # save the number of the day of the week in a new column
 env_data['day_of_week'] = env_data.index.dayofweek

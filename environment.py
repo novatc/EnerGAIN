@@ -57,7 +57,8 @@ class EnergyEnv(gym.Env):
             if price * amount > self.savings or amount > self.max_battery_charge - self.charge or amount <= 0:
                 return -1
             if self.market.accept_offer(price, trade_type):
-                self.savings -= self.market.get_current_price() * amount  # amount is positive here
+                self.savings -= self.market.get_current_price() * amount
+                # amount is positive here
                 self.charge += amount  # amount is positive here
         elif trade_type == 'sell':
             if amount < -self.charge or price <= 0:
@@ -136,6 +137,8 @@ class EnergyEnv(gym.Env):
         plt.legend()
         plt.tight_layout()
         plt.show()
+        self.plot_savings()
+        self.plot_charge()
 
     def get_trades(self):
         return self.trade_log
@@ -146,10 +149,24 @@ class EnergyEnv(gym.Env):
     def get_charge(self):
         return self.charge_log
 
+    def get_real_savings(self):
+        price_scaler = joblib.load('price_scaler.pkl')
+        return price_scaler.inverse_transform(np.array(self.savings_log).reshape(-1, 1))
+
+    def get_real_charge(self):
+        amount_scaler = joblib.load('amount_scaler.pkl')
+        return amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
+
     def plot_charge(self):
+        # Load the scaler
+        amount_scaler = joblib.load('amount_scaler.pkl')
+
+        # Get the original charge values
+        charge_original = amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
+
         plt.figure(figsize=(10, 6))
-        plt.plot(self.charge_log)
-        plt.title('Battery Charge Over Time')
+        plt.plot(charge_original / 10)
+        plt.title('Charge Over Time')
         plt.xlabel('Step')
         plt.ylabel('Charge')
         plt.show()
@@ -162,7 +179,7 @@ class EnergyEnv(gym.Env):
         savings_original = price_scaler.inverse_transform(np.array(self.savings_log).reshape(-1, 1))
 
         plt.figure(figsize=(10, 6))
-        plt.plot(savings_original / 10)
+        plt.plot(savings_original)
         plt.title('Savings Over Time')
         plt.xlabel('Step')
         plt.ylabel('Savings')
