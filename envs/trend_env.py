@@ -8,31 +8,29 @@ from matplotlib import pyplot as plt
 from market import Market
 
 
-class EnergyEnv(gym.Env):
+class TrendEnv(gym.Env):
     def __init__(self, data_path):
-        super(EnergyEnv, self).__init__()
+        super(TrendEnv, self).__init__()
         self.dataframe = pd.read_csv(data_path)
         self.market = Market(self.dataframe)
         self.savings = None
         self.charge = None
         self.max_battery_charge = 1
         self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
-        # TODO obs space 4 * current obs to fit trend data
-        self.observation_space = spaces.Box(low=-1, high=1, shape=(self.dataframe.shape[1] + 2,))
+        self.observation_space = spaces.Box(low=-1, high=1, shape=((self.dataframe.shape[1] + 2) * 4,))
         self.charge_log = []
         self.savings_log = []
 
         self.trade_log = []
 
         self.rewards = []
+        self.reward_log = []
 
     def step(self, action):
         self.market.week_walk()
 
         price = action[0].item()
         amount = action[1].item()
-
-        # TODO: rescale price and amount for logging
 
         terminated = False  # Whether the agent reaches the terminal state
         truncated = False  # this can be Fasle all the time since there is no failure condition the agent could trigger
@@ -48,6 +46,8 @@ class EnergyEnv(gym.Env):
             reward = 0
 
         self.rewards.append(reward)
+        self.reward_log.append(
+            (self.reward_log[-1] + reward) if self.reward_log else reward)  # to keep track of the reward over time
         # Return the current state of the environment as a numpy array, the reward,
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
@@ -77,9 +77,8 @@ class EnergyEnv(gym.Env):
 
     def get_observation(self):
         # Return the current state of the environment as a numpy array
-        # TODO: look up the last 4 entries before the current market step
-        return np.concatenate(
-            (self.dataframe.iloc[self.market.get_current_step()].to_numpy(), [self.savings, self.charge]))
+        trend_data = self.market.previous_hours(4, current_charge=self.charge, savings=self.savings)
+        return trend_data
 
     def reset(self, seed=None, options=None):
         """
@@ -94,8 +93,8 @@ class EnergyEnv(gym.Env):
         return self.get_observation().astype(np.float32), {}
 
     def render(self, mode='human'):
-        price_scaler = joblib.load('price_scaler.pkl')
-        amount_scaler = joblib.load('amount_scaler.pkl')
+        price_scaler = joblib.load('../scaler/price_scaler.pkl')
+        amount_scaler = joblib.load('../scaler/amount_scaler.pkl')
 
         # Calculate the average reward over 100 steps and plot it
         avg_rewards = []
@@ -139,6 +138,7 @@ class EnergyEnv(gym.Env):
         plt.show()
         self.plot_savings()
         self.plot_charge()
+        self.plot_reward_log()
 
     def get_trades(self):
         return self.trade_log
@@ -150,16 +150,16 @@ class EnergyEnv(gym.Env):
         return self.charge_log
 
     def get_real_savings(self):
-        price_scaler = joblib.load('price_scaler.pkl')
+        price_scaler = joblib.load('../scaler/price_scaler.pkl')
         return price_scaler.inverse_transform(np.array(self.savings_log).reshape(-1, 1))
 
     def get_real_charge(self):
-        amount_scaler = joblib.load('amount_scaler.pkl')
+        amount_scaler = joblib.load('../scaler/amount_scaler.pkl')
         return amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
 
     def plot_charge(self):
         # Load the scaler
-        amount_scaler = joblib.load('amount_scaler.pkl')
+        amount_scaler = joblib.load('../scaler/amount_scaler.pkl')
 
         # Get the original charge values
         charge_original = amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
@@ -173,7 +173,7 @@ class EnergyEnv(gym.Env):
 
     def plot_savings(self):
         # Load the scaler
-        price_scaler = joblib.load('price_scaler.pkl')
+        price_scaler = joblib.load('../scaler/price_scaler.pkl')
 
         # Get the original savings values
         savings_original = price_scaler.inverse_transform(np.array(self.savings_log).reshape(-1, 1))
@@ -183,4 +183,12 @@ class EnergyEnv(gym.Env):
         plt.title('Savings Over Time')
         plt.xlabel('Step')
         plt.ylabel('Savings')
+        plt.show()
+
+    def plot_reward_log(self):
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.reward_log)
+        plt.title('Reward Over Time')
+        plt.xlabel('Step')
+        plt.ylabel('Reward')
         plt.show()

@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import pandas as pd
 
 
 class Market:
@@ -58,6 +59,40 @@ class Market:
         for _ in range(24 * 5):
             self.current_step = (self.current_step + 1) % len(self.dataset)
             self.steps_since_last_random_start += 1  # Increment the step counter
+
+    def previous_hours(self, hours, current_charge, savings) -> np.array:
+        """
+        Get the previous hours of data from the current step.
+
+        :param hours: the number of hours to get the data from.
+        :return: the indexes of the previous hours of data.
+        """
+        index = self.current_step
+
+        if index < hours:
+            # If n is larger than the random index, create a DataFrame with n - idx rows filled with zeros
+            zero_data = pd.DataFrame(np.zeros((hours - index, len(self.dataset.columns))), columns=self.dataset.columns)
+            zero_data['savings'] = savings
+            zero_data['charge'] = current_charge
+
+            # Select the min(hours, index) rows before the current index in reverse order
+            selected_data = self.dataset.iloc[:index][::-1].copy()
+            selected_data['savings'] = savings
+            selected_data['charge'] = current_charge
+
+            # Concatenate the zero data and selected data into one dara
+            selected_data = pd.concat([zero_data, selected_data])
+        else:
+            # Select the n rows before the current index, in reverse order
+            selected_data = self.dataset.iloc[index - hours:index][::-1].copy()
+            selected_data['savings'] = savings
+            selected_data['charge'] = current_charge
+
+        # put everything together
+        concatenated_row = pd.concat([selected_data.iloc[i] for i in range(hours)])
+
+        # just return the values
+        return concatenated_row.values
 
     def accept_offer(self, offer_price, intent):
         """
