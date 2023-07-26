@@ -8,19 +8,16 @@ from matplotlib import pyplot as plt
 from market import Market
 
 
-class BaseEnergyEnv(gym.Env):
+class NoSavingsEnv(gym.Env):
     def __init__(self, data_path):
-        super(BaseEnergyEnv, self).__init__()
+        super(NoSavingsEnv, self).__init__()
         self.dataframe = pd.read_csv(data_path)
         self.market = Market(self.dataframe)
-        self.savings = None
         self.charge = None
         self.max_battery_charge = 1
         self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
-        # TODO obs space 4 * current obs to fit trend data
-        self.observation_space = spaces.Box(low=-1, high=1, shape=(self.dataframe.shape[1] + 2,))
+        self.observation_space = spaces.Box(low=-1, high=1, shape=((self.dataframe.shape[1] + 2) * 4,))
         self.charge_log = []
-        self.savings_log = []
 
         self.trade_log = []
 
@@ -32,8 +29,6 @@ class BaseEnergyEnv(gym.Env):
 
         price = action[0].item()
         amount = action[1].item()
-
-        # TODO: rescale price and amount for logging
 
         terminated = False  # Whether the agent reaches the terminal state
         truncated = False  # this can be Fasle all the time since there is no failure condition the agent could trigger
@@ -49,39 +44,36 @@ class BaseEnergyEnv(gym.Env):
             reward = 0
 
         self.rewards.append(reward)
-        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)  #to keep track of the reward over time
+        self.reward_log.append(
+            (self.reward_log[-1] + reward) if self.reward_log else reward)  # to keep track of the reward over time
         # Return the current state of the environment as a numpy array, the reward,
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
     def trade(self, price, amount, trade_type):
         # TODO everything in one case, check boundaries remains
         if trade_type == 'buy':
-            if price * amount > self.savings or amount > self.max_battery_charge - self.charge or amount <= 0:
+            if amount > self.max_battery_charge - self.charge or amount <= 0:
                 return -1
             if self.market.accept_offer(price, trade_type):
-                self.savings -= self.market.get_current_price() * amount
                 # amount is positive here
                 self.charge += amount  # amount is positive here
         elif trade_type == 'sell':
             if amount < -self.charge or price <= 0:
                 return -1
             if self.market.accept_offer(price, trade_type):
-                self.savings += self.market.get_current_price() * abs(amount)  # amount is negative here
                 self.charge -= abs(amount)  # amount is negative here, so it can be added to the charge
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
 
         self.charge_log.append(self.charge)
-        self.savings_log.append(self.savings)
         self.trade_log.append((self.market.get_current_step(), price, amount, trade_type))
 
         return abs(float(self.market.get_current_price()) * amount)
 
     def get_observation(self):
         # Return the current state of the environment as a numpy array
-        # TODO: look up the last 4 entries before the current market step
-        return np.concatenate(
-            (self.dataframe.iloc[self.market.get_current_step()].to_numpy(), [self.savings, self.charge]))
+        trend_data = self.market.previous_hours(4, current_charge=self.charge, savings=0)
+        return trend_data
 
     def reset(self, seed=None, options=None):
         """
@@ -90,14 +82,13 @@ class BaseEnergyEnv(gym.Env):
         """
         # Reset the state of the environment to an initial state
         super().reset(seed=seed, options=options)
-        self.savings = 0
         self.charge = 0
         self.market.reset()
         return self.get_observation().astype(np.float32), {}
 
     def render(self, mode='human'):
-        price_scaler = joblib.load('../price_scaler.pkl')
-        amount_scaler = joblib.load('../amount_scaler.pkl')
+        price_scaler = joblib.load('price_scaler.pkl')
+        amount_scaler = joblib.load('amount_scaler.pkl')
 
         # Calculate the average reward over 100 steps and plot it
         avg_rewards = []
@@ -139,30 +130,23 @@ class BaseEnergyEnv(gym.Env):
         plt.legend()
         plt.tight_layout()
         plt.show()
-        self.plot_savings()
-        self.plot_charge()
+        # self.plot_savings()
+        # self.plot_charge()
         self.plot_reward_log()
 
     def get_trades(self):
         return self.trade_log
 
-    def get_savings(self):
-        return self.savings_log
-
     def get_charge(self):
         return self.charge_log
 
-    def get_real_savings(self):
-        price_scaler = joblib.load('../price_scaler.pkl')
-        return price_scaler.inverse_transform(np.array(self.savings_log).reshape(-1, 1))
-
     def get_real_charge(self):
-        amount_scaler = joblib.load('../amount_scaler.pkl')
+        amount_scaler = joblib.load('amount_scaler.pkl')
         return amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
 
     def plot_charge(self):
         # Load the scaler
-        amount_scaler = joblib.load('../amount_scaler.pkl')
+        amount_scaler = joblib.load('amount_scaler.pkl')
 
         # Get the original charge values
         charge_original = amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
@@ -172,20 +156,6 @@ class BaseEnergyEnv(gym.Env):
         plt.title('Charge Over Time')
         plt.xlabel('Step')
         plt.ylabel('Charge')
-        plt.show()
-
-    def plot_savings(self):
-        # Load the scaler
-        price_scaler = joblib.load('../price_scaler.pkl')
-
-        # Get the original savings values
-        savings_original = price_scaler.inverse_transform(np.array(self.savings_log).reshape(-1, 1))
-
-        plt.figure(figsize=(10, 6))
-        plt.plot(savings_original)
-        plt.title('Savings Over Time')
-        plt.xlabel('Step')
-        plt.ylabel('Savings')
         plt.show()
 
     def plot_reward_log(self):

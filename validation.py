@@ -5,19 +5,19 @@ from matplotlib import pyplot as plt
 from stable_baselines3 import PPO, SAC
 
 try:
-    model = SAC.load("agents/sac")
+    model = SAC.load("agents/sac_no_savings")
 except Exception as e:
     print("Error loading model: ", e)
     exit()
 
 register(
-    id='energy-validation-v0',
-    entry_point='environment:EnergyEnv',
+    id='no_savings-v0',
+    entry_point='envs.no_savings_env:NoSavingsEnv',
     kwargs={'data_path': "data/clean/test_set.csv"}
 )
 
 try:
-    eval_env = make('energy-validation-v0')
+    eval_env = make('no_savings-v0')
 except Exception as e:
     print("Error creating environment: ", e)
     exit()
@@ -28,7 +28,7 @@ ep_length = eval_env.dataframe.shape[0]
 
 # Evaluate the agent
 episode_rewards = []
-num_episodes = 15
+num_episodes = 1
 
 for _ in range(num_episodes):
     episode_reward = 0
