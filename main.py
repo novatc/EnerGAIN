@@ -10,14 +10,14 @@ from stable_baselines3 import SAC
 os.makedirs('logging', exist_ok=True)
 
 register(
-    id='no_savings-v0',
-    entry_point='envs.no_savings_env:NoSavingsEnv',
+    id='base_env-v0',
+    entry_point='envs.base_env:BaseEnergyEnv',
     kwargs={'data_path': "data/clean/env_data.csv"}
 )
 
-env = make('no_savings-v0')
+env = make('base_env-v0')
 check_env(env)
 
 model = SAC("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=100_000)
-model.save("agents/sac_no_savings")
+model.save("agents/sac_base_env")
