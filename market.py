@@ -14,6 +14,7 @@ class Market:
         self.dataset = dataset
         self.current_step = 0
         self.steps_since_last_random_start = 0
+        self.current_price = 0
 
     def get_current_price(self):
         """
@@ -111,3 +112,6 @@ class Market:
             self.successful_trades.append((self.current_step, 'sell', offer_price))  # log the trade
             return True
         return False
+
+    def set_current_price(self, price):
+        self.current_price = price
