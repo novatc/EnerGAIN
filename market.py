@@ -24,6 +24,14 @@ class Market:
         """
         return self.dataset.iloc[self.current_step]['price']
 
+    def get_current_mock_price(self):
+        """
+        Get the current market price
+
+        :return: the current mocked market price
+        """
+        return self.current_price
+
     def reset(self):
         """
         Reset the current step to 0.
