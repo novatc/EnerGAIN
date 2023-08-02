@@ -5,6 +5,8 @@ import joblib  # for saving the scaler objects
 
 from sklearn.preprocessing import MinMaxScaler
 
+from envs.assets.env_utilities import scale_list
+
 energy_consumption = pd.read_csv('data/clean/energy_consumption_01102018_01012023.csv', index_col=0)
 energy_prediction = pd.read_csv('data/clean/energy_prediction_01102018_01012023.csv', index_col=0)
 energy_price = pd.read_csv('data/clean/trading_prices_01102018_01012023.csv', index_col=0)
@@ -58,24 +60,22 @@ solar_power = solar_power.set_index('date')
 solar_power.index = pd.to_datetime(solar_power.index)
 
 # get price and amount separately
-price_values = solar_power['price'].values.reshape(-1, 1)
-amount_values = solar_power['consumption'].values.reshape(-1, 1)
+price_values = solar_power['price'].values.reshape(-1, 1)   # reshape to 2D array
+amount_values = solar_power['consumption'].values.reshape(-1, 1)        # reshape to 2D array
+prediction_values = solar_power['prediction'].values.reshape(-1, 1)        # reshape to 2D array
 
 # Create separate scaler objects for 'price' and 'amount'
-price_scaler = MinMaxScaler(feature_range=(-1, 1))
 amount_scaler = MinMaxScaler(feature_range=(-1, 1))
 
 # Fit the scalers to the 'price' and 'amount' data and transform the data
-scaled_price_values = price_scaler.fit_transform(price_values)
-scaled_amount_values = amount_scaler.fit_transform(amount_values)
+scaled_price_values = scale_list(price_values, name='new_price')
+scaled_amount_values = scale_list(amount_values, name='new_amount')
+scaled_prediction_values = scale_list(prediction_values, name='new_prediction')
 
-# Save the scaler objects for later use
-joblib.dump(price_scaler, 'price_scaler.pkl')
-joblib.dump(amount_scaler, 'amount_scaler.pkl')
-
-# scale the data between -1 and 1
-scaler = MinMaxScaler(feature_range=(-1, 1))
-scaled_data = scaler.fit_transform(solar_power)
+# Create a new dataframe with the new scaled price, amount, and prediction values
+scaled_data = pd.DataFrame(scaled_price_values, columns=['price'], index=solar_power.index)
+scaled_data['consumption'] = scaled_amount_values
+scaled_data['prediction'] = scaled_prediction_values
 
 dataset = pd.DataFrame(scaled_data, columns=solar_power.columns, index=solar_power.index)
 
@@ -115,11 +115,11 @@ env_data = env_data.set_index('price')
 
 # cut the last 5040 (one month) rows of the dataframe and save them as the test set
 test_set = env_data.tail(24 * 5)
-test_set.to_csv('data/clean/test_set.csv')
+test_set.to_csv('data/in-use/test_data.csv')
 
 # randomly shuffle the data
 # env_data = env_data.sample(frac=1)
 
-env_data.to_csv('data/clean/env_data.csv')
+env_data.to_csv('data/in-use/env_data.csv')
 # save the dataframe to a csv file
 solar_power.to_csv('data/clean/dataset_01102018_01012023.csv')
