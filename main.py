@@ -10,14 +10,14 @@ from stable_baselines3 import SAC
 os.makedirs('logging', exist_ok=True)
 
 register(
-    id='base_env-v0',
-    entry_point='envs.base_env:BaseEnergyEnv',
-    kwargs={'data_path': "data/clean/env_data.csv"}
+    id='trend_env-v0',
+    entry_point='envs.trend_env:TrendEnv',
+    kwargs={'data_path': "data/in-use/train_data.csv"}
 )
 
-env = make('base_env-v0')
+env = make('trend_env-v0')
 check_env(env)
 
 model = SAC("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=100_000)
-model.save("agents/sac_base_env")
+model.save("agents/sac_trend_env")

@@ -28,15 +28,18 @@ class TrendEnv(gym.Env):
 
     def step(self, action):
         self.market.week_walk()
-
         price = action[0].item()
         amount = action[1].item()
 
         terminated = False  # Whether the agent reaches the terminal state
         truncated = False  # this can be Fasle all the time since there is no failure condition the agent could trigger
-        info = {}
-
-        reward = -1  # default reward
+        info = {'current_price': self.market.get_current_price(),
+                'current_step': self.market.get_current_step(),
+                'savings': self.savings,
+                'charge': self.charge,
+                'action_price': price,
+                'action_amount': amount,
+                }
 
         if amount > 0:  # buy
             reward = self.trade(price, amount, 'buy')
@@ -52,28 +55,29 @@ class TrendEnv(gym.Env):
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
     def trade(self, price, amount, trade_type):
-        # TODO everything in one case, check boundaries remains
         if trade_type == 'buy':
             if price * amount > self.savings or amount > self.max_battery_charge - self.charge or amount <= 0:
                 return -1
-            if self.market.accept_offer(price, trade_type):
-                self.savings -= self.market.get_current_price() * amount
-                # amount is positive here
-                self.charge += amount  # amount is positive here
         elif trade_type == 'sell':
             if amount < -self.charge or price <= 0:
                 return -1
-            if self.market.accept_offer(price, trade_type):
-                self.savings += self.market.get_current_price() * abs(amount)  # amount is negative here
-                self.charge -= abs(amount)  # amount is negative here, so it can be added to the charge
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
+        if self.market.accept_offer(price, trade_type):
+            # this works for both buy and sell because amount is negative for sale and + and - cancel out and fot buy
+            # amount is positive
+            self.charge += amount
+            # the same applies here for savings
+            self.savings -= self.market.get_current_price() * amount
 
-        self.charge_log.append(self.charge)
-        self.savings_log.append(self.savings)
-        self.trade_log.append((self.market.get_current_step(), price, amount, trade_type))
+            self.charge_log.append(self.charge)
+            self.savings_log.append(self.savings)
+            self.trade_log.append((self.market.get_current_step(), price, amount, trade_type))
+        else:
+            return -1
 
         return abs(float(self.market.get_current_price()) * amount)
+
 
     def get_observation(self):
         # Return the current state of the environment as a numpy array
@@ -141,6 +145,8 @@ class TrendEnv(gym.Env):
         self.plot_reward_log()
 
     def get_trades(self):
+        # list of trades: (step, price, amount, trade_type)
+
         return self.trade_log
 
     def get_savings(self):

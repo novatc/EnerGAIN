@@ -1,11 +1,11 @@
-
+import pandas as pd
 from gymnasium import register, make
 from stable_baselines3 import SAC
 from envs.assets import env_utilities as utilities
 
 
 try:
-    model = SAC.load("agents/sac_trend")
+    model = SAC.load("agents/sac_trend_env")
 except Exception as e:
     print("Error loading model: ", e)
     exit()
@@ -36,15 +36,16 @@ for _ in range(num_episodes):
     for _ in range(ep_length):
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = eval_env.step(action)
+        print(info)
         episode_reward += reward
     episode_rewards.append(episode_reward)
     obs, _ = eval_env.reset()
 
 trades = eval_env.get_trades()
-# save trades to file
-with open("trades.txt", "w") as f:
-    for trade in trades:
-        f.write(str(trade) + "\n")
+# list of tuples (step, price, amount, trade_type) to dataframe
+df_trades = pd.DataFrame(trades, columns=['step', 'price', 'amount', 'trade_type'])
+df_trades.to_csv("trades.csv", index=False)
+
 
 # count how many times a buy or sell action was taken
 buy_count = 0
