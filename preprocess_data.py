@@ -59,13 +59,10 @@ solar_power = solar_power.set_index('date')
 # make the index a datetime object
 solar_power.index = pd.to_datetime(solar_power.index)
 
-# get price and amount separately
+# scale values separately
 price_values = solar_power['price'].values.reshape(-1, 1)   # reshape to 2D array
 amount_values = solar_power['consumption'].values.reshape(-1, 1)        # reshape to 2D array
 prediction_values = solar_power['prediction'].values.reshape(-1, 1)        # reshape to 2D array
-
-# Create separate scaler objects for 'price' and 'amount'
-amount_scaler = MinMaxScaler(feature_range=(-1, 1))
 
 # Fit the scalers to the 'price' and 'amount' data and transform the data
 scaled_price_values = scale_list(price_values, name='new_price')
@@ -113,13 +110,15 @@ env_data.drop('hour', axis=1, inplace=True)
 # set the price column as the index
 env_data = env_data.set_index('price')
 
-# cut the last 5040 (one month) rows of the dataframe and save them as the test set
+# cut the last 120 (one week) rows of the dataframe and save them as the test set
 test_set = env_data.tail(24 * 5)
-test_set.to_csv('data/in-use/test_data.csv')
+test_set.to_csv('data/in-use/eval_data.csv')
 
-# randomly shuffle the data
-# env_data = env_data.sample(frac=1)
-
-env_data.to_csv('data/in-use/env_data.csv')
+env_data.to_csv('data/in-use/train_data.csv')
 # save the dataframe to a csv file
 solar_power.to_csv('data/clean/dataset_01102018_01012023.csv')
+# save some test data to a csv file
+test_data = solar_power.tail(24 * 5)
+test_data = test_data[['price', 'consumption', 'prediction']]
+test_data.to_csv('data/in-use/test_data.csv')
+
