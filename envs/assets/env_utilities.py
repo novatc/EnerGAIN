@@ -59,15 +59,4 @@ def scale_value(value: float) -> float:
     return scaled_value[0]
 
 
-# og_price = pd.read_csv("../../data/clean/dataset_01102018_01012023.csv")
-# og_price_values = og_price['price'].tail(120).values
-#
-# scaled_price = pd.read_csv("../../data/in-use/test_data.csv")
-# scaled_price_values = scaled_price['price'].values
-# scaled_price_values_rescaled = rescale_list_price(scaled_price_values)
-#
-# # compare og_price_values and scaled_price_values_rescaled
-# print(og_price_values == scaled_price_values_rescaled)
-
-
 

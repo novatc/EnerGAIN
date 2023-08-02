@@ -57,10 +57,10 @@ class BaseEnergyEnv(gym.Env):
 
     def trade(self, price, amount, trade_type):
         if trade_type == 'buy':
-            if price * amount > self.savings or amount > self.max_battery_charge - self.charge or amount <= 0:
+            if price * amount > self.savings or amount > self.max_battery_charge - self.charge:
                 return -1
         elif trade_type == 'sell':
-            if amount < -self.charge or price <= 0:
+            if amount < -self.charge:
                 return -1
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
@@ -97,8 +97,8 @@ class BaseEnergyEnv(gym.Env):
         return self.get_observation().astype(np.float32), {}
 
     def render(self, mode='human'):
-        price_scaler = joblib.load('assets/price_scaler.pkl')
-        amount_scaler = joblib.load('assets/amount_scaler.pkl')
+        price_scaler = joblib.load('new_price_scaler.pkl')
+        amount_scaler = joblib.load('new_amount_scaler.pkl')
 
         # Calculate the average reward over 100 steps and plot it
         avg_rewards = []
@@ -140,11 +140,13 @@ class BaseEnergyEnv(gym.Env):
         plt.legend()
         plt.tight_layout()
         plt.show()
-        self.plot_savings()
-        self.plot_charge()
+        # self.plot_savings()
+        # self.plot_charge()
         self.plot_reward_log()
 
     def get_trades(self):
+        # list of trades: (step, price, amount, trade_type)
+
         return self.trade_log
 
     def get_savings(self):
@@ -154,16 +156,16 @@ class BaseEnergyEnv(gym.Env):
         return self.charge_log
 
     def get_real_savings(self):
-        price_scaler = joblib.load('assets/price_scaler.pkl')
+        price_scaler = joblib.load('price_scaler.pkl')
         return price_scaler.inverse_transform(np.array(self.savings_log).reshape(-1, 1))
 
     def get_real_charge(self):
-        amount_scaler = joblib.load('assets/amount_scaler.pkl')
+        amount_scaler = joblib.load('amount_scaler.pkl')
         return amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
 
     def plot_charge(self):
         # Load the scaler
-        amount_scaler = joblib.load('assets/amount_scaler.pkl')
+        amount_scaler = joblib.load('amount_scaler.pkl')
 
         # Get the original charge values
         charge_original = amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
@@ -177,7 +179,7 @@ class BaseEnergyEnv(gym.Env):
 
     def plot_savings(self):
         # Load the scaler
-        price_scaler = joblib.load('assets/price_scaler.pkl')
+        price_scaler = joblib.load('price_scaler.pkl')
 
         # Get the original savings values
         savings_original = price_scaler.inverse_transform(np.array(self.savings_log).reshape(-1, 1))

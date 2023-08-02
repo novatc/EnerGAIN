@@ -27,6 +27,7 @@ class TestUtilities(unittest.TestCase):
             self.assertAlmostEqual(og_price_value, rescaled_price_value, places=5)
 
     def test_rescale_value_amount(self):
+        print(utilities.rescale_value_amount(a))
         og_amount = pd.read_csv("../data/in-use/test_data.csv")
         scaled_amount = pd.read_csv("../data/in-use/eval_data.csv")
         rescaled_amount = utilities.rescale_value_amount(scaled_amount['consumption'].iloc[0])

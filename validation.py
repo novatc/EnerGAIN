@@ -5,19 +5,19 @@ from envs.assets import env_utilities as utilities
 
 
 try:
-    model = SAC.load("agents/sac_trend_env")
+    model = SAC.load("agents/sac_base_env")
 except Exception as e:
     print("Error loading model: ", e)
     exit()
 
 register(
-    id='trend-v0',
-    entry_point='envs.trend_env:TrendEnv',
+    id='base-v0',
+    entry_point='envs.base_env:BaseEnergyEnv',
     kwargs={'data_path': "data/in-use/eval_data.csv"}
 )
 
 try:
-    eval_env = make('trend-v0')
+    eval_env = make('base-v0')
 except Exception as e:
     print("Error creating environment: ", e)
     exit()
@@ -36,7 +36,6 @@ for _ in range(num_episodes):
     for _ in range(ep_length):
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = eval_env.step(action)
-        print(info)
         episode_reward += reward
     episode_rewards.append(episode_reward)
     obs, _ = eval_env.reset()

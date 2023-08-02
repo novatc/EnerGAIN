@@ -6,6 +6,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from envs.assets.market import Market
+from envs.assets import env_utilities as utilities
+
 
 
 class TrendEnv(gym.Env):
@@ -14,7 +16,7 @@ class TrendEnv(gym.Env):
         self.dataframe = pd.read_csv(data_path)
         self.market = Market(self.dataframe)
         self.savings = None
-        self.charge = None
+        self.charge = 0.5
         self.max_battery_charge = 1
         self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-1, high=1, shape=((self.dataframe.shape[1] + 2) * 4,))
@@ -35,10 +37,10 @@ class TrendEnv(gym.Env):
         truncated = False  # this can be Fasle all the time since there is no failure condition the agent could trigger
         info = {'current_price': self.market.get_current_price(),
                 'current_step': self.market.get_current_step(),
-                'savings': self.savings,
-                'charge': self.charge,
-                'action_price': price,
-                'action_amount': amount,
+                'savings': utilities.rescale_value_price(self.savings),
+                'charge': utilities.rescale_value_amount(self.charge),
+                'action_price': utilities.rescale_value_price(price),
+                'action_amount': utilities.rescale_value_amount(amount),
                 }
 
         if amount > 0:  # buy
@@ -77,7 +79,6 @@ class TrendEnv(gym.Env):
             return -1
 
         return abs(float(self.market.get_current_price()) * amount)
-
 
     def get_observation(self):
         # Return the current state of the environment as a numpy array
