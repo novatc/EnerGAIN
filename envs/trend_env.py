@@ -5,7 +5,7 @@ from gymnasium import spaces
 import numpy as np
 from matplotlib import pyplot as plt
 
-from market import Market
+from envs.assets.market import Market
 
 
 class TrendEnv(gym.Env):
@@ -93,8 +93,8 @@ class TrendEnv(gym.Env):
         return self.get_observation().astype(np.float32), {}
 
     def render(self, mode='human'):
-        price_scaler = joblib.load('price_scaler.pkl')
-        amount_scaler = joblib.load('amount_scaler.pkl')
+        price_scaler = joblib.load('new_price_scaler.pkl')
+        amount_scaler = joblib.load('new_amount_scaler.pkl')
 
         # Calculate the average reward over 100 steps and plot it
         avg_rewards = []

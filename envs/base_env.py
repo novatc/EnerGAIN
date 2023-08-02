@@ -5,7 +5,7 @@ from gymnasium import spaces
 import numpy as np
 from matplotlib import pyplot as plt
 
-from market import Market
+from envs.assets.market import Market
 
 
 class BaseEnergyEnv(gym.Env):
@@ -97,8 +97,8 @@ class BaseEnergyEnv(gym.Env):
         return self.get_observation().astype(np.float32), {}
 
     def render(self, mode='human'):
-        price_scaler = joblib.load('../price_scaler.pkl')
-        amount_scaler = joblib.load('../amount_scaler.pkl')
+        price_scaler = joblib.load('assets/price_scaler.pkl')
+        amount_scaler = joblib.load('assets/amount_scaler.pkl')
 
         # Calculate the average reward over 100 steps and plot it
         avg_rewards = []
@@ -154,16 +154,16 @@ class BaseEnergyEnv(gym.Env):
         return self.charge_log
 
     def get_real_savings(self):
-        price_scaler = joblib.load('../price_scaler.pkl')
+        price_scaler = joblib.load('assets/price_scaler.pkl')
         return price_scaler.inverse_transform(np.array(self.savings_log).reshape(-1, 1))
 
     def get_real_charge(self):
-        amount_scaler = joblib.load('../amount_scaler.pkl')
+        amount_scaler = joblib.load('assets/amount_scaler.pkl')
         return amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
 
     def plot_charge(self):
         # Load the scaler
-        amount_scaler = joblib.load('../amount_scaler.pkl')
+        amount_scaler = joblib.load('assets/amount_scaler.pkl')
 
         # Get the original charge values
         charge_original = amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
@@ -177,7 +177,7 @@ class BaseEnergyEnv(gym.Env):
 
     def plot_savings(self):
         # Load the scaler
-        price_scaler = joblib.load('../price_scaler.pkl')
+        price_scaler = joblib.load('assets/price_scaler.pkl')
 
         # Get the original savings values
         savings_original = price_scaler.inverse_transform(np.array(self.savings_log).reshape(-1, 1))

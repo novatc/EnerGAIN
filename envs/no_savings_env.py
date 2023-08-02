@@ -5,7 +5,7 @@ from gymnasium import spaces
 import numpy as np
 from matplotlib import pyplot as plt
 
-from market import Market
+from envs.assets.market import Market
 
 
 class NoSavingsEnv(gym.Env):

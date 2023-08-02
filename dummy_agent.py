@@ -1,6 +1,6 @@
 import pandas as pd
 
-from market import Market
+from envs.assets.market import Market
 
 
 class TradingBot:

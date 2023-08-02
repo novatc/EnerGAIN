@@ -10,7 +10,7 @@ def rescale_value_price(scaled_value: float, test_mode=False) -> float:
     if test_mode:
         price_scaler = joblib.load('new_price_scaler.pkl')
     else:
-        price_scaler = joblib.load('../../new_price_scaler.pkl')
+        price_scaler = joblib.load('new_price_scaler.pkl')
 
     # Get the original savings values
     savings_original = price_scaler.inverse_transform(np.array(scaled_value).reshape(-1, 1))
@@ -22,7 +22,7 @@ def rescale_list_price(scaled_list: list, test_mode=False) -> list:
     if test_mode:
         price_scaler = joblib.load('new_price_scaler.pkl')
     else:
-        price_scaler = joblib.load('../../new_price_scaler.pkl')
+        price_scaler = joblib.load('new_price_scaler.pkl')
 
     # Get the original savings values
     savings_original = price_scaler.inverse_transform(np.array(scaled_list).reshape(-1, 1))

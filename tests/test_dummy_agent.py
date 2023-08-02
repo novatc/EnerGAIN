@@ -1,15 +1,14 @@
 import unittest
-from unittest.mock import Mock
 
 import pandas as pd
 
 from dummy_agent import TradingBot
-from market import Market
+from envs.assets.market import Market
 
 
 class TestTradingBot(unittest.TestCase):
     def setUp(self):
-        dataset = pd.read_csv('data/clean/test_set.csv')
+        dataset = pd.read_csv('../data/clean/test_set.csv')
         self.market = Market(dataset)
         self.bot = TradingBot(self.market, sell_threshold=0.8, buy_threshold=-0.8)
 
