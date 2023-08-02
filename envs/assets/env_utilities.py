@@ -1,6 +1,5 @@
 import joblib
 import numpy as np
-import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
 
@@ -31,7 +30,7 @@ def rescale_list_price(scaled_list: list, test_mode=False) -> list:
 
 def rescale_value_amount(scaled_value: float) -> float:
     # Load the scaler
-    amount_scaler = joblib.load('../../new_amount_scaler.pkl')
+    amount_scaler = joblib.load('new_amount_scaler.pkl')
 
     # Get the original charge values
     charge_original = amount_scaler.inverse_transform(np.array(scaled_value).reshape(-1, 1))
@@ -40,7 +39,7 @@ def rescale_value_amount(scaled_value: float) -> float:
 
 def rescale_list_amount(scaled_list: list) -> list:
     # Load the scaler
-    amount_scaler = joblib.load('../../new_amount_scaler.pkl')
+    amount_scaler = joblib.load('new_amount_scaler.pkl')
 
     # Get the original charge values
     charge_original = amount_scaler.inverse_transform(np.array(scaled_list).reshape(-1, 1))

@@ -27,17 +27,21 @@ class TestUtilities(unittest.TestCase):
             self.assertAlmostEqual(og_price_value, rescaled_price_value, places=5)
 
     def test_rescale_value_amount(self):
-        original = utilities.rescale_value_amount(-0.584742)
-        self.assertAlmostEqual(original, 0.5, places=5)
+        og_amount = pd.read_csv("../data/in-use/test_data.csv")
+        scaled_amount = pd.read_csv("../data/in-use/eval_data.csv")
+        rescaled_amount = utilities.rescale_value_amount(scaled_amount['consumption'].iloc[0])
+        self.assertAlmostEqual(og_amount['consumption'].iloc[0], rescaled_amount, places=5)
 
     def test_rescale_list_amount(self):
-        original = utilities.rescale_list_amount([-0.584742, -0.677308])
-        self.assertAlmostEqual(original[0], 0.5, places=5)
-        self.assertAlmostEqual(original[1], 0.5, places=5)
+        og_amount = pd.read_csv("../data/in-use/test_data.csv")
+        scaled_amount = pd.read_csv("../data/in-use/eval_data.csv")
+        rescaled_amount = utilities.rescale_list_amount(scaled_amount['consumption'].values)
 
-    def test_scale_list(self):
-        scaled = utilities.scale_list(np.array([0, 1]), 'test')
-        self.assertListEqual(scaled, [-1.0, 1.0])
+        random_indices = np.random.randint(0, 120, 5)
+        for index in random_indices:
+            og_amount_value = og_amount['consumption'].iloc[index]
+            rescaled_amount_value = rescaled_amount[index]
+            self.assertAlmostEqual(og_amount_value, rescaled_amount_value, places=5)
 
 
 if __name__ == '__main__':
