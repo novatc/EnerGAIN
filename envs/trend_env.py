@@ -30,6 +30,7 @@ class TrendEnv(gym.Env):
 
     def step(self, action):
         self.market.week_walk()
+
         price = action[0].item()
         amount = action[1].item()
 
@@ -37,10 +38,39 @@ class TrendEnv(gym.Env):
         truncated = False  # this can be Fasle all the time since there is no failure condition the agent could trigger
         info = {'current_price': self.market.get_current_price(),
                 'current_step': self.market.get_current_step(),
-                'savings': utilities.rescale_value_price(self.savings),
-                'charge': utilities.rescale_value_amount(self.charge),
-                'action_price': utilities.rescale_value_price(price),
-                'action_amount': utilities.rescale_value_amount(amount),
+                'savings': self.savings,
+                'charge': self.charge,
+                'action_price': price,
+                'action_amount': amount,
+                }
+
+        if amount > 0:  # buy
+            reward = self.trade(price, amount, 'buy')
+        elif amount < 0:  # sell
+            reward = self.trade(price, amount, 'sell')
+        else:  # if amount is 0
+            reward = 0
+
+        self.rewards.append(reward)
+        self.reward_log.append(
+            (self.reward_log[-1] + reward) if self.reward_log else reward)  # to keep track of the reward over time
+        # Return the current state of the environment as a numpy array, the reward,
+        return self.get_observation().astype(np.float32), reward, terminated, truncated, info
+
+    def validation_step(self, action):
+        self.market.step()
+
+        price = action[0].item()
+        amount = action[1].item()
+
+        terminated = False  # Whether the agent reaches the terminal state
+        truncated = False  # this can be Fasle all the time since there is no failure condition the agent could trigger
+        info = {'current_price': self.market.get_current_price(),
+                'current_step': self.market.get_current_step(),
+                'savings': self.savings,
+                'charge': self.charge,
+                'action_price': price,
+                'action_amount': amount,
                 }
 
         if amount > 0:  # buy
@@ -58,10 +88,10 @@ class TrendEnv(gym.Env):
 
     def trade(self, price, amount, trade_type):
         if trade_type == 'buy':
-            if price * amount > self.savings or amount > self.max_battery_charge - self.charge or amount <= 0:
+            if price * amount > self.savings or amount > self.max_battery_charge - self.charge:
                 return -1
         elif trade_type == 'sell':
-            if amount < -self.charge or price <= 0:
+            if amount < -self.charge:
                 return -1
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")

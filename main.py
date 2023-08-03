@@ -11,19 +11,19 @@ from stable_baselines3 import SAC
 os.makedirs('logging', exist_ok=True)
 
 register(
-    id='base_env-v0',
-    entry_point='envs.base_env:BaseEnergyEnv',
+    id='trend_env-v0',
+    entry_point='envs.trend_env:TrendEnv',
     kwargs={'data_path': "data/in-use/train_data.csv"}
 )
 
-env = make('base_env-v0')
+env = make('trend_env-v0')
 check_env(env)
 
 start_time = time.time()  # Get the current time
 
 model = SAC("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=100_000)
-model.save("agents/sac_base_env")
+model.learn(total_timesteps=500_000)
+model.save("agents/sac_trend_env")
 
 end_time = time.time()  # Get the current time after running the model
 
