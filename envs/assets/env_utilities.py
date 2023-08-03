@@ -59,4 +59,12 @@ def scale_value(value: float) -> float:
     return scaled_value[0]
 
 
-
+def get_model_names():
+    # iterate over the models directory and return a list of model names
+    import os
+    model_names = []
+    current_dir = os.getcwd()
+    for file in os.listdir(f'{current_dir}/agents'):
+        if file.endswith('.zip'):
+            model_names.append(file)
+    return model_names

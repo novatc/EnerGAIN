@@ -1,25 +1,52 @@
+import argparse
 import pandas as pd
 from gymnasium import register, make
 from stable_baselines3 import SAC
 from envs.assets import env_utilities as utilities
+import warnings
+# Define and parse command-line arguments
+parser = argparse.ArgumentParser(description='Evaluate a SAC model.')
+parser.add_argument('--env', choices=['base', 'trend', 'savings'], required=True, help='Environment to use.')
+args = parser.parse_args()
 
+# Define environment parameters
+env_params = {
+    'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnv', 'data_path': 'data/in-use/eval_data.csv'},
+    'trend': {'id': 'trend_env-v0', 'entry_point': 'envs.trend_env:TrendEnv', 'data_path': 'data/in-use/eval_data.csv'},
+    'savings': {'id': 'savings_env-v0', 'entry_point': 'envs.savings_env:SavingsEnv', 'data_path': 'data/in-use/eval_data.csv'}
+}
+
+# Check if chosen environment is valid
+if args.env not in env_params:
+    raise ValueError(f"Invalid environment '{args.env}'. Choices are 'base', 'trend', and 'savings'.")
+
+# Set chosen environment parameters
+env_id = env_params[args.env]['id']
+entry_point = env_params[args.env]['entry_point']
+data_path = env_params[args.env]['data_path']
+
+# suppress any warnings
+warnings.filterwarnings("ignore")
+
+
+# Load the model
 try:
-    model = SAC.load("agents/sac_base_env")
+    # find the model that name starts with sac_{args.env}
+    model_name = [name for name in utilities.get_model_names() if name.startswith(f"sac_{args.env}")][0]
+    print(f"Loading model {model_name}")
+    model = SAC.load(f"agents/sac_{args.env}")
 except Exception as e:
     print("Error loading model: ", e)
     exit()
 
-register(
-    id='base-v0',
-    entry_point='envs.base_env:BaseEnergyEnv',
-    kwargs={'data_path': "data/in-use/eval_data.csv"}
-)
-
+# Register and make the environment
+register(id=env_id, entry_point=entry_point, kwargs={'data_path': data_path})
 try:
-    eval_env = make('base-v0')
+    eval_env = make(env_id)
 except Exception as e:
     print("Error creating environment: ", e)
     exit()
+
 
 obs, _ = eval_env.reset()
 
