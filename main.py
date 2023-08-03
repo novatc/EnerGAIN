@@ -43,11 +43,15 @@ env = make(env_id)
 check_env(env)
 
 start_time = time.time()  # Get the current time
+# get current date and time
+
+
 
 # Create and train model
 model = SAC("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=args.training_steps)
-model.save(f"agents/sac_{args.env}")
+now = time.strftime("%Y%m%d-%H%M%S")
+model.save(f"agents/sac_{args.env}_{now}")
 
 end_time = time.time()  # Get the current time after running the model
 
