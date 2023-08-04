@@ -32,9 +32,9 @@ warnings.filterwarnings("ignore")
 # Load the model
 try:
     # find the model that name starts with sac_{args.env}
-    model_name = [name for name in utilities.get_model_names() if name.startswith(f"sac_{args.env}")][0]
+    model_name = [name for name in utilities.get_model_names() if name.startswith(f"sac_{args.env}_")][0]
     print(f"Loading model {model_name}")
-    model = SAC.load(f"agents/sac_{args.env}")
+    model = SAC.load(f"agents/{model_name}")
 except Exception as e:
     print("Error loading model: ", e)
     exit()
@@ -62,6 +62,7 @@ for _ in range(num_episodes):
     for _ in range(ep_length - 1):
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = eval_env.validation_step(action)
+        print(info)
         episode_reward += reward
     episode_rewards.append(episode_reward)
     obs, _ = eval_env.reset()
