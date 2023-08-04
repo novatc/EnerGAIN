@@ -4,22 +4,26 @@ from gymnasium import register, make
 from stable_baselines3 import SAC
 from envs.assets import env_utilities as utilities
 import warnings
+
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Evaluate a SAC model.')
-parser.add_argument('--env', choices=['base', 'trend', 'savings'], required=True, help='Environment to use.')
+parser.add_argument('--env', choices=['base', 'trend', 'no_savings'], default="base", required=True,
+                    help='Environment to use.')
 parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run.')
 args = parser.parse_args()
 
 # Define environment parameters
 env_params = {
-    'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnergyEnv', 'data_path': 'data/in-use/eval_data.csv'},
+    'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnergyEnv',
+             'data_path': 'data/in-use/eval_data.csv'},
     'trend': {'id': 'trend_env-v0', 'entry_point': 'envs.trend_env:TrendEnv', 'data_path': 'data/in-use/eval_data.csv'},
-    'savings': {'id': 'savings_env-v0', 'entry_point': 'envs.savings_env:SavingsEnv', 'data_path': 'data/in-use/eval_data.csv'}
+    'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
+                   'data_path': 'data/in-use/eval_data.csv'}
 }
 
 # Check if chosen environment is valid
 if args.env not in env_params:
-    raise ValueError(f"Invalid environment '{args.env}'. Choices are 'base', 'trend', and 'savings'.")
+    raise ValueError(f"Invalid environment '{args.env}'. Choices are 'base', 'trend', and 'no_savings'.")
 
 # Set chosen environment parameters
 env_id = env_params[args.env]['id']
@@ -28,7 +32,6 @@ data_path = env_params[args.env]['data_path']
 
 # suppress any warnings
 warnings.filterwarnings("ignore")
-
 
 # Load the model
 try:
@@ -47,7 +50,6 @@ try:
 except Exception as e:
     print("Error creating environment: ", e)
     exit()
-
 
 obs, _ = eval_env.reset()
 

@@ -12,7 +12,7 @@ from stable_baselines3 import SAC
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Train a SAC model.')
 parser.add_argument('--training_steps', type=int, required=True, default=100_00, help='Number of training steps.')
-parser.add_argument('--env', choices=['base', 'trend', 'savings'], default="base", required=True,
+parser.add_argument('--env', choices=['base', 'trend', 'no_savings'], default="base", required=True,
                     help='Environment to use.')
 args = parser.parse_args()
 
