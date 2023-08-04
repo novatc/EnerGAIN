@@ -43,8 +43,6 @@ env = make(env_id)
 check_env(env)
 
 start_time = time.time()  # Get the current time
-# get current date and time
-
 
 
 # Create and train model

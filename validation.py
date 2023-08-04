@@ -7,11 +7,12 @@ import warnings
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Evaluate a SAC model.')
 parser.add_argument('--env', choices=['base', 'trend', 'savings'], required=True, help='Environment to use.')
+parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run.')
 args = parser.parse_args()
 
 # Define environment parameters
 env_params = {
-    'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnv', 'data_path': 'data/in-use/eval_data.csv'},
+    'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnergyEnv', 'data_path': 'data/in-use/eval_data.csv'},
     'trend': {'id': 'trend_env-v0', 'entry_point': 'envs.trend_env:TrendEnv', 'data_path': 'data/in-use/eval_data.csv'},
     'savings': {'id': 'savings_env-v0', 'entry_point': 'envs.savings_env:SavingsEnv', 'data_path': 'data/in-use/eval_data.csv'}
 }
@@ -54,7 +55,7 @@ ep_length = eval_env.dataframe.shape[0]
 
 # Evaluate the agent
 episode_rewards = []
-num_episodes = 1
+num_episodes = args.episodes
 
 for _ in range(num_episodes):
     episode_reward = 0
@@ -62,7 +63,6 @@ for _ in range(num_episodes):
     for _ in range(ep_length - 1):
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = eval_env.validation_step(action)
-        print(info)
         episode_reward += reward
     episode_rewards.append(episode_reward)
     obs, _ = eval_env.reset()
@@ -83,6 +83,8 @@ for trade in trades:
 
 avg_price = sum([trade[1] for trade in trades]) / len(trades)
 rescaled_avg_price = utilities.rescale_value_price(avg_price)
+avg_amount = sum([trade[2] for trade in trades]) / len(trades)
+rescaled_amount = utilities.rescale_value_amount(avg_amount)
 
 print("Total reward:", sum(episode_rewards))
 print("Total trades:", len(trades))
@@ -90,6 +92,6 @@ print("Buy count:", buy_count)
 print("Sell count:", sell_count)
 print("Average reward:", sum(episode_rewards) / len(trades))
 print("Average price:", rescaled_avg_price)
-print("Average amount:", sum([trade[2] for trade in trades]) / len(trades))
+print("Average amount:", rescaled_amount)
 
 eval_env.render()

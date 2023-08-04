@@ -13,8 +13,8 @@ class BaseEnergyEnv(gym.Env):
         super(BaseEnergyEnv, self).__init__()
         self.dataframe = pd.read_csv(data_path)
         self.market = Market(self.dataframe)
-        self.savings = None
-        self.charge = None
+        self.savings = 0.5
+        self.charge = 0.5
         self.max_battery_charge = 1
         self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-1, high=1, shape=(self.dataframe.shape[1] + 2,))
@@ -86,7 +86,7 @@ class BaseEnergyEnv(gym.Env):
 
     def trade(self, price, amount, trade_type):
         if trade_type == 'buy':
-            if price * amount > self.savings or amount > self.max_battery_charge - self.charge:
+            if price * amount > self.savings or self.savings <= 0 or amount > self.max_battery_charge - self.charge:
                 return -1
         elif trade_type == 'sell':
             if amount < -self.charge:
@@ -101,7 +101,7 @@ class BaseEnergyEnv(gym.Env):
             self.savings -= self.market.get_current_price() * amount
 
             self.charge_log.append(self.charge)
-            self.savings_log.append(self.savings)
+            self.savings_log.append(self.savings_log[-1] + self.savings if self.savings_log else self.savings)
             self.trade_log.append((self.market.get_current_step(), price, amount, trade_type))
         else:
             return -1
@@ -120,15 +120,12 @@ class BaseEnergyEnv(gym.Env):
         """
         # Reset the state of the environment to an initial state
         super().reset(seed=seed, options=options)
-        self.savings = 0
-        self.charge = 0
+        self.savings = 0.5
+        self.charge = 0.5
         self.market.reset()
         return self.get_observation().astype(np.float32), {}
 
     def render(self, mode='human'):
-        price_scaler = joblib.load('new_price_scaler.pkl')
-        amount_scaler = joblib.load('new_amount_scaler.pkl')
-
         # Calculate the average reward over 100 steps and plot it
         avg_rewards = []
         scaler = 1
@@ -147,29 +144,25 @@ class BaseEnergyEnv(gym.Env):
         if buys:
             buy_steps, buy_prices, buy_amounts, _ = zip(*buys)
             # Rescale the prices and amounts using the scaler objects
-            buy_prices = price_scaler.inverse_transform(np.array(buy_prices).reshape(-1, 1))
-            buy_amounts = amount_scaler.inverse_transform(np.array(buy_amounts).reshape(-1, 1))
             plt.subplot(3, 1, 2)
-            plt.scatter(buy_steps, buy_prices / 10, c='green', label='Buy', alpha=0.6)
+            plt.scatter(buy_steps, buy_prices, c='green', label='Buy', alpha=0.6)
             plt.ylabel('Trade Price (€/MWh)')
             plt.subplot(3, 1, 3)
-            plt.scatter(buy_steps, buy_amounts / 100, color='green', label='Buy', alpha=0.6)
+            plt.scatter(buy_steps, buy_amounts, color='green', label='Buy', alpha=0.6)
             plt.ylabel('Trade Amount (MWh)')
         if sells:
             sell_steps, sell_prices, sell_amounts, _ = zip(*sells)
             # Rescale the prices and amounts using the scaler objects
-            sell_prices = price_scaler.inverse_transform(np.array(sell_prices).reshape(-1, 1))
-            sell_amounts = amount_scaler.inverse_transform(np.array(sell_amounts).reshape(-1, 1))
             plt.subplot(3, 1, 2)
-            plt.scatter(sell_steps, sell_prices / 10, c='red', label='Sell', alpha=0.6)
+            plt.scatter(sell_steps, sell_prices, c='red', label='Sell', alpha=0.6)
             plt.subplot(3, 1, 3)
-            plt.scatter(sell_steps, sell_amounts / 100, color='red', label='Sell', alpha=0.6)
+            plt.scatter(sell_steps, sell_amounts, color='red', label='Sell', alpha=0.6)
 
         plt.xlabel('Steps')
         plt.legend()
         plt.tight_layout()
         plt.show()
-        # self.plot_savings()
+        self.plot_savings()
         # self.plot_charge()
         self.plot_reward_log()
 
@@ -207,14 +200,8 @@ class BaseEnergyEnv(gym.Env):
         plt.show()
 
     def plot_savings(self):
-        # Load the scaler
-        price_scaler = joblib.load('price_scaler.pkl')
-
-        # Get the original savings values
-        savings_original = price_scaler.inverse_transform(np.array(self.savings_log).reshape(-1, 1))
-
         plt.figure(figsize=(10, 6))
-        plt.plot(savings_original)
+        plt.plot(self.savings_log)
         plt.title('Savings Over Time')
         plt.xlabel('Step')
         plt.ylabel('Savings')
