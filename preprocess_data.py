@@ -110,6 +110,17 @@ env_data.drop('hour', axis=1, inplace=True)
 # set the price column as the index
 env_data = env_data.set_index('price')
 
+# create a copy of env_data but replace price, consumption, and prediction with the original values
+unscaled_env_data = env_data.copy()
+unscaled_env_data['price'] = solar_power['price']
+unscaled_env_data['consumption'] = solar_power['consumption']
+unscaled_env_data['prediction'] = solar_power['prediction']
+
+unscaled_env_data_test = unscaled_env_data.tail(24 * 5)
+unscaled_env_data_test.to_csv('data/in-use/unscaled_eval_data.csv')
+unscaled_env_data.to_csv('data/in-use/unscaled_train_data.csv')
+
+
 # cut the last 120 (one week) rows of the dataframe and save them as the test set
 test_set = env_data.tail(24 * 5)
 test_set.to_csv('data/in-use/eval_data.csv')
