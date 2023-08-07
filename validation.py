@@ -7,7 +7,7 @@ import warnings
 
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Evaluate a SAC model.')
-parser.add_argument('--env', choices=['base', 'trend', 'no_savings'], default="base", required=True,
+parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_reward'], default="base", required=True,
                     help='Environment to use.')
 parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run.')
 args = parser.parse_args()
@@ -16,14 +16,18 @@ args = parser.parse_args()
 env_params = {
     'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnergyEnv',
              'data_path': 'data/in-use/eval_data.csv'},
-    'trend': {'id': 'trend_env-v0', 'entry_point': 'envs.trend_env:TrendEnv', 'data_path': 'data/in-use/eval_data.csv'},
+    'trend': {'id': 'trend_env-v0', 'entry_point': 'envs.trend_env:TrendEnv',
+              'data_path': 'data/in-use/eval_data.csv'},
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
-                   'data_path': 'data/in-use/eval_data.csv'}
+                   'data_path': 'data/in-use/eval_data.csv'},
+    'savings_reward': {'id': 'savings_reward_env-v0', 'entry_point': 'envs.savings_reward:SavingsRewardEnv',
+                       'data_path': 'data/in-use/eval_data.csv'}
 }
 
 # Check if chosen environment is valid
 if args.env not in env_params:
-    raise ValueError(f"Invalid environment '{args.env}'. Choices are 'base', 'trend', and 'no_savings'.")
+    raise ValueError(
+        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'savings_reward', and 'no_savings'.")
 
 # Set chosen environment parameters
 env_id = env_params[args.env]['id']

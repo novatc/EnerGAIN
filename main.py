@@ -12,7 +12,7 @@ from stable_baselines3 import SAC
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Train a SAC model.')
 parser.add_argument('--training_steps', type=int, required=True, default=100_00, help='Number of training steps.')
-parser.add_argument('--env', choices=['base', 'trend', 'no_savings'], default="base", required=True,
+parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_reward'], default="base", required=True,
                     help='Environment to use.')
 args = parser.parse_args()
 
@@ -23,12 +23,15 @@ env_params = {
     'trend': {'id': 'trend_env-v0', 'entry_point': 'envs.trend_env:TrendEnv',
               'data_path': 'data/in-use/train_data.csv'},
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
-                   'data_path': 'data/in-use/train_data.csv'}
+                   'data_path': 'data/in-use/train_data.csv'},
+    'savings_reward': {'id': 'savings_reward_env-v0', 'entry_point': 'envs.savings_reward:SavingsRewardEnv',
+                       'data_path': 'data/in-use/train_data.csv'}
 }
 
 # Check if chosen environment is valid
 if args.env not in env_params:
-    raise ValueError(f"Invalid environment '{args.env}'. Choices are 'base', 'trend', and 'savings'.")
+    raise ValueError(
+        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'savings_reward' and 'no_savings'.")
 
 # Set chosen environment parameters
 env_id = env_params[args.env]['id']
@@ -43,7 +46,6 @@ env = make(env_id)
 check_env(env)
 
 start_time = time.time()  # Get the current time
-
 
 # Create and train model
 model = SAC("MlpPolicy", env, verbose=1)
