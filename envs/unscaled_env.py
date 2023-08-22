@@ -107,6 +107,7 @@ class UnscaledEnv(gym.Env):
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
         if self.market.accept_offer(price, trade_type):
+            # print(f"Trade: {trade_type} {amount} at {price}")
             # this works for both buy and sell because amount is negative for sale and + and - cancel out and fot buy
             # amount is positive
             self.charge += amount

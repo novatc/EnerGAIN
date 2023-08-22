@@ -12,8 +12,11 @@ from stable_baselines3 import SAC
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Train a SAC model.')
 parser.add_argument('--training_steps', type=int, required=True, default=100, help='Number of training steps.')
-parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_reward', 'unscaled'], default="unscaled", required=True,
+parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_reward', 'unscaled'], default="unscaled",
+                    required=True,
                     help='Environment to use.')
+parser.add_argument('--save', action='store_true',
+                    help='Save the model.')  # q: how to not save the model? a: don't use this flag
 args = parser.parse_args()
 
 # Define environment parameters
@@ -55,7 +58,8 @@ start_time = time.time()  # Get the current time
 model = SAC("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=args.training_steps)
 now = time.strftime("%Y%m%d-%H%M%S")
-model.save(f"agents/sac_{args.env}_{now}")
+if args.save:
+    model.save(f"agents/sac_{args.env}_{now}")
 
 end_time = time.time()  # Get the current time after running the model
 
