@@ -1,18 +1,18 @@
 import os
 import time
 import argparse
-from typing import Callable
 
 from stable_baselines3.common.env_checker import check_env
 from gymnasium import register
 from gymnasium import make
+from cutsom_wrappers.custom_wrappers import CustomNormalizeObservation
 
 from stable_baselines3 import SAC
 
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Train a SAC model.')
-parser.add_argument('--training_steps', type=int, required=True, default=100_00, help='Number of training steps.')
-parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_reward'], default="base", required=True,
+parser.add_argument('--training_steps', type=int, required=True, default=100, help='Number of training steps.')
+parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_reward', 'unscaled'], default="unscaled", required=True,
                     help='Environment to use.')
 args = parser.parse_args()
 
@@ -25,13 +25,15 @@ env_params = {
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
                    'data_path': 'data/in-use/train_data.csv'},
     'savings_reward': {'id': 'savings_reward_env-v0', 'entry_point': 'envs.savings_reward:SavingsRewardEnv',
-                       'data_path': 'data/in-use/train_data.csv'}
+                       'data_path': 'data/in-use/train_data.csv'},
+    'unscaled': {'id': 'unscaled_env-v0', 'entry_point': 'envs.unscaled_env:UnscaledEnv',
+                 'data_path': 'data/in-use/unscaled_train_data.csv'}
 }
 
 # Check if chosen environment is valid
 if args.env not in env_params:
     raise ValueError(
-        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'savings_reward' and 'no_savings'.")
+        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'savings_reward', 'unscaled' and 'no_savings'.")
 
 # Set chosen environment parameters
 env_id = env_params[args.env]['id']
@@ -44,6 +46,8 @@ os.makedirs('logging', exist_ok=True)
 register(id=env_id, entry_point=entry_point, kwargs={'data_path': data_path})
 env = make(env_id)
 check_env(env)
+if args.env == 'unscaled':
+    env = CustomNormalizeObservation(env)
 
 start_time = time.time()  # Get the current time
 

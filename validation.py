@@ -2,12 +2,15 @@ import argparse
 import pandas as pd
 from gymnasium import register, make
 from stable_baselines3 import SAC
+
+from cutsom_wrappers.custom_wrappers import CustomNormalizeObservation
 from envs.assets import env_utilities as utilities
 import warnings
 
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Evaluate a SAC model.')
-parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_reward'], default="base", required=True,
+parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_reward', 'unscaled'],
+                    default="base", required=True,
                     help='Environment to use.')
 parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run.')
 args = parser.parse_args()
@@ -21,13 +24,15 @@ env_params = {
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
                    'data_path': 'data/in-use/eval_data.csv'},
     'savings_reward': {'id': 'savings_reward_env-v0', 'entry_point': 'envs.savings_reward:SavingsRewardEnv',
-                       'data_path': 'data/in-use/eval_data.csv'}
+                       'data_path': 'data/in-use/eval_data.csv'},
+    'unscaled': {'id': 'unscaled_env-v0', 'entry_point': 'envs.unscaled_env:UnscaledEnv',
+                 'data_path': 'data/in-use/unscaled_eval_data.csv'}
 }
 
 # Check if chosen environment is valid
 if args.env not in env_params:
     raise ValueError(
-        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'savings_reward', and 'no_savings'.")
+        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'savings_reward', 'unscaled' and 'no_savings'.")
 
 # Set chosen environment parameters
 env_id = env_params[args.env]['id']
@@ -54,6 +59,9 @@ try:
 except Exception as e:
     print("Error creating environment: ", e)
     exit()
+if args.env == 'unscaled':
+    eval_env = CustomNormalizeObservation(eval_env)
+
 
 obs, _ = eval_env.reset()
 
@@ -87,17 +95,21 @@ for trade in trades:
     elif trade[2] < 0:
         sell_count += 1
 
-avg_price = sum([trade[1] for trade in trades]) / len(trades)
-rescaled_avg_price = utilities.rescale_value_price(avg_price)
-avg_amount = sum([trade[2] for trade in trades]) / len(trades)
-rescaled_amount = utilities.rescale_value_amount(avg_amount)
+try:
+    avg_price = sum([trade[1] for trade in trades]) / len(trades)
+except ZeroDivisionError:
+    avg_price = 0
+try:
+    avg_amount = sum([trade[2] for trade in trades]) / len(trades)
+except ZeroDivisionError:
+    avg_amount = 0
+# rescaled_amount = utilities.rescale_value_amount(avg_amount)
 
 print("Total reward:", sum(episode_rewards))
 print("Total trades:", len(trades))
 print("Buy count:", buy_count)
 print("Sell count:", sell_count)
 print("Average reward:", sum(episode_rewards) / len(trades))
-print("Average price:", rescaled_avg_price)
-print("Average amount:", rescaled_amount)
+
 
 eval_env.render()

@@ -1,24 +1,21 @@
 import numpy as np
-import gymnasium as gym
-from sklearn.preprocessing import MinMaxScaler
+from gymnasium import Wrapper
+from gymnasium.wrappers import NormalizeObservation
 
 
-class NormalizeObservation(gym.ObservationWrapper):
-    def __init__(self, env, max_savings, max_charge):
+class CustomNormalizeObservation(Wrapper):
+    def __init__(self, env):
         super().__init__(env)
-        self.scaler = MinMaxScaler(feature_range=(-1, 1))
-        self.max_savings = max_savings
-        self.max_charge = max_charge
+        self.env = NormalizeObservation(env)
 
-    def observation(self, obs):
-        # Normalize the market data for each feature independently
-        market_data = obs[:-2].reshape(1, -1)  # Reshape for the scaler
-        scaled_market_data = self.scaler.transform(market_data)[0]  # Apply the scaler
-        # Normalize savings and charge
-        normalized_savings = obs[-2] / self.max_savings
-        normalized_charge = obs[-1] / self.max_charge
-        # Scale savings and charge to -1 to 1
-        scaled_savings = 2.0 * normalized_savings - 1.0
-        scaled_charge = 2.0 * normalized_charge - 1.0
-        # Return the scaled observation
-        return np.concatenate((scaled_market_data, [scaled_savings, scaled_charge]))
+    def reset(self, **kwargs):
+        obs, info = self.env.reset(**kwargs)
+        # make sure the observation is a numpy array
+        if isinstance(obs, tuple):
+            obs = np.array(obs)
+        obs = obs.astype(np.float32)
+        return obs, info
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        return obs.astype(np.float32), reward, terminated, truncated, info
