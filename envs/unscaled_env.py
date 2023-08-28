@@ -1,5 +1,4 @@
 import gymnasium as gym
-import joblib
 import pandas as pd
 from gymnasium import spaces
 import numpy as np
@@ -16,9 +15,11 @@ class UnscaledEnv(gym.Env):
         low_boundary = self.dataframe.min().values
         low_boundary = np.append(low_boundary, [0.0, 0.0])  # set the lower boundary of savings and charge to 0
         high_boundary = self.dataframe.max().values
-        high_boundary = np.append(high_boundary, [1000.0, 1000.0])  # set the upper boundary of savings and charge to 1
-
-        self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
+        high_boundary = np.append(high_boundary,
+                                  [1000.0, 1000.0])  # set the upper boundary of savings and charge to 1000
+        action_low = np.array([-1.0, -100.0])
+        action_high = np.array([1.0, 100.0])
+        self.action_space = spaces.Box(low=action_low, high=action_high, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=low_boundary, high=high_boundary, shape=(self.dataframe.shape[1] + 2,))
 
         # print(f"Observation Space: {self.observation_space}")
@@ -26,9 +27,9 @@ class UnscaledEnv(gym.Env):
         # print(f"High Boundary: {self.observation_space.high}")
 
         self.market = Market(self.dataframe)
-        self.savings = 0.5
-        self.charge = 0.5
-        self.max_battery_charge = 1
+        self.savings = 50  # €
+        self.charge = 500  # kWh
+        self.max_battery_charge = 1000  # kWh
 
         self.charge_log = []
         self.savings_log = []
@@ -107,7 +108,6 @@ class UnscaledEnv(gym.Env):
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
         if self.market.accept_offer(price, trade_type):
-            # print(f"Trade: {trade_type} {amount} at {price}")
             # this works for both buy and sell because amount is negative for sale and + and - cancel out and fot buy
             # amount is positive
             self.charge += amount
@@ -115,7 +115,7 @@ class UnscaledEnv(gym.Env):
             self.savings -= self.market.get_current_price() * amount
 
             self.charge_log.append(self.charge)
-            self.savings_log.append(self.savings_log[-1] + self.savings if self.savings_log else self.savings)
+            self.savings_log.append(self.savings)
             self.trade_log.append((self.market.get_current_step(), price, amount, trade_type))
         else:
             return -1
@@ -127,8 +127,6 @@ class UnscaledEnv(gym.Env):
         observation = np.concatenate(
             (self.dataframe.iloc[self.market.get_current_step()].to_numpy(), [self.savings, self.charge])
         )
-        # print(f"get_observation: {observation}")
-        # print(f"get_observation at index 7: {observation[7]}")
         return observation
 
     def reset(self, seed=None, options=None):
@@ -138,14 +136,10 @@ class UnscaledEnv(gym.Env):
         """
         # Reset the state of the environment to an initial state
         super().reset(seed=seed, options=options)
-        self.savings = 0.5
-        self.charge = 0.5
+        self.savings = 50
+        self.charge = 500
         self.market.reset()
         observation = self.get_observation().astype(np.float32)
-        # print(f"Reset Observation: {observation}")
-        # print(f"Reset Observation dtype: {observation.dtype}")
-        # print(f"Reset Observation at index 7: {observation[7]}")
-        # print(f"Is Reset Observation at index 7 within bounds? {self.observation_space.contains(observation)}")
         return observation, {}
 
     def render(self, mode='human'):
@@ -200,23 +194,9 @@ class UnscaledEnv(gym.Env):
     def get_charge(self):
         return self.charge_log
 
-    def get_real_savings(self):
-        price_scaler = joblib.load('price_scaler.pkl')
-        return price_scaler.inverse_transform(np.array(self.savings_log).reshape(-1, 1))
-
-    def get_real_charge(self):
-        amount_scaler = joblib.load('amount_scaler.pkl')
-        return amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
-
     def plot_charge(self):
-        # Load the scaler
-        amount_scaler = joblib.load('amount_scaler.pkl')
-
-        # Get the original charge values
-        charge_original = amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
-
         plt.figure(figsize=(10, 6))
-        plt.plot(charge_original / 10)
+        plt.plot(self.charge_log / 10)
         plt.title('Charge Over Time')
         plt.xlabel('Step')
         plt.ylabel('Charge')

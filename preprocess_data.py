@@ -50,7 +50,7 @@ energy_consumption_series = energy_consumption_series.reset_index(drop=True)
 solar_power['date'] = date_column
 solar_power = solar_power.reset_index(drop=True)
 solar_power['prediction'] = energy_prediction_series
-solar_power['price'] = energy_price_series
+solar_power['price'] = energy_price_series / 1000  # convert to €/kWh
 solar_power['consumption'] = energy_consumption_series
 
 # make the date column the index
@@ -111,7 +111,7 @@ env_data.drop('hour', axis=1, inplace=True)
 env_data = env_data.set_index('price')
 
 # cut the last 120 (one week) rows of the dataframe and save them as the test set
-test_set = env_data.tail(24 * 5)
+test_set = env_data.tail(24 * 30)
 test_set.to_csv('data/in-use/eval_data.csv')
 
 env_data.to_csv('data/in-use/train_data.csv')
@@ -136,9 +136,5 @@ final_data = pd.concat([unscaled_data, time_data], axis=1)
 final_data = final_data.set_index('price')
 final_data.to_csv('data/in-use/unscaled_train_data.csv')
 
-test_data = final_data.tail(24 * 5)
+test_data = final_data.tail(24 * 30)
 test_data.to_csv('data/in-use/unscaled_eval_data.csv')
-
-
-
-

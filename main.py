@@ -2,10 +2,12 @@ import os
 import time
 import argparse
 
+import numpy as np
 from stable_baselines3.common.env_checker import check_env
 from gymnasium import register
 from gymnasium import make
 from cutsom_wrappers.custom_wrappers import CustomNormalizeObservation
+from gymnasium.wrappers import RescaleAction
 
 from stable_baselines3 import SAC
 
@@ -50,7 +52,10 @@ register(id=env_id, entry_point=entry_point, kwargs={'data_path': data_path})
 env = make(env_id)
 check_env(env)
 if args.env == 'unscaled':
+    action_low = np.array([-1.0, -100.0])
+    action_high = np.array([1.0, 100.0])
     env = CustomNormalizeObservation(env)
+    env = RescaleAction(env, action_low, action_high)
 
 start_time = time.time()  # Get the current time
 
@@ -58,6 +63,8 @@ start_time = time.time()  # Get the current time
 model = SAC("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=args.training_steps)
 now = time.strftime("%Y%m%d-%H%M%S")
+print(env.trade_log[-100:])
+print(len(env.trade_log))
 if args.save:
     model.save(f"agents/sac_{args.env}_{now}")
 

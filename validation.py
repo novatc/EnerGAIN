@@ -1,6 +1,9 @@
 import argparse
+
+import numpy as np
 import pandas as pd
 from gymnasium import register, make
+from gymnasium.wrappers import RescaleAction
 from stable_baselines3 import SAC
 
 from cutsom_wrappers.custom_wrappers import CustomNormalizeObservation
@@ -32,7 +35,8 @@ env_params = {
 # Check if chosen environment is valid
 if args.env not in env_params:
     raise ValueError(
-        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'savings_reward', 'unscaled' and 'no_savings'.")
+        f"Invalid environment '{args.env}'. "
+        f"Choices are 'base', 'trend', 'savings_reward', 'unscaled' and 'no_savings'.")
 
 # Set chosen environment parameters
 env_id = env_params[args.env]['id']
@@ -60,23 +64,24 @@ except Exception as e:
     print("Error creating environment: ", e)
     exit()
 if args.env == 'unscaled':
-    eval_env = CustomNormalizeObservation(eval_env)
-
-
-obs, _ = eval_env.reset()
+    action_low = np.array([-1.0, -100.0])
+    action_high = np.array([1.0, 100.0])
+    env = CustomNormalizeObservation(eval_env)
+    env = RescaleAction(env, action_low, action_high)
 
 ep_length = eval_env.dataframe.shape[0]
 
 # Evaluate the agent
 episode_rewards = []
 num_episodes = args.episodes
-
+obs, _ = eval_env.reset()
 for _ in range(num_episodes):
     episode_reward = 0
     done = False
     for _ in range(ep_length - 1):
         action, _ = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, info = eval_env.validation_step(action)
+        obs, reward, terminated, truncated, info = eval_env.step(action)
+        print(info)
         episode_reward += reward
     episode_rewards.append(episode_reward)
     obs, _ = eval_env.reset()
@@ -89,6 +94,7 @@ df_trades.to_csv("trades.csv", index=False)
 # count how many times a buy or sell action was taken
 buy_count = 0
 sell_count = 0
+
 for trade in trades:
     if trade[2] > 0:
         buy_count += 1
