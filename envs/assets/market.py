@@ -40,9 +40,9 @@ class Market:
 
     def step(self):
         """
-        Increment the current step by 1.
+        Increment the current step by 1. If the current step is equal to the length of the dataset, reset the first step
         """
-        self.current_step += 1
+        self.current_step = (self.current_step + 1) % len(self.dataset)
 
     def get_current_step(self):
         """

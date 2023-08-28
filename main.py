@@ -55,7 +55,7 @@ if args.env == 'unscaled':
     action_low = np.array([-1.0, -100.0])
     action_high = np.array([1.0, 100.0])
     env = CustomNormalizeObservation(env)
-    env = RescaleAction(env, action_low, action_high)
+    # env = RescaleAction(env, action_low, action_high)
 
 start_time = time.time()  # Get the current time
 
@@ -63,8 +63,6 @@ start_time = time.time()  # Get the current time
 model = SAC("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=args.training_steps)
 now = time.strftime("%Y%m%d-%H%M%S")
-print(env.trade_log[-100:])
-print(len(env.trade_log))
 if args.save:
     model.save(f"agents/sac_{args.env}_{now}")
 

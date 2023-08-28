@@ -40,7 +40,7 @@ class UnscaledEnv(gym.Env):
         self.reward_log = []
 
     def step(self, action):
-        self.market.week_walk()
+        self.market.step()
 
         price = action[0].item()
         amount = action[1].item()
