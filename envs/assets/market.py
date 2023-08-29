@@ -52,6 +52,15 @@ class Market:
         """
         return self.current_step
 
+    def get_price_at_step(self, step):
+        """
+        Get the market price at a given step.
+
+        :param step: the given step.
+        :return: the market price at the given step.
+        """
+        return self.dataset.iloc[step]['price']
+
     def week_walk(self):
         """
         Choose a random starting position and increment the current step by 120 (5 days) from that position.

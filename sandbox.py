@@ -7,7 +7,6 @@ from gymnasium.wrappers import RescaleAction
 from stable_baselines3 import SAC
 
 from cutsom_wrappers.custom_wrappers import CustomNormalizeObservation
-from envs.assets import env_utilities as utilities
 import warnings
 warnings.filterwarnings("ignore")
 env_params = {
@@ -51,8 +50,7 @@ for _ in range(num_episodes):
     done = False
     for _ in range(ep_length - 1):
         action, _ = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, info = env.validation_step(action)
-        print(info)
+        obs, reward, terminated, truncated, info = env.step(action)
         episode_reward += reward
     episode_rewards.append(episode_reward)
     obs, _ = eval_env.reset()

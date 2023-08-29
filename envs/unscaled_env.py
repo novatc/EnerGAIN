@@ -160,6 +160,7 @@ class UnscaledEnv(gym.Env):
 
         if buys:
             buy_steps, buy_prices, buy_amounts, _ = zip(*buys)
+            buy_prices = abs(np.array(buy_prices))
             # Rescale the prices and amounts using the scaler objects
             plt.subplot(3, 1, 2)
             plt.scatter(buy_steps, buy_prices, c='green', label='Buy', alpha=0.6)
@@ -169,6 +170,7 @@ class UnscaledEnv(gym.Env):
             plt.ylabel('Trade Amount (MWh)')
         if sells:
             sell_steps, sell_prices, sell_amounts, _ = zip(*sells)
+            sell_prices = abs(np.array(sell_prices))
             # Rescale the prices and amounts using the scaler objects
             plt.subplot(3, 1, 2)
             plt.scatter(sell_steps, sell_prices, c='red', label='Sell', alpha=0.6)
@@ -182,6 +184,7 @@ class UnscaledEnv(gym.Env):
         self.plot_savings()
         # self.plot_charge()
         self.plot_reward_log()
+        self.plot_price_comparison()
 
     def get_trades(self):
         # list of trades: (step, price, amount, trade_type)
@@ -217,3 +220,33 @@ class UnscaledEnv(gym.Env):
         plt.xlabel('Step')
         plt.ylabel('Reward')
         plt.show()
+
+    def plot_price_comparison(self):
+        plt.figure(figsize=(10, 6))
+        buys = [trade for trade in self.trade_log if trade[3] == 'buy']
+        sells = [trade for trade in self.trade_log if trade[3] == 'sell']
+
+        if buys:
+            buy_steps, buy_prices, buy_amounts, _ = zip(*buys)
+            buy_prices = abs(np.array(buy_prices))
+            market_prices_buy = [self.market.get_price_at_step(step) for step in buy_steps]
+            plt.subplot(2, 1, 1)
+            plt.scatter(buy_steps, buy_prices, c='green', label='Buy', alpha=0.6)
+            plt.plot(buy_steps, market_prices_buy, c='blue', label='Market Price', alpha=0.6)
+            plt.ylabel('Trade Price (€/kWh)')
+            plt.xlabel('Steps')
+        if sells:
+            sell_steps, sell_prices, sell_amounts, _ = zip(*sells)
+            market_prices_sell = [self.market.get_price_at_step(step) for step in sell_steps]
+            plt.subplot(2, 1, 2)
+            plt.scatter(sell_steps, sell_prices, c='red', label='Sell', alpha=0.6)
+            plt.plot(sell_steps, market_prices_sell, c='blue', label='Market Price', alpha=0.6)
+            plt.ylabel('Trade Price (€/kWh)')
+            plt.xlabel('Steps')
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+
+
+
