@@ -40,13 +40,13 @@ class UnscaledEnv(gym.Env):
         self.reward_log = []
 
     def step(self, action):
-        self.market.step()
+        self.market.week_walk()
 
         price = action[0].item()
         amount = action[1].item()
 
         terminated = False  # Whether the agent reaches the terminal state
-        truncated = False  # this can be Fasle all the time since there is no failure condition the agent could trigger
+        truncated = False  # this can be false all the time since there is no failure condition the agent could trigger
         info = {'current_price': self.market.get_current_price(),
                 'current_step': self.market.get_current_step(),
                 'savings': self.savings,
@@ -70,7 +70,7 @@ class UnscaledEnv(gym.Env):
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
     def validation_step(self, action):
-        self.market.step()
+        self.market.week_walk()
 
         price = action[0].item()
         amount = action[1].item()

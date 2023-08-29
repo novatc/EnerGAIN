@@ -22,7 +22,7 @@ data_path = env_params["unscaled"]['data_path']
 # Load the model
 try:
     # find the model that name starts with sac_{args.env}
-    model_name = "sac_unscaled_20230829-134908.zip"
+    model_name = "sac_unscaled_20230829-155626.zip"
     print(f"Loading model {model_name}")
     model = SAC.load(f"agents/{model_name}")
 except Exception as e:
