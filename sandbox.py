@@ -22,7 +22,7 @@ data_path = env_params["unscaled"]['data_path']
 # Load the model
 try:
     # find the model that name starts with sac_{args.env}
-    model_name = "sac_unscaled_20230829-155626.zip"
+    model_name = "sac_unscaled_20230830-123350.zip"
     print(f"Loading model {model_name}")
     model = SAC.load(f"agents/{model_name}")
 except Exception as e:
@@ -40,7 +40,7 @@ except Exception as e:
     print("Error creating environment: ", e)
     exit()
 
-ep_length = env.dataframe.shape[0]
+ep_length = 2160
 
 episode_rewards = []
 num_episodes = 1
@@ -48,7 +48,7 @@ obs, _ = env.reset()
 for _ in range(num_episodes):
     episode_reward = 0
     done = False
-    for _ in range(ep_length - 1):
+    for _ in range(ep_length):
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = env.step(action)
         episode_reward += reward

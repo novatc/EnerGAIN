@@ -61,14 +61,17 @@ class Market:
         """
         return self.dataset.iloc[step]['price']
 
-    def week_walk(self):
+    def random_walk(self, sequence_length=2160):
         """
-        Choose a random starting position and increment the current step by 2160 (90 days) from that position.
-        After completing the 2160 (90 days) steps, select a new random starting position.
+        Choose a random starting position and increment the current step by sequence_length (90 days) f
+        rom that position.
+        After completing the sequence_length (90 days) steps, select a new random starting position.
+
+        :param sequence_length: the length of the sequence to increment the current step by.
         """
         # If this is the first call or 120 steps have been taken since the last random start,
         # choose a new random starting position
-        if self.current_step == 0 or self.steps_since_last_random_start >= 2160:
+        if self.current_step == 0 or self.steps_since_last_random_start >= sequence_length:
             dataset_length = len(self.dataset)
             self.current_step = random.randint(0, dataset_length - 1)
             self.steps_since_last_random_start = 0  # Reset the step counter
@@ -77,6 +80,10 @@ class Market:
 
         self.current_step = (self.current_step + 1) % len(self.dataset)
         self.steps_since_last_random_start += 1  # Increment the step counter
+
+    def validation_random_walk(self, sequence_length=2160):
+        # walk through the dataset start from the beginning until the end
+
 
     def previous_hours(self, hours, current_charge, savings) -> np.array:
         """

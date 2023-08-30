@@ -37,7 +37,7 @@ class NoSavingsEnv(gym.Env):
             A 5-element tuple containing the new observation, the reward, two booleans indicating whether the episode
             is done or truncated, and a dictionary with additional info.
         """
-        self.market.week_walk()
+        self.market.random_walk()
 
         price = action[0].item()
         amount = action[1].item()

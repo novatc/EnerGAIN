@@ -27,7 +27,7 @@ class BaseEnergyEnv(gym.Env):
         self.reward_log = []
 
     def step(self, action):
-        self.market.week_walk()
+        self.market.random_walk()
 
         price = action[0].item()
         amount = action[1].item()
