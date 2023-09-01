@@ -40,7 +40,8 @@ except Exception as e:
     print("Error creating environment: ", e)
     exit()
 
-ep_length = 2160
+ep_length = 30*24
+
 
 episode_rewards = []
 num_episodes = 1
