@@ -4,11 +4,12 @@ from gymnasium import spaces
 import numpy as np
 from matplotlib import pyplot as plt
 
+from envs.assets.env_utilities import moving_average
 from envs.assets.market import Market
 
 
 class UnscaledEnv(gym.Env):
-    def __init__(self, data_path):
+    def __init__(self, data_path: str, validation=False):
         super(UnscaledEnv, self).__init__()
         self.dataframe = pd.read_csv(data_path)
 
@@ -22,10 +23,6 @@ class UnscaledEnv(gym.Env):
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=low_boundary, high=high_boundary, shape=(self.dataframe.shape[1] + 2,))
 
-        # print(f"Observation Space: {self.observation_space}")
-        # print(f"Low Boundary: {self.observation_space.low}")
-        # print(f"High Boundary: {self.observation_space.high}")
-
         self.market = Market(self.dataframe)
         self.savings = 50  # €
         self.charge = 500  # kWh
@@ -38,9 +35,15 @@ class UnscaledEnv(gym.Env):
 
         self.rewards = []
         self.reward_log = []
+        self.window_size = 20
+
+        self.validation = validation
 
     def step(self, action):
-        self.market.random_walk()
+        if self.validation:
+            self.market.step()
+        else:
+            self.market.random_walk()
 
         price = action[0].item()
         amount = action[1].item()
@@ -116,7 +119,7 @@ class UnscaledEnv(gym.Env):
     def render(self, mode='human'):
         # Calculate the average reward over 100 steps and plot it
         avg_rewards = []
-        scaler = 1
+        scaler = 10
         for i in range(0, len(self.rewards), scaler):
             avg_rewards.append(sum(self.rewards[i:i + scaler]) / scaler)
         plt.figure(figsize=(10, 6))
@@ -153,7 +156,7 @@ class UnscaledEnv(gym.Env):
         plt.tight_layout()
         plt.show()
         self.plot_savings()
-        # self.plot_charge()
+        self.plot_charge()
         self.plot_reward_log()
         self.plot_price_comparison()
 
@@ -170,55 +173,88 @@ class UnscaledEnv(gym.Env):
 
     def plot_charge(self):
         plt.figure(figsize=(10, 6))
-        plt.plot(self.charge_log / 10)
+
+        # Original data
+        plt.plot(self.charge_log, label='Original', alpha=0.5)
+
+        # Smoothed data
+        smoothed_data = moving_average(self.charge_log, self.window_size)
+        smoothed_steps = np.arange(self.window_size - 1,
+                                   len(self.charge_log))  # Adjust the x-axis for the smoothed data
+
+        plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
+
         plt.title('Charge Over Time')
         plt.xlabel('Step')
         plt.ylabel('Charge')
+        plt.legend()
         plt.show()
 
     def plot_savings(self):
         plt.figure(figsize=(10, 6))
-        plt.plot(self.savings_log)
+        plt.plot(self.savings_log, label='Original', alpha=0.5)
+        smoothed_data = moving_average(self.savings_log, self.window_size)
+        smoothed_steps = np.arange(self.window_size - 1, len(self.savings_log))
+        plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
         plt.title('Savings Over Time')
         plt.xlabel('Step')
         plt.ylabel('Savings')
+        plt.legend()
         plt.show()
 
     def plot_reward_log(self):
         plt.figure(figsize=(10, 6))
-        plt.plot(self.reward_log)
+        plt.plot(self.reward_log, label='Original', alpha=0.5)
+        smoothed_data = moving_average(self.reward_log, self.window_size)
+        smoothed_steps = np.arange(self.window_size - 1, len(self.reward_log))
+        plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
         plt.title('Reward Over Time')
         plt.xlabel('Step')
         plt.ylabel('Reward')
+        plt.legend()
         plt.show()
 
     def plot_price_comparison(self):
         plt.figure(figsize=(10, 6))
+
+        # Get the buy and sell trades from the trade log
         buys = [trade for trade in self.trade_log if trade[3] == 'buy']
         sells = [trade for trade in self.trade_log if trade[3] == 'sell']
 
+        # Check if there are any buy or sell trades to plot
+        if not buys and not sells:
+            print("No trades to plot.")
+            return
+
+        # Collect and sort market prices
+        market_prices_list = []
+
+        # Plot buy data if available
         if buys:
             buy_steps, buy_prices, buy_amounts, _ = zip(*buys)
             buy_prices = abs(np.array(buy_prices))
             market_prices_buy = [self.market.get_price_at_step(step) for step in buy_steps]
-            plt.subplot(2, 1, 1)
-            plt.scatter(buy_steps, buy_prices, c='green', label='Buy', alpha=0.6)
-            plt.plot(buy_steps, market_prices_buy, color='blue', label='Market Price', alpha=0.6)
-            plt.ylabel('Trade Price (€/kWh)')
-            plt.xlabel('Steps')
-            plt.legend()
+            plt.scatter(buy_steps, buy_prices, c='green', marker='o', label='Buy', alpha=0.6)
+
+            # Add to market prices list
+            market_prices_list.extend(zip(buy_steps, market_prices_buy))
+
+        # Plot sell data if available
         if sells:
             sell_steps, sell_prices, sell_amounts, _ = zip(*sells)
             market_prices_sell = [self.market.get_price_at_step(step) for step in sell_steps]
-            plt.subplot(2, 1, 2)
-            plt.scatter(sell_steps, sell_prices, label='Sell', alpha=0.6)
-            plt.plot(sell_steps, market_prices_sell, color='red', label='Market Price', alpha=0.6)
-            plt.ylabel('Trade Price (€/kWh)')
-            plt.xlabel('Steps')
-            plt.legend()
-        plt.tight_layout()
+            plt.scatter(sell_steps, sell_prices, c='red', marker='x', label='Sell', alpha=0.6)
+
+            # Add to market prices list
+            market_prices_list.extend(zip(sell_steps, market_prices_sell))
+
+        # Sort market prices list by steps
+        market_prices_list.sort(key=lambda x: x[0])
+        sorted_steps, sorted_market_prices = zip(*market_prices_list)
+
+        plt.plot(sorted_steps, sorted_market_prices, color='blue', label='Market Price', alpha=0.6)
+
+        plt.ylabel('Trade Price (€/kWh)')
+        plt.xlabel('Steps')
+        plt.legend()
         plt.show()
-
-
-
-
