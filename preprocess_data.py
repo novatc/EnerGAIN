@@ -136,5 +136,5 @@ final_data = pd.concat([unscaled_data, time_data], axis=1)
 final_data = final_data.set_index('price')
 final_data.to_csv('data/in-use/unscaled_train_data.csv')
 
-test_data = final_data.tail(24 * 30)
+test_data = final_data.tail(24 * 90)
 test_data.to_csv('data/in-use/unscaled_eval_data.csv')
