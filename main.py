@@ -23,14 +23,14 @@ args = parser.parse_args()
 
 # Define environment parameters
 env_params = {
-    'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnergyEnv',
-             'data_path': 'data/in-use/train_data.csv'},
+    'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnv',
+             'data_path': 'data/in-use/unscaled_train_data.csv'},
     'trend': {'id': 'trend_env-v0', 'entry_point': 'envs.trend_env:TrendEnv',
-              'data_path': 'data/in-use/train_data.csv'},
+              'data_path': 'data/in-use/unscaled_train_data.csv'},
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
-                   'data_path': 'data/in-use/train_data.csv'},
+                   'data_path': 'data/in-use/unscaled_train_data.csv'},
     'savings_reward': {'id': 'savings_reward_env-v0', 'entry_point': 'envs.savings_reward:SavingsRewardEnv',
-                       'data_path': 'data/in-use/train_data.csv'},
+                       'data_path': 'data/in-use/unscaled_train_data.csv'},
     'unscaled': {'id': 'unscaled_env-v0', 'entry_point': 'envs.unscaled_env:UnscaledEnv',
                  'data_path': 'data/in-use/unscaled_train_data.csv'}
 }
@@ -47,15 +47,14 @@ data_path = env_params[args.env]['data_path']
 
 os.makedirs('logging', exist_ok=True)
 
-# Register and make environment
-register(id=env_id, entry_point=entry_point, kwargs={'data_path': data_path})
-env = make(env_id)
-check_env(env)
-if args.env == 'unscaled':
-    action_low = np.array([-1.0, -100.0])
-    action_high = np.array([1.0, 100.0])
-    env = CustomNormalizeObservation(env)
-    # env = RescaleAction(env, action_low, action_high)
+# Register and make the environment
+register(id=env_id, entry_point=entry_point, kwargs={'data_path': data_path, 'validation': False})
+try:
+    eval_env = make(env_id)
+    env = CustomNormalizeObservation(eval_env)
+except Exception as e:
+    print("Error creating environment: ", e)
+    exit()
 
 start_time = time.time()  # Get the current time
 

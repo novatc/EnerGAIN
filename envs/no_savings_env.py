@@ -1,49 +1,53 @@
 import gymnasium as gym
-import joblib
 import pandas as pd
 from gymnasium import spaces
 import numpy as np
 from matplotlib import pyplot as plt
 
+from envs.assets.env_utilities import moving_average
 from envs.assets.market import Market
 
 
 class NoSavingsEnv(gym.Env):
-    def __init__(self, data_path):
+    def __init__(self, data_path: str, validation=False):
         super(NoSavingsEnv, self).__init__()
         self.dataframe = pd.read_csv(data_path)
+
+        low_boundary = self.dataframe.min().values
+        low_boundary = np.append(low_boundary, [0.0])  # set the lower boundary of charge to 0
+        high_boundary = self.dataframe.max().values
+        high_boundary = np.append(high_boundary,
+                                  [1000.0])  # set the upper boundary of charge to 1000
+        action_low = np.array([-1.0, -100.0])
+        action_high = np.array([1.0, 100.0])
+        self.action_space = spaces.Box(low=action_low, high=action_high, shape=(2,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=low_boundary, high=high_boundary, shape=(self.dataframe.shape[1] + 1,))
+
         self.market = Market(self.dataframe)
-        self.savings = 0.5
-        self.charge = 0.5
-        self.max_battery_charge = 1
-        self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-1, high=1, shape=(self.dataframe.shape[1] + 1,))
+        self.charge = 500  # kWh
+        self.max_battery_charge = 1000  # kWh
+
         self.charge_log = []
 
         self.trade_log = []
 
         self.rewards = []
         self.reward_log = []
+        self.window_size = 20
+
+        self.validation = validation
 
     def step(self, action):
-        """
-        Execute one step in the environment.
-
-        Args:
-            action (tuple): A 2-element tuple representing the action to take. The first element is the price and the
-            second is the amount.
-
-        Returns:
-            A 5-element tuple containing the new observation, the reward, two booleans indicating whether the episode
-            is done or truncated, and a dictionary with additional info.
-        """
-        self.market.random_walk()
+        if self.validation:
+            self.market.step()
+        else:
+            self.market.random_walk()
 
         price = action[0].item()
         amount = action[1].item()
 
         terminated = False  # Whether the agent reaches the terminal state
-        truncated = False  # this can be Fasle all the time since there is no failure condition the agent could trigger
+        truncated = False  # this can be false all the time since there is no failure condition the agent could trigger
         info = {'current_price': self.market.get_current_price(),
                 'current_step': self.market.get_current_step(),
                 'charge': self.charge,
@@ -62,34 +66,7 @@ class NoSavingsEnv(gym.Env):
         self.reward_log.append(
             (self.reward_log[-1] + reward) if self.reward_log else reward)  # to keep track of the reward over time
         # Return the current state of the environment as a numpy array, the reward,
-        return self.get_observation().astype(np.float32), reward, terminated, truncated, info
-
-    def validation_step(self, action):
-        self.market.step()
-
-        price = action[0].item()
-        amount = action[1].item()
-
-        terminated = False  # Whether the agent reaches the terminal state
-        truncated = False  # this can be Fasle all the time since there is no failure condition the agent could trigger
-        info = {'current_price': self.market.get_current_price(),
-                'current_step': self.market.get_current_step(),
-                'charge': self.charge,
-                'action_price': price,
-                'action_amount': amount,
-                }
-
-        if amount > 0:  # buy
-            reward = self.trade(price, amount, 'buy')
-        elif amount < 0:  # sell
-            reward = self.trade(price, amount, 'sell')
-        else:  # if amount is 0
-            reward = 0
-
-        self.rewards.append(reward)
-        self.reward_log.append(
-            (self.reward_log[-1] + reward) if self.reward_log else reward)  # to keep track of the reward over time
-        # Return the current state of the environment as a numpy array, the reward,
+        # print(self.get_observation().astype(np.float32).dtype)
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
     def trade(self, price, amount, trade_type):
@@ -116,8 +93,10 @@ class NoSavingsEnv(gym.Env):
 
     def get_observation(self):
         # Return the current state of the environment as a numpy array
-        return np.concatenate(
-            (self.dataframe.iloc[self.market.get_current_step()].to_numpy(), [self.charge]))
+        observation = np.concatenate(
+            (self.dataframe.iloc[self.market.get_current_step()].to_numpy(), [self.charge])
+        )
+        return observation
 
     def reset(self, seed=None, options=None):
         """
@@ -126,14 +105,15 @@ class NoSavingsEnv(gym.Env):
         """
         # Reset the state of the environment to an initial state
         super().reset(seed=seed, options=options)
-        self.charge = 0.5
+        self.charge = 500
         self.market.reset()
-        return self.get_observation().astype(np.float32), {}
+        observation = self.get_observation().astype(np.float32)
+        return observation, {}
 
     def render(self, mode='human'):
         # Calculate the average reward over 100 steps and plot it
         avg_rewards = []
-        scaler = 1
+        scaler = 10
         for i in range(0, len(self.rewards), scaler):
             avg_rewards.append(sum(self.rewards[i:i + scaler]) / scaler)
         plt.figure(figsize=(10, 6))
@@ -148,6 +128,7 @@ class NoSavingsEnv(gym.Env):
 
         if buys:
             buy_steps, buy_prices, buy_amounts, _ = zip(*buys)
+            buy_prices = abs(np.array(buy_prices))
             # Rescale the prices and amounts using the scaler objects
             plt.subplot(3, 1, 2)
             plt.scatter(buy_steps, buy_prices, c='green', label='Buy', alpha=0.6)
@@ -157,6 +138,7 @@ class NoSavingsEnv(gym.Env):
             plt.ylabel('Trade Amount (MWh)')
         if sells:
             sell_steps, sell_prices, sell_amounts, _ = zip(*sells)
+            sell_prices = abs(np.array(sell_prices))
             # Rescale the prices and amounts using the scaler objects
             plt.subplot(3, 1, 2)
             plt.scatter(sell_steps, sell_prices, c='red', label='Sell', alpha=0.6)
@@ -167,8 +149,9 @@ class NoSavingsEnv(gym.Env):
         plt.legend()
         plt.tight_layout()
         plt.show()
-        # self.plot_charge()
+        self.plot_charge()
         self.plot_reward_log()
+        self.plot_price_comparison()
 
     def get_trades(self):
         # list of trades: (step, price, amount, trade_type)
@@ -178,28 +161,78 @@ class NoSavingsEnv(gym.Env):
     def get_charge(self):
         return self.charge_log
 
-    def get_real_charge(self):
-        amount_scaler = joblib.load('amount_scaler.pkl')
-        return amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
-
     def plot_charge(self):
-        # Load the scaler
-        amount_scaler = joblib.load('amount_scaler.pkl')
-
-        # Get the original charge values
-        charge_original = amount_scaler.inverse_transform(np.array(self.charge_log).reshape(-1, 1))
-
         plt.figure(figsize=(10, 6))
-        plt.plot(charge_original / 10)
+
+        # Original data
+        plt.plot(self.charge_log, label='Original', alpha=0.5)
+
+        # Smoothed data
+        smoothed_data = moving_average(self.charge_log, self.window_size)
+        smoothed_steps = np.arange(self.window_size - 1,
+                                   len(self.charge_log))  # Adjust the x-axis for the smoothed data
+
+        plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
+
         plt.title('Charge Over Time')
         plt.xlabel('Step')
         plt.ylabel('Charge')
+        plt.legend()
         plt.show()
 
     def plot_reward_log(self):
         plt.figure(figsize=(10, 6))
-        plt.plot(self.reward_log)
+        plt.plot(self.reward_log, label='Original', alpha=0.5)
+        smoothed_data = moving_average(self.reward_log, self.window_size)
+        smoothed_steps = np.arange(self.window_size - 1, len(self.reward_log))
+        plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
         plt.title('Reward Over Time')
         plt.xlabel('Step')
         plt.ylabel('Reward')
+        plt.legend()
+        plt.show()
+
+    def plot_price_comparison(self):
+        plt.figure(figsize=(10, 6))
+
+        # Get the buy and sell trades from the trade log
+        buys = [trade for trade in self.trade_log if trade[3] == 'buy']
+        sells = [trade for trade in self.trade_log if trade[3] == 'sell']
+
+        # Check if there are any buy or sell trades to plot
+        if not buys and not sells:
+            print("No trades to plot.")
+            return
+
+        # Collect and sort market prices
+        market_prices_list = []
+
+        # Plot buy data if available
+        if buys:
+            buy_steps, buy_prices, buy_amounts, _ = zip(*buys)
+            buy_prices = abs(np.array(buy_prices))
+            market_prices_buy = [self.market.get_price_at_step(step) for step in buy_steps]
+            plt.scatter(buy_steps, buy_prices, c='green', marker='o', label='Buy', alpha=0.6)
+
+            # Add to market prices list
+            market_prices_list.extend(zip(buy_steps, market_prices_buy))
+
+        # Plot sell data if available
+        if sells:
+            sell_steps, sell_prices, sell_amounts, _ = zip(*sells)
+            market_prices_sell = [self.market.get_price_at_step(step) for step in sell_steps]
+            plt.scatter(sell_steps, sell_prices, c='red', marker='x', label='Sell', alpha=0.6)
+
+            # Add to market prices list
+            market_prices_list.extend(zip(sell_steps, market_prices_sell))
+
+        # Sort market prices list by steps
+        market_prices_list.sort(key=lambda x: x[0])
+        sorted_steps, sorted_market_prices = zip(*market_prices_list)
+
+        plt.plot(sorted_steps, sorted_market_prices, color='blue', label='Market Price', alpha=0.6)
+
+        plt.ylabel('Trade Price (€/kWh)')
+        plt.xlabel('Steps')
+        plt.legend()
         plt.show()

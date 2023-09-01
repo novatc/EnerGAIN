@@ -20,14 +20,14 @@ args = parser.parse_args()
 
 # Define environment parameters
 env_params = {
-    'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnergyEnv',
-             'data_path': 'data/in-use/eval_data.csv'},
+    'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnv',
+             'data_path': 'data/in-use/unscaled_eval_data.csv'},
     'trend': {'id': 'trend_env-v0', 'entry_point': 'envs.trend_env:TrendEnv',
-              'data_path': 'data/in-use/eval_data.csv'},
+              'data_path': 'data/in-use/unscaled_eval_data.csv'},
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
-                   'data_path': 'data/in-use/eval_data.csv'},
+                   'data_path': 'data/in-use/unscaled_eval_data.csv'},
     'savings_reward': {'id': 'savings_reward_env-v0', 'entry_point': 'envs.savings_reward:SavingsRewardEnv',
-                       'data_path': 'data/in-use/eval_data.csv'},
+                       'data_path': 'data/in-use/unscaled_eval_data.csv'},
     'unscaled': {'id': 'unscaled_env-v0', 'entry_point': 'envs.unscaled_env:UnscaledEnv',
                  'data_path': 'data/in-use/unscaled_eval_data.csv'}
 }
@@ -57,19 +57,15 @@ except Exception as e:
     exit()
 
 # Register and make the environment
-register(id=env_id, entry_point=entry_point, kwargs={'data_path': data_path})
+register(id=env_id, entry_point=entry_point, kwargs={'data_path': data_path, 'validation': True})
 try:
     eval_env = make(env_id)
+    eval_env = CustomNormalizeObservation(eval_env)
 except Exception as e:
     print("Error creating environment: ", e)
     exit()
-if args.env == 'unscaled':
-    action_low = np.array([-1.0, -100.0])
-    action_high = np.array([1.0, 100.0])
-    env = CustomNormalizeObservation(eval_env)
-    env = RescaleAction(env, action_low, action_high)
 
-ep_length = eval_env.dataframe.shape[0]
+ep_length = 30*24
 
 # Evaluate the agent
 episode_rewards = []
@@ -81,15 +77,12 @@ for _ in range(num_episodes):
     for _ in range(ep_length - 1):
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = eval_env.step(action)
-        print(info)
         episode_reward += reward
     episode_rewards.append(episode_reward)
     obs, _ = eval_env.reset()
 
 trades = eval_env.get_trades()
 # list of tuples (step, price, amount, trade_type) to dataframe
-df_trades = pd.DataFrame(trades, columns=['step', 'price', 'amount', 'trade_type'])
-df_trades.to_csv("trades.csv", index=False)
 
 # count how many times a buy or sell action was taken
 buy_count = 0

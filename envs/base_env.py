@@ -8,9 +8,9 @@ from envs.assets.env_utilities import moving_average
 from envs.assets.market import Market
 
 
-class UnscaledEnv(gym.Env):
+class BaseEnv(gym.Env):
     def __init__(self, data_path: str, validation=False):
-        super(UnscaledEnv, self).__init__()
+        super(BaseEnv, self).__init__()
         self.dataframe = pd.read_csv(data_path)
 
         low_boundary = self.dataframe.min().values
