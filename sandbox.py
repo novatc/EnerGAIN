@@ -1,7 +1,4 @@
-import argparse
-
 import numpy as np
-import pandas as pd
 from gymnasium import register, make
 from gymnasium.wrappers import RescaleAction
 from stable_baselines3 import SAC
@@ -29,7 +26,7 @@ except Exception as e:
     print("Error loading model: ", e)
     exit()
 
-register(id=env_id, entry_point=entry_point, kwargs={'data_path': data_path})
+register(id=env_id, entry_point=entry_point, kwargs={'data_path': data_path, 'validation': True})
 try:
     eval_env = make(env_id)
     action_low = np.array([-1.0, -100.0])
