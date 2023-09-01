@@ -40,7 +40,7 @@ class UnscaledEnv(gym.Env):
         self.reward_log = []
 
     def step(self, action):
-        self.market.validation_random_walk()
+        self.market.random_walk()
 
         price = action[0].item()
         amount = action[1].item()
@@ -67,35 +67,6 @@ class UnscaledEnv(gym.Env):
             (self.reward_log[-1] + reward) if self.reward_log else reward)  # to keep track of the reward over time
         # Return the current state of the environment as a numpy array, the reward,
         # print(self.get_observation().astype(np.float32).dtype)
-        return self.get_observation().astype(np.float32), reward, terminated, truncated, info
-
-    def validation_step(self, action):
-        self.market.random_walk()
-
-        price = action[0].item()
-        amount = action[1].item()
-
-        terminated = False  # Whether the agent reaches the terminal state
-        truncated = False  # this can be Fasle all the time since there is no failure condition the agent could trigger
-        info = {'current_price': self.market.get_current_price(),
-                'current_step': self.market.get_current_step(),
-                'savings': self.savings,
-                'charge': self.charge,
-                'action_price': price,
-                'action_amount': amount,
-                }
-
-        if amount > 0:  # buy
-            reward = self.trade(price, amount, 'buy')
-        elif amount < 0:  # sell
-            reward = self.trade(price, amount, 'sell')
-        else:  # if amount is 0
-            reward = 0
-
-        self.rewards.append(reward)
-        self.reward_log.append(
-            (self.reward_log[-1] + reward) if self.reward_log else reward)  # to keep track of the reward over time
-        # Return the current state of the environment as a numpy array, the reward,
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
     def trade(self, price, amount, trade_type):
@@ -232,18 +203,19 @@ class UnscaledEnv(gym.Env):
             market_prices_buy = [self.market.get_price_at_step(step) for step in buy_steps]
             plt.subplot(2, 1, 1)
             plt.scatter(buy_steps, buy_prices, c='green', label='Buy', alpha=0.6)
-            plt.plot(buy_steps, market_prices_buy, c='blue', label='Market Price', alpha=0.6)
+            plt.plot(buy_steps, market_prices_buy, color='blue', label='Market Price', alpha=0.6)
             plt.ylabel('Trade Price (€/kWh)')
             plt.xlabel('Steps')
+            plt.legend()
         if sells:
             sell_steps, sell_prices, sell_amounts, _ = zip(*sells)
             market_prices_sell = [self.market.get_price_at_step(step) for step in sell_steps]
             plt.subplot(2, 1, 2)
-            plt.scatter(sell_steps, sell_prices, c='red', label='Sell', alpha=0.6)
-            plt.plot(sell_steps, market_prices_sell, c='blue', label='Market Price', alpha=0.6)
+            plt.scatter(sell_steps, sell_prices, label='Sell', alpha=0.6)
+            plt.plot(sell_steps, market_prices_sell, color='red', label='Market Price', alpha=0.6)
             plt.ylabel('Trade Price (€/kWh)')
             plt.xlabel('Steps')
-        plt.legend()
+            plt.legend()
         plt.tight_layout()
         plt.show()
 
