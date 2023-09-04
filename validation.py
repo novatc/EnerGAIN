@@ -16,6 +16,7 @@ parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_re
                     default="base", required=True,
                     help='Environment to use.')
 parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run.')
+parser.add_argument('--plot', action='store_true', help='Plot the results.')
 args = parser.parse_args()
 
 # Define environment parameters
@@ -113,5 +114,5 @@ print("Buy count:", buy_count)
 print("Sell count:", sell_count)
 print("Average reward:", sum(episode_rewards) / len(trades))
 
-
-eval_env.render()
+if args.plot:
+    eval_env.render()
