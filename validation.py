@@ -83,7 +83,9 @@ for _ in range(num_episodes):
 
 trades = eval_env.get_trades()
 # list of tuples (step, price, amount, trade_type) to dataframe
-trades = pd.DataFrame(trades, columns=["step", "price", "amount", "trade_type"])
+trades_log = pd.DataFrame(trades, columns=["step", "price", "amount", "trade_type", "reward"])
+# write trades to csv
+trades_log.to_csv(f"trade_logs/{model_name}_trades.csv", index=False)
 
 # count how many times a buy or sell action was taken
 buy_count = 0

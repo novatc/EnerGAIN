@@ -99,7 +99,8 @@ class TrendEnv(gym.Env):
 
             self.charge_log.append(self.charge)
             self.savings_log.append(self.savings_log[-1] + self.savings if self.savings_log else self.savings)
-            self.trade_log.append((self.market.get_current_step(), price, amount, trade_type))
+            self.trade_log.append((self.market.get_current_step(), price, amount, trade_type,
+                                   abs(float(self.market.get_current_price()) * amount)))
         else:
             return -1
 
@@ -139,7 +140,7 @@ class TrendEnv(gym.Env):
         sells = [trade for trade in self.trade_log if trade[3] == 'sell']
 
         if buys:
-            buy_steps, buy_prices, buy_amounts, _ = zip(*buys)
+            buy_steps, buy_prices, buy_amounts, _, _ = zip(*buys)
             buy_prices = abs(np.array(buy_prices))
             # Rescale the prices and amounts using the scaler objects
             plt.subplot(3, 1, 2)
@@ -149,7 +150,7 @@ class TrendEnv(gym.Env):
             plt.scatter(buy_steps, buy_amounts, color='green', label='Buy', alpha=0.6)
             plt.ylabel('Trade Amount (MWh)')
         if sells:
-            sell_steps, sell_prices, sell_amounts, _ = zip(*sells)
+            sell_steps, sell_prices, sell_amounts, _,_ = zip(*sells)
             sell_prices = abs(np.array(sell_prices))
             # Rescale the prices and amounts using the scaler objects
             plt.subplot(3, 1, 2)
@@ -237,7 +238,7 @@ class TrendEnv(gym.Env):
 
         # Plot buy data if available
         if buys:
-            buy_steps, buy_prices, buy_amounts, _ = zip(*buys)
+            buy_steps, buy_prices, buy_amounts, _,_ = zip(*buys)
             buy_prices = abs(np.array(buy_prices))
             market_prices_buy = [self.market.get_price_at_step(step) for step in buy_steps]
             plt.scatter(buy_steps, buy_prices, c='green', marker='o', label='Buy', alpha=0.6)
@@ -247,7 +248,7 @@ class TrendEnv(gym.Env):
 
         # Plot sell data if available
         if sells:
-            sell_steps, sell_prices, sell_amounts, _ = zip(*sells)
+            sell_steps, sell_prices, sell_amounts, _, _ = zip(*sells)
             market_prices_sell = [self.market.get_price_at_step(step) for step in sell_steps]
             plt.scatter(sell_steps, sell_prices, c='red', marker='x', label='Sell', alpha=0.6)
 
