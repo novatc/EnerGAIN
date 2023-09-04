@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
@@ -52,6 +53,90 @@ def plot_cumulative_reward(dfs, colors, trade_type=None):
     plt.show()
 
 
+def plot_trade_durations(dfs, colors):
+    """
+    Plot the distribution of durations between trades for each trading strategy.
+    Uses a logarithmic x-axis for better visibility of data across multiple scales.
+
+    Parameters:
+        dfs (dict): A dictionary where keys are file names and values are DataFrames.
+        colors (list): A list of distinct colors to use for each agent.
+    """
+    # Initialize the plot with a larger size
+    plt.figure(figsize=(20, 8))
+
+    # Loop through each trading strategy and calculate trade durations
+    for i, (name, df) in enumerate(dfs.items()):
+        # Calculate the time steps between each trade
+        trade_durations = df['step'].diff().dropna()
+
+        # Plot the trade durations
+        plt.hist(trade_durations, bins=np.logspace(np.log10(min(trade_durations)), np.log10(max(trade_durations)), 50),
+                 alpha=0.5, color=colors[i % len(colors)], label=name)
+
+    # Add title and labels
+    plt.title('Distribution of Trade Durations (All Agents)')
+    plt.xlabel('Trade Duration (Time Steps)')
+    plt.ylabel('Frequency')
+
+    # Make x-axis logarithmic for better visibility
+    plt.xscale('log')
+
+    # Add a legend
+    plt.legend()
+
+    # Show the plot
+    plt.show()
+
+
+def plot_trade_sizes(dfs, colors):
+    """
+    Plot the distribution of trade sizes (amounts) for each trading strategy,
+    separated by 'buy' and 'sell' trades.
+
+    Parameters:
+        dfs (dict): A dictionary where keys are file names and values are DataFrames.
+        colors (list): A list of distinct colors to use for each agent.
+    """
+    # Initialize two subplots: one for 'buy' trades and another for 'sell' trades
+    fig, axs = plt.subplots(1, 2, figsize=(20, 8))
+
+    # Titles for the subplots
+    axs[0].set_title('Distribution of Trade Sizes (Buy Trades)')
+    axs[1].set_title('Distribution of Trade Sizes (Sell Trades)')
+
+    # Loop through each trading strategy and calculate trade sizes
+    for i, (name, df) in enumerate(dfs.items()):
+        for j, trade_type in enumerate(['buy', 'sell']):
+            # Filter by trade type ('buy' or 'sell')
+            filtered_df = df[df['trade_type'] == trade_type]
+
+            # Extract the 'amount' column
+            trade_sizes = filtered_df['amount']
+
+            # Plot the histogram of trade sizes
+            axs[j].hist(trade_sizes, bins=50, alpha=0.5, color=colors[i % len(colors)], label=name)
+
+    # Labels for the subplots
+    axs[0].set_xlabel('Trade Size (Amount)')
+    axs[0].set_ylabel('Frequency')
+    axs[1].set_xlabel('Trade Size (Amount)')
+    axs[1].set_ylabel('Frequency')
+
+    # Add a legend to each subplot
+    axs[0].legend()
+    axs[1].legend()
+
+    # Show the plots
+    plt.show()
+
+
+# Example usage:
+# Define a list of distinct colors
+colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+
+# Call the function to plot trade sizes
+
 # Example usage
 folder_path = 'trade_logs'  # Update this path
 colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
@@ -61,4 +146,6 @@ plot_trade_data(dfs, 'amount', colors, trade_type='buy')
 plot_trade_data(dfs, 'amount', colors, trade_type='sell')
 plot_trade_data(dfs, 'price', colors, trade_type='buy')
 plot_trade_data(dfs, 'price', colors, trade_type='sell')
+plot_trade_durations(dfs, colors)
+plot_trade_sizes(dfs, colors)
 plot_cumulative_reward(dfs, colors, trade_type='sell')
