@@ -6,9 +6,8 @@ Day-Ahead-Markt und Primärregelleistungsmarkt
 relative strength index
 I.I.D -> annahme für die verteilung der daten
 
-random samplen eines datenpunkts-> davon dann eine Woche laufen -> dann neuer zufälliger Datenpunkt
-obs grenzen durch np arrays für jedes feature übergeben -> man kann mit natürlichen Daten arbeiten
-vergleich on policy model mit off policy model
+# TODO
+- compare on policy model with off policy model
 
 
 ## Installation
@@ -25,11 +24,12 @@ pip install stable-baselines3==2.0.0a13
 To train the model, use the `main.py` script. This script accepts two command-line arguments:
 
 - `--training_steps`: The number of training steps to run. This must be an integer.
-- `--env`: The environment to use. This must be one of 'base', 'trend', or 'no_savings'.
+- `--env`: The environment to use. This must be one of 'base', 'trend', 'no_savings', 'savings_reward'.
+- `--save`: To decide if the model should be saved or not. 
 
 For example, to train the model for 500,000 steps on the 'trend' environment, run: 
 ```bash
-python main.py --training_steps 500000 --env trend
+python main.py --training_steps 100_000 --env trend --save
 ```
 
 The trained model is saved to the 'agents' directory with a filename based on the chosen environment.
@@ -38,12 +38,13 @@ The trained model is saved to the 'agents' directory with a filename based on th
 
 To evaluate the model, use the `validation.py` script. This script accepts one command-line argument:
 
-- `--env`: The environment to use. This must be one of 'base', 'trend', or 'savings'.
-
+- `--env`: The environment to use. This must be one of 'base', 'trend', 'no_savings', 'savings_reward'.
+- `--plot`: To decide if the model should be plotted or not.
 For example, to evaluate the model on the 'trend' environment, run:
 
 ```bash
-python validation.py --env trend
+python validation.py --env base --plot
 ```
 
-The script prints various statistics about the model's performance, and also saves a CSV file with the model's trades to the current directory.
+The script prints various statistics about the model's performance, and also saves a CSV file with the model's trades to
+the current directory.

@@ -12,7 +12,7 @@ import warnings
 
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Evaluate a SAC model.')
-parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_reward', 'unscaled'],
+parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_reward'],
                     default="base", required=True,
                     help='Environment to use.')
 parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run.')
@@ -28,9 +28,7 @@ env_params = {
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
                    'data_path': 'data/in-use/unscaled_eval_data.csv'},
     'savings_reward': {'id': 'savings_reward_env-v0', 'entry_point': 'envs.savings_reward:SavingsRewardEnv',
-                       'data_path': 'data/in-use/unscaled_eval_data.csv'},
-    'unscaled': {'id': 'unscaled_env-v0', 'entry_point': 'envs.unscaled_env:UnscaledEnv',
-                 'data_path': 'data/in-use/unscaled_eval_data.csv'}
+                       'data_path': 'data/in-use/unscaled_eval_data.csv'}
 }
 
 # Check if chosen environment is valid
