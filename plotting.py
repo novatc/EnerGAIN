@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
-
+import seaborn as sns
 
 def load_csv_files_from_folder(folder_path):
     """
@@ -42,11 +42,12 @@ def plot_cumulative_reward(dfs, colors, trade_type=None):
     """
     plt.figure(figsize=(15, 10))
     for i, (name, df) in enumerate(dfs.items()):
+        name = name.split('.')[0]
         if trade_type:
             df = df[df['trade_type'] == trade_type]
         plt.plot(df['reward'].cumsum(), label=name, color=colors[i % len(colors)])
 
-    plt.title(f'Cumulative Reward Over Time {trade_type.capitalize() if trade_type else ""})')
+    plt.title(f'Cumulative Reward Over Time ({trade_type.capitalize() if trade_type else ""})')
     plt.xlabel('Time Step')
     plt.ylabel('Cumulative Reward')
     plt.legend()
@@ -67,6 +68,8 @@ def plot_trade_durations(dfs, colors):
 
     # Loop through each trading strategy and calculate trade durations
     for i, (name, df) in enumerate(dfs.items()):
+        name = name.split('.')[0]
+
         # Calculate the time steps between each trade
         trade_durations = df['step'].diff().dropna()
 
@@ -107,6 +110,7 @@ def plot_trade_sizes(dfs, colors):
 
     # Loop through each trading strategy and calculate trade sizes
     for i, (name, df) in enumerate(dfs.items()):
+        name = name.split('.')[0]
         for j, trade_type in enumerate(['buy', 'sell']):
             # Filter by trade type ('buy' or 'sell')
             filtered_df = df[df['trade_type'] == trade_type]
@@ -131,6 +135,32 @@ def plot_trade_sizes(dfs, colors):
     plt.show()
 
 
+def plot_correlation_matrix(dfs):
+    """
+    Calculate and plot the correlation matrix of trading strategies based on cumulative rewards.
+
+    Parameters:
+        dfs (dict): A dictionary where keys are file names and values are DataFrames.
+    """
+    # Initialize an empty DataFrame to store the cumulative rewards for each strategy
+    cumulative_rewards_df = pd.DataFrame()
+
+    # Loop through each trading strategy and calculate cumulative rewards
+    for name, df in dfs.items():
+        name = name.split('.')[0]
+        cumulative_rewards = df['reward'].cumsum()
+        cumulative_rewards_df[name] = cumulative_rewards
+
+    # Calculate the correlation matrix between the strategies
+    correlation_matrix = cumulative_rewards_df.corr()
+
+    # Plot the correlation matrix using a heatmap
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=.5)
+    plt.title('Correlation Matrix of Trading Strategies')
+    plt.show()
+
+
 # Example usage:
 # Define a list of distinct colors
 colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
@@ -148,4 +178,5 @@ plot_trade_data(dfs, 'price', colors, trade_type='buy')
 plot_trade_data(dfs, 'price', colors, trade_type='sell')
 plot_trade_durations(dfs, colors)
 plot_trade_sizes(dfs, colors)
+plot_correlation_matrix(dfs)
 plot_cumulative_reward(dfs, colors, trade_type='sell')
