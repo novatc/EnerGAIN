@@ -5,3 +5,4 @@ stable-baselines3==2.0.0a13
 matplotlib~=3.7.1
 scikit-learn~=1.2.2
 gymnasium~=0.29.1
+seaborn

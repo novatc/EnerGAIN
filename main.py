@@ -13,7 +13,8 @@ from stable_baselines3 import SAC
 
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Train a SAC model.')
-parser.add_argument('--training_steps', type=int, required=True, default=100, help='Number of training steps.')
+parser.add_argument('--training_steps', type=int, required=True, default=100,
+                    help='Number of training steps.')
 parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_reward'], default="base",
                     required=True,
                     help='Environment to use.')
@@ -38,7 +39,8 @@ env_params = {
 # Check if chosen environment is valid
 if args.env not in env_params:
     raise ValueError(
-        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'savings_reward', 'unscaled' and 'no_savings'.")
+        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'savings_reward', 'unscaled' and"
+        f" 'no_savings'.")
 
 # Set chosen environment parameters
 env_id = env_params[args.env]['id']
