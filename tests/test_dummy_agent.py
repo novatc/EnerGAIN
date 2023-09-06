@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from dummy_agent import TradingBot
+from dummy_bots.dummy_agent import TradingBot
 from envs.assets.market import Market
 
 

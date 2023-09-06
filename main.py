@@ -66,6 +66,8 @@ start_time = time.time()  # Get the current time
 model = SAC("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=args.training_steps)
 now = time.strftime("%Y%m%d-%H%M%S")
+# time format should be dd.mm-hh.mm
+now = now[4:6] + "." + now[2:4] + "-" + now[9:11] + "." + now[7:9]
 if args.save:
     model.save(f"agents/sac_{args.env}_{args.training_steps/1000}k_{now}")
 
