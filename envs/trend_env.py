@@ -26,8 +26,8 @@ class TrendEnv(gym.Env):
         # add 10 to each value in the high boundary to make sure the agent can't reach the upper boundary
         high_boundary += 10
 
-        action_low = np.array([-1.0, -10000.0])
-        action_high = np.array([1.0, 1000.0])
+        action_low = np.array([-1.0, -500.0])
+        action_high = np.array([1.0, 500.0])
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-low_boundary, high=high_boundary,

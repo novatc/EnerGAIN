@@ -18,8 +18,8 @@ class NoSavingsEnv(gym.Env):
         high_boundary = self.dataframe.max().values
         high_boundary = np.append(high_boundary,
                                   [1000.0])  # set the upper boundary of charge to 1000
-        action_low = np.array([-1.0, -10000.0])
-        action_high = np.array([1.0, 1000.0])
+        action_low = np.array([-1.0, -500.0])
+        action_high = np.array([1.0, 500.0])
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=low_boundary, high=high_boundary, shape=(self.dataframe.shape[1] + 1,))
 

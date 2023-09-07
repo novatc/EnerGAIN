@@ -51,20 +51,22 @@ class MovingAvgBot:
             # Check if we should buy
             if buy_signal and self.money >= self.unit_buy_sell * self.short_moving_avg[-1]:
                 offer_price = self.short_moving_avg[-1]
-                self.money -= self.unit_buy_sell * offer_price
-                self.inventory += self.unit_buy_sell
-                if self.inventory > self.max_inventory:
-                    excess_units = self.inventory - self.max_inventory
-                    self.inventory = self.max_inventory
-                    self.money += excess_units * offer_price
-                self.log_trade(step, offer_price, self.unit_buy_sell, 'buy')
+                if self.market.accept_offer(offer_price, 'buy'):
+                    self.money -= self.unit_buy_sell * offer_price
+                    self.inventory += self.unit_buy_sell
+                    if self.inventory > self.max_inventory:
+                        excess_units = self.inventory - self.max_inventory
+                        self.inventory = self.max_inventory
+                        self.money += excess_units * offer_price
+                    self.log_trade(step, offer_price, self.unit_buy_sell, 'buy')
 
             # Check if we should sell
             elif sell_signal and self.inventory >= self.unit_buy_sell:
                 offer_price = self.short_moving_avg[-1]
-                self.money += self.unit_buy_sell * offer_price
-                self.inventory -= self.unit_buy_sell
-                self.log_trade(step, offer_price, self.unit_buy_sell, 'sell')
+                if self.market.accept_offer(offer_price, 'sell'):
+                    self.money += self.unit_buy_sell * offer_price
+                    self.inventory -= self.unit_buy_sell
+                    self.log_trade(step, offer_price, self.unit_buy_sell, 'sell')
 
         # Record the state for this time
         self.money_over_time.append(self.money)
