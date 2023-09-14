@@ -6,7 +6,7 @@ from envs.assets.market import Market
 
 class MovingAvgBot:
     def __init__(self, market_sim, initial_money=50.0, initial_inventory=0, max_inventory=1000,
-                 unit_buy_sell=500, short_window=5, long_window=20, trade_log_path=None):
+                 unit_buy_sell=500, short_window=2, long_window=5, trade_log_path=None):
         "Initialize the MovingAvgBot with given parameters."
         self.market = market_sim
         self.money = initial_money

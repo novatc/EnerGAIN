@@ -180,7 +180,6 @@ class TrendEnv(gym.Env):
 
     def plot_charge(self):
         plt.figure(figsize=(10, 6))
-
         # Original data
         plt.plot(self.charge_log, label='Original', alpha=0.5)
 
@@ -195,6 +194,7 @@ class TrendEnv(gym.Env):
         plt.xlabel('Step')
         plt.ylabel('Charge')
         plt.legend()
+        plt.savefig('img/trend_charge.png', dpi=400)
         plt.show()
 
     def plot_savings(self):
@@ -207,6 +207,7 @@ class TrendEnv(gym.Env):
         plt.xlabel('Step')
         plt.ylabel('Savings')
         plt.legend()
+        plt.savefig('img/trend_savings.png', dpi=400)
         plt.show()
 
     def plot_reward_log(self):
@@ -219,6 +220,7 @@ class TrendEnv(gym.Env):
         plt.xlabel('Step')
         plt.ylabel('Reward')
         plt.legend()
+        plt.savefig('img/trend_reward.png', dpi=400)
         plt.show()
 
     def plot_price_comparison(self):
@@ -264,4 +266,38 @@ class TrendEnv(gym.Env):
         plt.ylabel('Trade Price (€/kWh)')
         plt.xlabel('Steps')
         plt.legend()
+        plt.savefig('img/trend_price_comparison.png', dpi=400)
+        plt.show()
+
+    def plot_price_comparison_full_timeline(self):
+        plt.figure(figsize=(10, 6))
+        trade_log = self.trade_log
+        eval_data_df = pd.read_csv('data/in-use/unscaled_eval_data.csv')
+
+        # Get the buy and sell trades from the trade log
+        buys = [trade for trade in trade_log if trade[3] == 'buy']
+        sells = [trade for trade in trade_log if trade[3] == 'sell']
+
+        # Check if there are any buy or sell trades to plot
+        if not buys and not sells:
+            print("No trades to plot.")
+            return
+
+        # Plot real market prices from evaluation dataset
+        plt.plot(eval_data_df.index, eval_data_df['price'], color='blue', label='Real Market Price', alpha=0.6)
+
+        # Plot buy data if available
+        if buys:
+            buy_steps, buy_prices, _, _, _ = zip(*buys)
+            plt.scatter(buy_steps, buy_prices, c='green', marker='o', label='Buy', alpha=0.6)
+
+        # Plot sell data if available
+        if sells:
+            sell_steps, sell_prices, _, _, _ = zip(*sells)
+            plt.scatter(sell_steps, sell_prices, c='red', marker='x', label='Sell', alpha=0.6)
+
+        plt.ylabel('Price (€/kWh)')
+        plt.xlabel('Step')
+        plt.legend()
+        plt.savefig('img/trend_price_comparison_full_timeline.png', dpi=400)
         plt.show()

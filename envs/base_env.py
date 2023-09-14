@@ -212,7 +212,7 @@ class BaseEnv(gym.Env):
         smoothed_steps = np.arange(self.window_size - 1, len(self.reward_log))
         plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
         plt.title('Reward Over Time')
-        plt.xlabel('Number of trades')
+        plt.xlabel('Steps')
         plt.ylabel('Reward')
         plt.legend()
         plt.savefig('img/base_reward.png', dpi=400)

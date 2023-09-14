@@ -64,7 +64,7 @@ except Exception as e:
     print("Error creating environment: ", e)
     exit()
 
-ep_length = 24 * 90
+ep_length = 24 * 30
 
 # Evaluate the agent
 episode_rewards = []
