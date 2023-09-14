@@ -30,7 +30,7 @@ class SimpleThresholdBot:
 
         # Check if we should buy
         if current_price <= self.buy_threshold and self.money >= self.unit_buy_sell * current_price:
-            adjusted_buy_price = current_price * 1.01  # 1% higher to ensure market acceptance
+            adjusted_buy_price = current_price * 1.1  # 10% higher to ensure market acceptance
             if self.market.accept_offer(adjusted_buy_price, 'buy'):
                 self.money -= self.unit_buy_sell * current_price  # Pay the actual current price
                 self.inventory += self.unit_buy_sell
@@ -42,7 +42,7 @@ class SimpleThresholdBot:
 
         # Check if we should sell
         elif current_price >= self.sell_threshold and self.inventory >= self.unit_buy_sell:
-            adjusted_sell_price = current_price * 0.99  # 1% lower to ensure market acceptance
+            adjusted_sell_price = current_price * 0.9  # 10% lower to ensure market acceptance
             if self.market.accept_offer(adjusted_sell_price, 'sell'):
                 self.money += self.unit_buy_sell * current_price  # Receive the actual current price
                 self.inventory -= self.unit_buy_sell

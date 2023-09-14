@@ -61,10 +61,10 @@ class Market:
         """
         return self.dataset.iloc[step]['price']
 
-    def random_walk(self, sequence_length=720):
+    def random_walk(self, sequence_length=24 * 30):
         """
-        Choose a random starting position and increment the current step by sequence_length (90 days) f
-        rom that position.
+        Choose a random starting position and increment the current step by sequence_length (90 days) from
+        that position.
         After completing the sequence_length (90 days) steps, select a new random starting position.
 
         :param sequence_length: the length of the sequence to increment the current step by.

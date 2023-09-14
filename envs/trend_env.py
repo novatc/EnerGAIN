@@ -20,8 +20,8 @@ class TrendEnv(gym.Env):
         high_boundary = np.append(high_boundary,
                                   [1000.0, 1000.0])  # set the upper boundary of savings and charge to 1000
 
-        low_boundary = np.tile(low_boundary, 4)  # repeat the array 4 times to match the obs space
-        high_boundary = np.tile(high_boundary, 4)
+        low_boundary = np.tile(low_boundary, 8)  # repeat the array 4 times to match the obs space
+        high_boundary = np.tile(high_boundary, 8)
 
         # add 10 to each value in the high boundary to make sure the agent can't reach the upper boundary
         high_boundary += 10
@@ -31,7 +31,7 @@ class TrendEnv(gym.Env):
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-low_boundary, high=high_boundary,
-                                            shape=((self.dataframe.shape[1] + 2) * 4,))
+                                            shape=((self.dataframe.shape[1] + 2) * 8,))
 
         self.market = Market(self.dataframe)
         self.savings = 50  # €
@@ -108,7 +108,7 @@ class TrendEnv(gym.Env):
 
     def get_observation(self):
         # Return the current state of the environment as a numpy array
-        trend_data = self.market.previous_hours(4, current_charge=self.charge, savings=self.savings)
+        trend_data = self.market.previous_hours(8, current_charge=self.charge, savings=self.savings)
         return trend_data
 
     def reset(self, seed=None, options=None):

@@ -35,7 +35,7 @@ def plot_trade_data(dfs, column, colors, trade_type=None):
     plt.show()
 
 
-def plot_cumulative_reward(dfs, colors, trade_type=None):
+def plot_cumulative_reward(dfs, colors):
     """
     Plot the cumulative reward over time for each agent.
     Optionally filter by trade type (e.g., 'buy' or 'sell').
@@ -43,14 +43,15 @@ def plot_cumulative_reward(dfs, colors, trade_type=None):
     plt.figure(figsize=(15, 10))
     for i, (name, df) in enumerate(dfs.items()):
         name = name.split('.')[0]
-        if trade_type:
-            df = df[df['trade_type'] == trade_type]
         plt.plot(df['reward'].cumsum(), label=name, color=colors[i % len(colors)])
 
-    plt.title(f'Cumulative Reward Over Time ({trade_type.capitalize() if trade_type else ""})')
+    plt.title(f'Cumulative Reward Over Time')
     plt.xlabel('Time Step')
     plt.ylabel('Cumulative Reward')
+    plt.xscale('log')
+    plt.yscale('log')
     plt.legend()
+    plt.savefig('img/cumulative_reward.png', dpi=400)
     plt.show()
 
 
@@ -178,5 +179,4 @@ plot_trade_data(dfs, 'price', colors, trade_type='buy')
 plot_trade_data(dfs, 'price', colors, trade_type='sell')
 plot_trade_durations(dfs, colors)
 plot_trade_sizes(dfs, colors)
-plot_correlation_matrix(dfs)
-plot_cumulative_reward(dfs, colors, trade_type='sell')
+plot_cumulative_reward(dfs, colors)

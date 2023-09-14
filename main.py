@@ -7,6 +7,7 @@ from stable_baselines3.common.env_checker import check_env
 from gymnasium import register
 from gymnasium import make
 from cutsom_wrappers.custom_wrappers import CustomNormalizeObservation
+from gymnasium.wrappers import NormalizeReward
 from gymnasium.wrappers import RescaleAction
 
 from stable_baselines3 import SAC
@@ -31,9 +32,7 @@ env_params = {
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
                    'data_path': 'data/in-use/unscaled_train_data.csv'},
     'savings_reward': {'id': 'savings_reward_env-v0', 'entry_point': 'envs.savings_reward:SavingsRewardEnv',
-                       'data_path': 'data/in-use/unscaled_train_data.csv'},
-    'unscaled': {'id': 'unscaled_env-v0', 'entry_point': 'envs.unscaled_env:UnscaledEnv',
-                 'data_path': 'data/in-use/unscaled_train_data.csv'}
+                       'data_path': 'data/in-use/unscaled_train_data.csv'}
 }
 
 # Check if chosen environment is valid
@@ -56,6 +55,7 @@ env = CustomNormalizeObservation(eval_env)
 try:
     eval_env = make(env_id)
     env = CustomNormalizeObservation(eval_env)
+    env = NormalizeReward(env)
 except Exception as e:
     print("Error creating environment: ", e)
     exit()
@@ -72,3 +72,4 @@ if args.save:
 end_time = time.time()  # Get the current time after running the model
 
 print(f'Total runtime: {(end_time - start_time) / 60} minutes')  # Print the difference, which is the total runtime
+# env.render()

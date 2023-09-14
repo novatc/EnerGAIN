@@ -73,10 +73,10 @@ class BaseEnv(gym.Env):
     def trade(self, price, amount, trade_type):
         if trade_type == 'buy':
             if price * amount > self.savings or self.savings <= 0 or amount > self.max_battery_charge - self.charge:
-                return -1
+                return -10
         elif trade_type == 'sell':
             if amount < -self.charge:
-                return -1
+                return -10
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
         if self.market.accept_offer(price, trade_type):
@@ -91,7 +91,7 @@ class BaseEnv(gym.Env):
             self.trade_log.append((self.market.get_current_step(), price, amount, trade_type,
                                    abs(float(self.market.get_current_price()) * amount)))
         else:
-            return -1
+            return -10
 
         return abs(float(self.market.get_current_price()) * amount)
 
@@ -158,6 +158,7 @@ class BaseEnv(gym.Env):
         self.plot_charge()
         self.plot_reward_log()
         self.plot_price_comparison()
+        self.plot_price_comparison_full_timeline()
 
     def get_trades(self):
         # list of trades: (step, price, amount, trade_type)
@@ -184,9 +185,10 @@ class BaseEnv(gym.Env):
         plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
 
         plt.title('Charge Over Time')
-        plt.xlabel('Step')
+        plt.xlabel('Number of trades')
         plt.ylabel('Charge')
         plt.legend()
+        plt.savefig('img/base_charge.png', dpi=400)
         plt.show()
 
     def plot_savings(self):
@@ -196,9 +198,11 @@ class BaseEnv(gym.Env):
         smoothed_steps = np.arange(self.window_size - 1, len(self.savings_log))
         plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
         plt.title('Savings Over Time')
-        plt.xlabel('Step')
+        plt.xlabel('Number of trades')
         plt.ylabel('Savings')
         plt.legend()
+        plt.savefig('img/base_savings.png', dpi=400)
+
         plt.show()
 
     def plot_reward_log(self):
@@ -208,9 +212,11 @@ class BaseEnv(gym.Env):
         smoothed_steps = np.arange(self.window_size - 1, len(self.reward_log))
         plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
         plt.title('Reward Over Time')
-        plt.xlabel('Step')
+        plt.xlabel('Number of trades')
         plt.ylabel('Reward')
         plt.legend()
+        plt.savefig('img/base_reward.png', dpi=400)
+
         plt.show()
 
     def plot_price_comparison(self):
@@ -254,6 +260,41 @@ class BaseEnv(gym.Env):
         plt.plot(sorted_steps, sorted_market_prices, color='blue', label='Market Price', alpha=0.6)
 
         plt.ylabel('Trade Price (€/kWh)')
-        plt.xlabel('Steps')
+        plt.xlabel('Number of trades')
         plt.legend()
+        plt.savefig('img/base_price_comparison.png', dpi=400)
+
+        plt.show()
+
+    def plot_price_comparison_full_timeline(self):
+        plt.figure(figsize=(10, 6))
+        trade_log = self.trade_log
+        eval_data_df = pd.read_csv('data/in-use/unscaled_eval_data.csv')
+
+        # Get the buy and sell trades from the trade log
+        buys = [trade for trade in trade_log if trade[3] == 'buy']
+        sells = [trade for trade in trade_log if trade[3] == 'sell']
+
+        # Check if there are any buy or sell trades to plot
+        if not buys and not sells:
+            print("No trades to plot.")
+            return
+
+        # Plot real market prices from evaluation dataset
+        plt.plot(eval_data_df.index, eval_data_df['price'], color='blue', label='Real Market Price', alpha=0.6)
+
+        # Plot buy data if available
+        if buys:
+            buy_steps, buy_prices, _, _, _ = zip(*buys)
+            plt.scatter(buy_steps, buy_prices, c='green', marker='o', label='Buy', alpha=0.6)
+
+        # Plot sell data if available
+        if sells:
+            sell_steps, sell_prices, _, _, _ = zip(*sells)
+            plt.scatter(sell_steps, sell_prices, c='red', marker='x', label='Sell', alpha=0.6)
+
+        plt.ylabel('Price (€/kWh)')
+        plt.xlabel('Step')
+        plt.legend()
+        plt.savefig('img/base_price_comparison_full_timeline.png', dpi=400)
         plt.show()

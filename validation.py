@@ -64,7 +64,7 @@ except Exception as e:
     print("Error creating environment: ", e)
     exit()
 
-ep_length = 30*24
+ep_length = 24 * 90
 
 # Evaluate the agent
 episode_rewards = []
@@ -104,7 +104,6 @@ try:
     avg_amount = sum([trade[2] for trade in trades]) / len(trades)
 except ZeroDivisionError:
     avg_amount = 0
-# rescaled_amount = utilities.rescale_value_amount(avg_amount)
 
 print("Total reward:", sum(episode_rewards))
 print("Total trades:", len(trades))
