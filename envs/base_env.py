@@ -186,7 +186,7 @@ class BaseEnv(gym.Env):
 
         plt.title('Charge Over Time')
         plt.xlabel('Number of trades')
-        plt.ylabel('Charge')
+        plt.ylabel('Charge (kWh)')
         plt.legend()
         plt.savefig('img/base_charge.png', dpi=400)
         plt.show()
@@ -199,7 +199,7 @@ class BaseEnv(gym.Env):
         plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
         plt.title('Savings Over Time')
         plt.xlabel('Number of trades')
-        plt.ylabel('Savings')
+        plt.ylabel('Savings (€)')
         plt.legend()
         plt.savefig('img/base_savings.png', dpi=400)
 
@@ -262,6 +262,7 @@ class BaseEnv(gym.Env):
         plt.ylabel('Trade Price (€/kWh)')
         plt.xlabel('Number of trades')
         plt.legend()
+        plt.tight_layout()
         plt.savefig('img/base_price_comparison.png', dpi=400)
 
         plt.show()
@@ -286,15 +287,16 @@ class BaseEnv(gym.Env):
         # Plot buy data if available
         if buys:
             buy_steps, buy_prices, _, _, _ = zip(*buys)
-            plt.scatter(buy_steps, buy_prices, c='green', marker='o', label='Buy', alpha=0.6)
+            plt.scatter(buy_steps, buy_prices, c='green', marker='o', label='Buy', alpha=0.6, s=10)
 
         # Plot sell data if available
         if sells:
             sell_steps, sell_prices, _, _, _ = zip(*sells)
-            plt.scatter(sell_steps, sell_prices, c='red', marker='x', label='Sell', alpha=0.6)
+            plt.scatter(sell_steps, sell_prices, c='red', marker='x', label='Sell', alpha=0.6, s=10)
 
         plt.ylabel('Price (€/kWh)')
         plt.xlabel('Step')
         plt.legend()
+        plt.tight_layout()
         plt.savefig('img/base_price_comparison_full_timeline.png', dpi=400)
         plt.show()
