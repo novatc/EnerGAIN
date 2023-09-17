@@ -1,8 +1,11 @@
+from datetime import datetime, timedelta
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import seaborn as sns
+
 
 def load_csv_files_from_folder(folder_path):
     """
@@ -46,11 +49,12 @@ def plot_cumulative_reward(dfs, colors):
         plt.plot(df['reward'].cumsum(), label=name, color=colors[i % len(colors)])
 
     plt.title(f'Cumulative Reward Over Time')
-    plt.xlabel('Time Step')
+    plt.xlabel('Number of Trades')
     plt.ylabel('Cumulative Reward')
-    plt.xscale('log')
     plt.yscale('log')
+    plt.legend(fontsize=24)
     plt.legend()
+    plt.tight_layout()
     plt.savefig('img/cumulative_reward.png', dpi=400)
     plt.show()
 
@@ -162,6 +166,61 @@ def plot_correlation_matrix(dfs):
     plt.show()
 
 
+def plot_avg_trade_data(trade_data, eval_data='data/in-use/unscaled_eval_data.csv'):
+    """
+    Generate plots for an average day
+
+    Parameters:
+    - trade_data : Path to the second dataset containing trade data
+    - eval_data : Path to the first dataset containing hourly data
+
+    """
+    start_time = datetime.strptime('2022-12-01 00:00', '%Y-%m-%d %H:%M')
+
+    # Read the first dataset and calculate 'time' and 'abs_price'
+    first_dataset_df = pd.read_csv(eval_data)
+    first_dataset_df['time'] = [start_time + timedelta(hours=i) for i in range(first_dataset_df.shape[0])]
+    first_dataset_df['hour_of_day'] = first_dataset_df['time'].dt.hour
+    avg_abs_price_by_hour = first_dataset_df.groupby('hour_of_day')['price'].mean().reset_index()
+
+    # Load the second dataset
+    df2 = pd.read_csv(trade_data)
+
+    # Calculate time based on the 'step' column
+    df2['time'] = df2['step'].apply(lambda x: start_time + timedelta(hours=x))
+
+    # Filter 'buy' and 'sell' trades
+    df2_buy = df2[df2['trade_type'] == 'buy']
+    df2_sell = df2[df2['trade_type'] == 'sell']
+
+    # Plot for 'buy' trades
+    plt.figure(figsize=(14, 8))
+    plt.plot(avg_abs_price_by_hour['hour_of_day'], avg_abs_price_by_hour['price'],
+             label='Average Price')
+    plt.scatter(df2_buy['step'] % 24, df2_buy['price'].abs(), color='g', marker='x', label='Buy Price')
+    plt.xticks(range(0, 24), [str(i).zfill(2) + ':00' for i in range(0, 24)], rotation=90)
+    plt.xlim(-1, 24)
+    plt.xlabel('Hour of the Day')
+    plt.ylabel('Price for Buy')
+    plt.title('Price Data for Buy Trades')
+    plt.legend()
+    plt.show()
+
+    # Plot for 'sell' trades
+    plt.figure(figsize=(14, 8))
+    plt.plot(avg_abs_price_by_hour['hour_of_day'], avg_abs_price_by_hour['price'],
+             label='Average Price')
+    plt.scatter(df2_sell['step'] % 24, df2_sell['price'], color='r', marker='x',
+                label='Sell Price')
+    plt.xticks(range(0, 24), [str(i).zfill(2) + ':00' for i in range(0, 24)], rotation=90)
+    plt.xlim(-1, 24)
+    plt.xlabel('Hour of the Day')
+    plt.ylabel('Price for Sell')
+    plt.title('Price Data for Sell Trades')
+    plt.legend()
+    plt.show()
+
+
 # Example usage:
 # Define a list of distinct colors
 colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
@@ -180,3 +239,7 @@ plot_trade_data(dfs, 'price', colors, trade_type='sell')
 plot_trade_durations(dfs, colors)
 plot_trade_sizes(dfs, colors)
 plot_cumulative_reward(dfs, colors)
+
+# iterate over all files in the folder 'trade_logs' that end with '.csv'
+for file in os.listdir('trade_logs'):
+    plot_avg_trade_data(os.path.join('trade_logs', file))
