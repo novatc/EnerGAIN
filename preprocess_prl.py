@@ -16,14 +16,10 @@ prl['price'] = pd.to_numeric(prl['price'], errors='coerce')
 
 # Interpolate missing values in the "price, amount" column
 prl['price'] = prl['price'].interpolate(method='linear')
+prl['price'] = prl['price'] / 1000  # convert to €/kWh
 prl['amount'] = prl['amount'].interpolate(method='linear')
 
 print(prl.isnull().sum())
 
 # Save the preprocessed data to a csv file
 prl.to_csv('data/prm/preprocessed_prl.csv')
-
-
-
-
-
