@@ -1,11 +1,6 @@
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
-import joblib  # for saving the scaler objects
 
-from sklearn.preprocessing import MinMaxScaler
-
-from envs.assets.env_utilities import scale_list
 
 energy_consumption = pd.read_csv('data/clean/energy_consumption_01102018_01012023.csv', index_col=0)
 energy_prediction = pd.read_csv('data/clean/energy_prediction_01102018_01012023.csv', index_col=0)
