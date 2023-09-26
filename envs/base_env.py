@@ -14,14 +14,13 @@ class BaseEnv(gym.Env):
         self.dataframe = pd.read_csv(data_path)
 
         low_boundary = self.dataframe.min().values
-        low_boundary = np.append(low_boundary, [0.0, 0.0])  # set the lower boundary of savings and charge to 0
+
         high_boundary = self.dataframe.max().values
-        high_boundary = np.append(high_boundary,
-                                  [1000.0, 1000.0])  # set the upper boundary of savings and charge to 1000
+
         action_low = np.array([-1.0, -500.0])
         action_high = np.array([1.0, 500.0])
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=low_boundary, high=high_boundary, shape=(self.dataframe.shape[1] + 2,))
+        self.observation_space = spaces.Box(low=low_boundary, high=high_boundary, shape=(self.dataframe.shape[1],))
 
         self.market = Market(self.dataframe)
         self.savings = 50  # €
@@ -97,9 +96,7 @@ class BaseEnv(gym.Env):
 
     def get_observation(self):
         # Return the current state of the environment as a numpy array
-        observation = np.concatenate(
-            (self.dataframe.iloc[self.market.get_current_step()].to_numpy(), [self.savings, self.charge])
-        )
+        observation = self.dataframe.iloc[self.market.get_current_step()].to_numpy()
         return observation
 
     def reset(self, seed=None, options=None):
