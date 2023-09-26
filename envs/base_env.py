@@ -32,6 +32,7 @@ class BaseEnv(gym.Env):
 
         self.trade_log = []
         self.invalid_trades = []
+        self.holding = []
 
         self.rewards = []
         self.reward_log = []
@@ -64,6 +65,7 @@ class BaseEnv(gym.Env):
             reward = self.trade(price, amount, 'sell')
         else:  # if amount is 0
             reward = 0
+            self.holding.append((self.market.get_current_step(), 'hold'))
 
         self.rewards.append(reward)
         self.reward_log.append(
@@ -162,7 +164,8 @@ class BaseEnv(gym.Env):
 
         # For invalid trades:
         self.plot_trades_timeline("invalid_trades", "Invalid Trades", "black", "orange",
-                                  'img/invalid_trades_full_timeline.png')
+                                  'img/base_invalid_trades_full_timeline.png')
+        self.plot_holding()
 
     def get_trades(self):
         # list of trades: (step, price, amount, trade_type)
@@ -227,6 +230,7 @@ class BaseEnv(gym.Env):
         plt.figure(figsize=(10, 6))
         trade_log = getattr(self, trade_source)
         eval_data_df = pd.read_csv('data/in-use/unscaled_eval_data.csv')
+        total_trades = len(trade_log)
 
         # Get the buy and sell trades from the trade log
         buys = [trade for trade in trade_log if trade[3] == 'buy']
@@ -250,10 +254,28 @@ class BaseEnv(gym.Env):
             sell_steps, sell_prices, _, _, _ = zip(*sells)
             plt.scatter(sell_steps, sell_prices, c=sell_color, marker='x', label='Sell', alpha=0.6, s=10)
 
-        plt.title(title)
+        plt.title(title + f' ({total_trades} trades)')
         plt.ylabel('Price (€/kWh)')
         plt.xlabel('Step')
         plt.legend()
         plt.tight_layout()
         plt.savefig(save_path, dpi=400)
+        plt.show()
+
+    def plot_holding(self):
+        if not self.holding:
+            print("No trades to plot.")
+            return
+        plt.figure(figsize=(10, 6))
+        eval_data_df = pd.read_csv('data/in-use/unscaled_eval_data.csv')
+        plt.plot(eval_data_df.index, eval_data_df['price'], color='blue', label='Real Market Price', alpha=0.6)
+        steps, _, _, _, _ = zip(*self.holding)
+        plt.scatter(steps, [eval_data_df['price'][step] for step in steps], c='black', marker='o', label='Hold',
+                    alpha=0.6, s=10)
+        plt.title('Hold')
+        plt.ylabel('Price (€/kWh)')
+        plt.xlabel('Step')
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig('img/base_hold.png', dpi=400)
         plt.show()
