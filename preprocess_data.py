@@ -59,17 +59,7 @@ price_values = solar_power['price'].values.reshape(-1, 1)  # reshape to 2D array
 amount_values = solar_power['consumption'].values.reshape(-1, 1)  # reshape to 2D array
 prediction_values = solar_power['prediction'].values.reshape(-1, 1)  # reshape to 2D array
 
-# Fit the scalers to the 'price' and 'amount' data and transform the data
-scaled_price_values = scale_list(price_values, name='new_price')
-scaled_amount_values = scale_list(amount_values, name='new_amount')
-scaled_prediction_values = scale_list(prediction_values, name='new_prediction')
-
-# Create a new dataframe with the new scaled price, amount, and prediction values
-scaled_data = pd.DataFrame(scaled_price_values, columns=['price'], index=solar_power.index)
-scaled_data['consumption'] = scaled_amount_values
-scaled_data['prediction'] = scaled_prediction_values
-
-dataset = pd.DataFrame(scaled_data, columns=solar_power.columns, index=solar_power.index)
+dataset = pd.DataFrame(solar_power, columns=solar_power.columns, index=solar_power.index)
 
 # env_data = dataset[['price', 'consumption', 'prediction', 'Einstrahlung auf die Horizontale (kWh/m²)',
 #                     'Diffusstrahlung auf die Horizontale (kWh/m²)']].copy()
