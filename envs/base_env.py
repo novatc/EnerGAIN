@@ -31,6 +31,7 @@ class BaseEnv(gym.Env):
         self.savings_log = []
 
         self.trade_log = []
+        self.invalid_trades = []
 
         self.rewards = []
         self.reward_log = []
@@ -90,6 +91,8 @@ class BaseEnv(gym.Env):
             self.trade_log.append((self.market.get_current_step(), price, amount, trade_type,
                                    abs(float(self.market.get_current_price()) * amount)))
         else:
+            self.invalid_trades.append((self.market.get_current_step(), price, amount, trade_type,
+                                        abs(float(self.market.get_current_price()) * amount)))
             return -10
 
         return abs(float(self.market.get_current_price()) * amount)
@@ -154,8 +157,12 @@ class BaseEnv(gym.Env):
         self.plot_savings()
         self.plot_charge()
         self.plot_reward_log()
-        self.plot_price_comparison()
-        self.plot_price_comparison_full_timeline()
+        self.plot_trades_timeline("trade_log", "Trades vs. Real Market Price", "green", "red",
+                                  'img/base_price_comparison_full_timeline.png')
+
+        # For invalid trades:
+        self.plot_trades_timeline("invalid_trades", "Invalid Trades", "black", "orange",
+                                  'img/invalid_trades_full_timeline.png')
 
     def get_trades(self):
         # list of trades: (step, price, amount, trade_type)
@@ -216,57 +223,9 @@ class BaseEnv(gym.Env):
 
         plt.show()
 
-    def plot_price_comparison(self):
+    def plot_trades_timeline(self, trade_source, title, buy_color, sell_color, save_path):
         plt.figure(figsize=(10, 6))
-
-        # Get the buy and sell trades from the trade log
-        buys = [trade for trade in self.trade_log if trade[3] == 'buy']
-        sells = [trade for trade in self.trade_log if trade[3] == 'sell']
-
-        # Check if there are any buy or sell trades to plot
-        if not buys and not sells:
-            print("No trades to plot.")
-            return
-
-        # Collect and sort market prices
-        market_prices_list = []
-
-        # Plot buy data if available
-        if buys:
-            buy_steps, buy_prices, buy_amounts, _, _ = zip(*buys)
-            buy_prices = abs(np.array(buy_prices))
-            market_prices_buy = [self.market.get_price_at_step(step) for step in buy_steps]
-            plt.scatter(buy_steps, buy_prices, c='green', marker='o', label='Buy', alpha=0.6)
-
-            # Add to market prices list
-            market_prices_list.extend(zip(buy_steps, market_prices_buy))
-
-        # Plot sell data if available
-        if sells:
-            sell_steps, sell_prices, sell_amounts, _, _ = zip(*sells)
-            market_prices_sell = [self.market.get_price_at_step(step) for step in sell_steps]
-            plt.scatter(sell_steps, sell_prices, c='red', marker='x', label='Sell', alpha=0.6)
-
-            # Add to market prices list
-            market_prices_list.extend(zip(sell_steps, market_prices_sell))
-
-        # Sort market prices list by steps
-        market_prices_list.sort(key=lambda x: x[0])
-        sorted_steps, sorted_market_prices = zip(*market_prices_list)
-
-        plt.plot(sorted_steps, sorted_market_prices, color='blue', label='Market Price', alpha=0.6)
-
-        plt.ylabel('Trade Price (€/kWh)')
-        plt.xlabel('Number of trades')
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig('img/base_price_comparison.png', dpi=400)
-
-        plt.show()
-
-    def plot_price_comparison_full_timeline(self):
-        plt.figure(figsize=(10, 6))
-        trade_log = self.trade_log
+        trade_log = getattr(self, trade_source)
         eval_data_df = pd.read_csv('data/in-use/unscaled_eval_data.csv')
 
         # Get the buy and sell trades from the trade log
@@ -284,16 +243,17 @@ class BaseEnv(gym.Env):
         # Plot buy data if available
         if buys:
             buy_steps, buy_prices, _, _, _ = zip(*buys)
-            plt.scatter(buy_steps, buy_prices, c='green', marker='o', label='Buy', alpha=0.6, s=10)
+            plt.scatter(buy_steps, buy_prices, c=buy_color, marker='o', label='Buy', alpha=0.6, s=10)
 
         # Plot sell data if available
         if sells:
             sell_steps, sell_prices, _, _, _ = zip(*sells)
-            plt.scatter(sell_steps, sell_prices, c='red', marker='x', label='Sell', alpha=0.6, s=10)
+            plt.scatter(sell_steps, sell_prices, c=sell_color, marker='x', label='Sell', alpha=0.6, s=10)
 
+        plt.title(title)
         plt.ylabel('Price (€/kWh)')
         plt.xlabel('Step')
         plt.legend()
         plt.tight_layout()
-        plt.savefig('img/base_price_comparison_full_timeline.png', dpi=400)
+        plt.savefig(save_path, dpi=400)
         plt.show()
