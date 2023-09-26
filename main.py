@@ -51,6 +51,7 @@ os.makedirs('logging', exist_ok=True)
 # Register and make the environment
 register(id=env_id, entry_point=entry_point, kwargs={'data_path': data_path, 'validation': False})
 eval_env = make(env_id)
+check_env(eval_env, warn=True)
 env = CustomNormalizeObservation(eval_env)
 try:
     eval_env = make(env_id)
@@ -65,7 +66,7 @@ start_time = time.time()  # Get the current time
 # Create and train model
 model = SAC("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=args.training_steps)
-now = time.strftime("%d.%m-%H:%M")
+now = time.strftime("%d.%m-%H-%M")
 if args.save:
     model.save(f"agents/sac_{args.env}_{args.training_steps/1000}k_{now}.zip")
 
