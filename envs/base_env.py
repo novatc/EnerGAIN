@@ -4,8 +4,9 @@ from gymnasium import spaces
 import numpy as np
 from matplotlib import pyplot as plt
 
+from envs.assets.battery import Battery
 from envs.assets.env_utilities import moving_average
-from envs.assets.market import Market
+from envs.assets.dayahead import DayAhead
 
 
 class BaseEnv(gym.Env):
@@ -22,12 +23,11 @@ class BaseEnv(gym.Env):
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=low_boundary, high=high_boundary, shape=(self.dataframe.shape[1],))
 
-        self.market = Market(self.dataframe)
+        self.day_ahead = DayAhead(self.dataframe)
+        self.battery = Battery(1000, 500)
         self.savings = 50  # €
-        self.charge = 500  # kWh
         self.max_battery_charge = 1000  # kWh
 
-        self.charge_log = []
         self.savings_log = []
 
         self.trade_log = []
@@ -42,19 +42,19 @@ class BaseEnv(gym.Env):
 
     def step(self, action):
         if self.validation:
-            self.market.step()
+            self.day_ahead.step()
         else:
-            self.market.random_walk()
+            self.day_ahead.random_walk()
 
         price = action[0].item()
         amount = action[1].item()
 
         terminated = False  # Whether the agent reaches the terminal state
         truncated = False  # this can be false all the time since there is no failure condition the agent could trigger
-        info = {'current_price': self.market.get_current_price(),
-                'current_step': self.market.get_current_step(),
+        info = {'current_price': self.day_ahead.get_current_price(),
+                'current_step': self.day_ahead.get_current_step(),
                 'savings': self.savings,
-                'charge': self.charge,
+                'charge': self.battery.get_soc(),
                 'action_price': price,
                 'action_amount': amount,
                 }
@@ -64,8 +64,8 @@ class BaseEnv(gym.Env):
         elif amount < 0:  # sell
             reward = self.trade(price, amount, 'sell')
         else:  # if amount is 0
-            reward = 0
-            self.holding.append((self.market.get_current_step(), 'hold'))
+            reward = 5
+            self.holding.append((self.day_ahead.get_current_step(), 'hold'))
 
         self.rewards.append(reward)
         self.reward_log.append(
@@ -74,34 +74,34 @@ class BaseEnv(gym.Env):
 
     def trade(self, price, amount, trade_type):
         if trade_type == 'buy':
-            if price * amount > self.savings or self.savings <= 0 or amount > self.max_battery_charge - self.charge:
+            if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
                 return -10
         elif trade_type == 'sell':
-            if amount < -self.charge:
+            if self.battery.can_discharge(amount) is False:
                 return -10
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
-        if self.market.accept_offer(price, trade_type):
+        if self.day_ahead.accept_offer(price, trade_type):
             # this works for both buy and sell because amount is negative for sale and + and - cancel out and fot buy
             # amount is positive
-            self.charge += amount
+            self.battery.charge(amount)
             # the same applies here for savings
-            self.savings -= self.market.get_current_price() * amount
+            self.savings -= self.day_ahead.get_current_price() * amount
 
-            self.charge_log.append(self.charge)
+            self.battery.add_charge_log(self.battery.get_soc())
             self.savings_log.append(self.savings)
-            self.trade_log.append((self.market.get_current_step(), price, amount, trade_type,
-                                   abs(float(self.market.get_current_price()) * amount)))
+            self.trade_log.append((self.day_ahead.get_current_step(), price, amount, trade_type,
+                                   abs(float(self.day_ahead.get_current_price()) * amount)))
         else:
-            self.invalid_trades.append((self.market.get_current_step(), price, amount, trade_type,
-                                        abs(float(self.market.get_current_price()) * amount)))
+            self.invalid_trades.append((self.day_ahead.get_current_step(), price, amount, trade_type,
+                                        abs(float(self.day_ahead.get_current_price()) * amount)))
             return -10
 
-        return abs(float(self.market.get_current_price()) * amount)
+        return abs(float(self.day_ahead.get_current_price()) * amount)
 
     def get_observation(self):
         # Return the current state of the environment as a numpy array
-        observation = self.dataframe.iloc[self.market.get_current_step()].to_numpy()
+        observation = self.dataframe.iloc[self.day_ahead.get_current_step()].to_numpy()
         return observation
 
     def reset(self, seed=None, options=None):
@@ -112,8 +112,8 @@ class BaseEnv(gym.Env):
         # Reset the state of the environment to an initial state
         super().reset(seed=seed, options=options)
         self.savings = 50
-        self.charge = 500
-        self.market.reset()
+        self.battery.reset()
+        self.day_ahead.reset()
         observation = self.get_observation().astype(np.float32)
         return observation, {}
 
@@ -172,22 +172,17 @@ class BaseEnv(gym.Env):
 
         return self.trade_log
 
-    def get_savings(self):
-        return self.savings_log
-
-    def get_charge(self):
-        return self.charge_log
-
     def plot_charge(self):
         plt.figure(figsize=(10, 6))
+        charge_log = self.battery.get_charge_log()
 
         # Original data
-        plt.plot(self.charge_log, label='Original', alpha=0.5)
+        plt.plot(charge_log, label='Original', alpha=0.5)
 
         # Smoothed data
-        smoothed_data = moving_average(self.charge_log, self.window_size)
+        smoothed_data = moving_average(charge_log, self.window_size)
         smoothed_steps = np.arange(self.window_size - 1,
-                                   len(self.charge_log))  # Adjust the x-axis for the smoothed data
+                                   len(charge_log))  # Adjust the x-axis for the smoothed data
 
         plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
 
