@@ -1,12 +1,9 @@
 import gymnasium as gym
-import pandas as pd
 from gymnasium import spaces
-import numpy as np
-from matplotlib import pyplot as plt
 
 from envs.assets.battery import Battery
-from envs.assets.env_utilities import moving_average
 from envs.assets.dayahead import DayAhead
+from envs.assets.plot_engien import *
 
 
 class BaseEnv(gym.Env):
@@ -26,8 +23,6 @@ class BaseEnv(gym.Env):
         self.day_ahead = DayAhead(self.dataframe)
         self.battery = Battery(1000, 500)
         self.savings = 50  # €
-        self.max_battery_charge = 1000  # kWh
-
         self.savings_log = []
 
         self.trade_log = []
@@ -64,8 +59,8 @@ class BaseEnv(gym.Env):
         elif amount < 0:  # sell
             reward = self.trade(price, amount, 'sell')
         else:  # if amount is 0
-            reward = 5
             self.holding.append((self.day_ahead.get_current_step(), 'hold'))
+            reward = 5
 
         self.rewards.append(reward)
         self.reward_log.append(
@@ -118,159 +113,14 @@ class BaseEnv(gym.Env):
         return observation, {}
 
     def render(self, mode='human'):
-        # Calculate the average reward over 100 steps and plot it
-        avg_rewards = []
-        scaler = 10
-        for i in range(0, len(self.rewards), scaler):
-            avg_rewards.append(sum(self.rewards[i:i + scaler]) / scaler)
-        plt.figure(figsize=(10, 6))
-        plt.subplot(3, 1, 1)
-        plt.plot(avg_rewards)
-        plt.ylabel('Average Reward')
-        plt.xlabel(f'Number of Steps (/ {scaler})')
-
-        # Plot the history of trades
-        buys = [trade for trade in self.trade_log if trade[3] == 'buy']
-        sells = [trade for trade in self.trade_log if trade[3] == 'sell']
-
-        if buys:
-            buy_steps, buy_prices, buy_amounts, _, _ = zip(*buys)
-            buy_prices = abs(np.array(buy_prices))
-            # Rescale the prices and amounts using the scaler objects
-            plt.subplot(3, 1, 2)
-            plt.scatter(buy_steps, buy_prices, c='green', label='Buy', alpha=0.6)
-            plt.ylabel('Trade Price (€/MWh)')
-            plt.subplot(3, 1, 3)
-            plt.scatter(buy_steps, buy_amounts, color='green', label='Buy', alpha=0.6)
-            plt.ylabel('Trade Amount (MWh)')
-        if sells:
-            sell_steps, sell_prices, sell_amounts, _, _ = zip(*sells)
-            sell_prices = abs(np.array(sell_prices))
-            # Rescale the prices and amounts using the scaler objects
-            plt.subplot(3, 1, 2)
-            plt.scatter(sell_steps, sell_prices, c='red', label='Sell', alpha=0.6)
-            plt.subplot(3, 1, 3)
-            plt.scatter(sell_steps, sell_amounts, color='red', label='Sell', alpha=0.6)
-
-        plt.xlabel('Steps')
-        plt.legend()
-        plt.tight_layout()
-        plt.show()
-        self.plot_savings()
-        self.plot_charge()
-        self.plot_reward_log()
-        self.plot_trades_timeline("trade_log", "Trades vs. Real Market Price", "green", "red",
-                                  'img/base_price_comparison_full_timeline.png')
-
-        # For invalid trades:
-        self.plot_trades_timeline("invalid_trades", "Invalid Trades", "black", "orange",
-                                  'img/base_invalid_trades_full_timeline.png')
-        self.plot_holding()
+        plot_reward(self.reward_log, self.window_size, 'base')
+        plot_savings(self.savings_log, self.window_size, 'base')
+        plot_charge(self.window_size, self.battery, 'base')
+        plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
+                             model_name='base')
+        plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
+                             sell_color='brown', model_name='base')
+        plot_holding(self.holding, 'base')
 
     def get_trades(self):
-        # list of trades: (step, price, amount, trade_type)
-
         return self.trade_log
-
-    def plot_charge(self):
-        plt.figure(figsize=(10, 6))
-        charge_log = self.battery.get_charge_log()
-
-        # Original data
-        plt.plot(charge_log, label='Original', alpha=0.5)
-
-        # Smoothed data
-        smoothed_data = moving_average(charge_log, self.window_size)
-        smoothed_steps = np.arange(self.window_size - 1,
-                                   len(charge_log))  # Adjust the x-axis for the smoothed data
-
-        plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
-
-        plt.title('Charge Over Time')
-        plt.xlabel('Number of trades')
-        plt.ylabel('Charge (kWh)')
-        plt.legend()
-        plt.savefig('img/base_charge.png', dpi=400)
-        plt.show()
-
-    def plot_savings(self):
-        plt.figure(figsize=(10, 6))
-        plt.plot(self.savings_log, label='Original', alpha=0.5)
-        smoothed_data = moving_average(self.savings_log, self.window_size)
-        smoothed_steps = np.arange(self.window_size - 1, len(self.savings_log))
-        plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
-        plt.title('Savings Over Time')
-        plt.xlabel('Number of trades')
-        plt.ylabel('Savings (€)')
-        plt.legend()
-        plt.savefig('img/base_savings.png', dpi=400)
-
-        plt.show()
-
-    def plot_reward_log(self):
-        plt.figure(figsize=(10, 6))
-        plt.plot(self.reward_log, label='Original', alpha=0.5)
-        smoothed_data = moving_average(self.reward_log, self.window_size)
-        smoothed_steps = np.arange(self.window_size - 1, len(self.reward_log))
-        plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {self.window_size})')
-        plt.title('Reward Over Time')
-        plt.xlabel('Steps')
-        plt.ylabel('Reward')
-        plt.legend()
-        plt.savefig('img/base_reward.png', dpi=400)
-
-        plt.show()
-
-    def plot_trades_timeline(self, trade_source, title, buy_color, sell_color, save_path):
-        plt.figure(figsize=(10, 6))
-        trade_log = getattr(self, trade_source)
-        eval_data_df = pd.read_csv('data/in-use/unscaled_eval_data.csv')
-        total_trades = len(trade_log)
-
-        # Get the buy and sell trades from the trade log
-        buys = [trade for trade in trade_log if trade[3] == 'buy']
-        sells = [trade for trade in trade_log if trade[3] == 'sell']
-
-        # Check if there are any buy or sell trades to plot
-        if not buys and not sells:
-            print("No trades to plot.")
-            return
-
-        # Plot real market prices from evaluation dataset
-        plt.plot(eval_data_df.index, eval_data_df['price'], color='blue', label='Real Market Price', alpha=0.6)
-
-        # Plot buy data if available
-        if buys:
-            buy_steps, buy_prices, _, _, _ = zip(*buys)
-            plt.scatter(buy_steps, buy_prices, c=buy_color, marker='o', label='Buy', alpha=0.6, s=10)
-
-        # Plot sell data if available
-        if sells:
-            sell_steps, sell_prices, _, _, _ = zip(*sells)
-            plt.scatter(sell_steps, sell_prices, c=sell_color, marker='x', label='Sell', alpha=0.6, s=10)
-
-        plt.title(title + f' ({total_trades} trades)')
-        plt.ylabel('Price (€/kWh)')
-        plt.xlabel('Step')
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(save_path, dpi=400)
-        plt.show()
-
-    def plot_holding(self):
-        if not self.holding:
-            print("No trades to plot.")
-            return
-        plt.figure(figsize=(10, 6))
-        eval_data_df = pd.read_csv('data/in-use/unscaled_eval_data.csv')
-        plt.plot(eval_data_df.index, eval_data_df['price'], color='blue', label='Real Market Price', alpha=0.6)
-        steps, _, _, _, _ = zip(*self.holding)
-        plt.scatter(steps, [eval_data_df['price'][step] for step in steps], c='black', marker='o', label='Hold',
-                    alpha=0.6, s=10)
-        plt.title('Hold')
-        plt.ylabel('Price (€/kWh)')
-        plt.xlabel('Step')
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig('img/base_hold.png', dpi=400)
-        plt.show()
