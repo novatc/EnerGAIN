@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from envs.assets.env_utilities import moving_average
-from envs.assets.market import Market
+from envs.assets.dayahead import DayAhead
 
 
 class NoSavingsEnv(gym.Env):
@@ -23,7 +23,7 @@ class NoSavingsEnv(gym.Env):
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=low_boundary, high=high_boundary, shape=(self.dataframe.shape[1] + 1,))
 
-        self.market = Market(self.dataframe)
+        self.market = DayAhead(self.dataframe)
         self.charge = 500  # kWh
         self.max_battery_charge = 1000  # kWh
 

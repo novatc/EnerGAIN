@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 
-class Market:
+class DayAhead:
     def __init__(self, dataset):
         """
         Initialize the Market with a given dataset.

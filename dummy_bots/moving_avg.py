@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from envs.assets.market import Market
+from envs.assets.dayahead import DayAhead
 
 
 class MovingAvgBot:
@@ -83,7 +83,7 @@ class MovingAvgBot:
         return self.trade_log
 
 
-market = Market(pd.read_csv('../data/in-use/unscaled_eval_data.csv'))
+market = DayAhead(pd.read_csv('../data/in-use/unscaled_eval_data.csv'))
 bot = MovingAvgBot(market, initial_money=50.0, initial_inventory=500, max_inventory=1000, unit_buy_sell=50)
 money, inventory = bot.run_simulation()
 print(f"Money: {money}, Inventory: {inventory}")

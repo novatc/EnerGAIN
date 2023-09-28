@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from envs.assets.market import Market
+from envs.assets.dayahead import DayAhead
 
 
 class SimpleThresholdBot:
@@ -68,7 +68,7 @@ class SimpleThresholdBot:
 import os
 print(os.getcwd())
 
-market = Market(pd.read_csv('data/in-use/unscaled_eval_data.csv'))
+market = DayAhead(pd.read_csv('data/in-use/unscaled_eval_data.csv'))
 bot = SimpleThresholdBot(market, buy_threshold=10.0, sell_threshold=15.0, initial_money=50.0,
                          initial_inventory=500, max_inventory=1000, unit_buy_sell=50)
 money, inventory = bot.run_simulation()

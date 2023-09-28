@@ -3,13 +3,13 @@ import unittest
 import pandas as pd
 
 from dummy_bots.threshold import TradingBot
-from envs.assets.market import Market
+from envs.assets.dayahead import DayAhead
 
 
 class TestTradingBot(unittest.TestCase):
     def setUp(self):
         dataset = pd.read_csv('../data/clean/test_set.csv')
-        self.market = Market(dataset)
+        self.market = DayAhead(dataset)
         self.bot = TradingBot(self.market, sell_threshold=0.8, buy_threshold=-0.8)
 
     def test_update_state(self):

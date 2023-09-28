@@ -6,7 +6,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from envs.assets.env_utilities import moving_average
-from envs.assets.market import Market
+from envs.assets.dayahead import DayAhead
 
 
 class TrendEnv(gym.Env):
@@ -33,7 +33,7 @@ class TrendEnv(gym.Env):
         self.observation_space = spaces.Box(low=-low_boundary, high=high_boundary,
                                             shape=((self.dataframe.shape[1] + 2) * 8,))
 
-        self.market = Market(self.dataframe)
+        self.market = DayAhead(self.dataframe)
         self.savings = 50  # €
         self.charge = 500  # kWh
         self.max_battery_charge = 1000  # kWh
