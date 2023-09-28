@@ -51,7 +51,6 @@ os.makedirs('logging', exist_ok=True)
 # Register and make the environment
 register(id=env_id, entry_point=entry_point, kwargs={'data_path': data_path, 'validation': False})
 eval_env = make(env_id)
-check_env(eval_env, warn=True)
 env = CustomNormalizeObservation(eval_env)
 try:
     eval_env = make(env_id)
