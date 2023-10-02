@@ -41,11 +41,17 @@ prl['month_sin'] = np.sin(2 * np.pi * prl['month'] / 12)
 prl['month_cos'] = np.cos(2 * np.pi * prl['month'] / 12)
 
 # Drop the "day_of_week, month, hour" columns
-prl = prl.drop(['day_of_week', 'month', 'hour', 'start', 'end',], axis=1)
+prl = prl.drop(['day_of_week', 'month', 'hour', 'start', 'end', ], axis=1)
 
 # make price the index
 prl = prl.set_index('price')
 
+# cut off the last 30 days
+train_data = prl.head(-24 * 30)
 
 # Save the preprocessed data to a csv file
-prl.to_csv('data/prm/preprocessed_prl.csv')
+train_data.to_csv('data/prm/preprocessed_prl.csv')
+
+# create evaluation data
+prl = prl.tail(24 * 30)
+prl.to_csv('data/prm/eval_data.csv')

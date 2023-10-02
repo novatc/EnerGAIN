@@ -28,4 +28,5 @@ env = CustomNormalizeObservation(eval_env)
 env = NormalizeReward(env)
 
 model = SAC("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=10)
+model.learn(total_timesteps=100)
+

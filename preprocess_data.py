@@ -107,7 +107,6 @@ test_data = solar_power.tail(24 * 5)
 test_data = test_data[['price', 'consumption', 'prediction']]
 test_data.to_csv('data/in-use/test_data.csv')
 
-# unscaled data
 time_data = env_data.iloc[:, -6:]
 
 unscaled_data = solar_power[['price', 'consumption', 'prediction']]
@@ -119,7 +118,10 @@ time_data = time_data.reset_index(drop=True)
 # Concatenate unscaled_data and time_data
 final_data = pd.concat([unscaled_data, time_data], axis=1)
 final_data = final_data.set_index('price')
-final_data.to_csv('data/in-use/unscaled_train_data.csv')
+
+# cut off the last 30 days
+train_data = final_data.head(-24 * 30)
+train_data.to_csv('data/in-use/unscaled_train_data.csv')
 
 test_data = final_data.tail(24 * 30)
 test_data.to_csv('data/in-use/unscaled_eval_data.csv')
