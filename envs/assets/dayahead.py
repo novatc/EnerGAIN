@@ -44,6 +44,14 @@ class DayAhead:
         """
         self.current_step = (self.current_step + 1) % len(self.dataset)
 
+    def set_step(self, step):
+        """
+        Set the current step to the given step.
+
+        :param step: the given step.
+        """
+        self.current_step = step
+
     def get_current_step(self):
         """
         Get the current step.

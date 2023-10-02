@@ -57,6 +57,19 @@ class Battery:
             return False
         return True
 
+    def check_prl_constraints(self, amount):
+        """
+        Check if the battery as enough energy to cover the amount and also if there is enough room left in the battery
+        to charge the amount.
+        :param amount: amount to be offered in the prl market
+        :return: true when both criteria are met, false otherwise
+        """
+        if amount > self.capacity - self.soc:
+            return False
+        if amount > self.soc:
+            return False
+        return True
+
     def reset(self):
         """
         Reset the battery to its initial state.
