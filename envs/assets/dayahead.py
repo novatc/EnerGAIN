@@ -10,7 +10,6 @@ class DayAhead:
 
         :param dataset: the given data for the market prices.
         """
-        self.successful_trades = []  # List to store successful trades
         self.dataset = dataset
         self.current_step = 0
         self.steps_since_last_random_start = 0
@@ -128,10 +127,8 @@ class DayAhead:
         """
         current_price = self.get_current_price()
         if intent == 'buy' and offer_price > current_price:
-            self.successful_trades.append((self.current_step, 'buy', offer_price))  # log the trade
             return True
         elif intent == 'sell' and offer_price < current_price:
-            self.successful_trades.append((self.current_step, 'sell', offer_price))  # log the trade
             return True
         return False
 
