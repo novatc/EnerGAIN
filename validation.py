@@ -12,8 +12,8 @@ import warnings
 
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Evaluate a SAC model.')
-parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_reward'],
-                    default="base", required=True,
+parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'base_prl'], default="base",
+                    required=True,
                     help='Environment to use.')
 parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run.')
 parser.add_argument('--plot', action='store_true', help='Plot the results.')
@@ -27,8 +27,9 @@ env_params = {
               'data_path': 'data/in-use/unscaled_eval_data.csv'},
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
                    'data_path': 'data/in-use/unscaled_eval_data.csv'},
-    'savings_reward': {'id': 'savings_reward_env-v0', 'entry_point': 'envs.savings_reward:SavingsRewardEnv',
-                       'data_path': 'data/in-use/unscaled_eval_data.csv'}
+    'base_prl': {'id': 'base_prl-v0', 'entry_point': 'envs.base_prl:BasePRL',
+                 'data_path_prl': 'data/prm/preprocessed_prl.csv',
+                 'data_path_da': 'data/in-use/unscaled_train_data.csv'},
 }
 
 # Check if chosen environment is valid
@@ -40,7 +41,8 @@ if args.env not in env_params:
 # Set chosen environment parameters
 env_id = env_params[args.env]['id']
 entry_point = env_params[args.env]['entry_point']
-data_path = env_params[args.env]['data_path']
+data_path_da = env_params[args.env]['data_path_da']
+data_path_prl = env_params["base_prl"]['data_path_prl']
 
 # suppress any warnings
 warnings.filterwarnings("ignore")
@@ -56,7 +58,8 @@ except Exception as e:
     exit()
 
 # Register and make the environment
-register(id=env_id, entry_point=entry_point, kwargs={'data_path': data_path, 'validation': True})
+register(id=env_id, entry_point=entry_point,
+         kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': True})
 try:
     eval_env = make(env_id)
     eval_env = CustomNormalizeObservation(eval_env)
@@ -76,6 +79,7 @@ for _ in range(num_episodes):
     for _ in range(ep_length - 1):
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = eval_env.step(action)
+        print(info)
         episode_reward += reward
     episode_rewards.append(episode_reward)
     obs, _ = eval_env.reset()
