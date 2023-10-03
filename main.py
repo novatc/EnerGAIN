@@ -16,7 +16,7 @@ from stable_baselines3 import SAC
 parser = argparse.ArgumentParser(description='Train a SAC model.')
 parser.add_argument('--training_steps', type=int, required=True, default=100,
                     help='Number of training steps.')
-parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'savings_reward'], default="base",
+parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'base_prl'], default="base",
                     required=True,
                     help='Environment to use.')
 parser.add_argument('--save', action='store_true',
@@ -31,25 +31,29 @@ env_params = {
               'data_path': 'data/in-use/unscaled_train_data.csv'},
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
                    'data_path': 'data/in-use/unscaled_train_data.csv'},
-    'savings_reward': {'id': 'savings_reward_env-v0', 'entry_point': 'envs.savings_reward:SavingsRewardEnv',
-                       'data_path': 'data/in-use/unscaled_train_data.csv'}
+    'base_prl': {'id': 'base_prl-v0', 'entry_point': 'envs.base_prl:BasePRL',
+                 'data_path_prl': 'data/prm/preprocessed_prl.csv',
+                 'data_path_da': 'data/in-use/unscaled_train_data.csv'},
 }
 
 # Check if chosen environment is valid
 if args.env not in env_params:
     raise ValueError(
-        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'savings_reward', 'unscaled' and"
+        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'unscaled', 'base_prl' and"
         f" 'no_savings'.")
 
 # Set chosen environment parameters
 env_id = env_params[args.env]['id']
 entry_point = env_params[args.env]['entry_point']
-data_path = env_params[args.env]['data_path']
+data_path_da = env_params[args.env]['data_path_da']
+data_path_prl = env_params["base_prl"]['data_path_prl']
 
 os.makedirs('logging', exist_ok=True)
 
 # Register and make the environment
-register(id=env_id, entry_point=entry_point, kwargs={'data_path': data_path, 'validation': False})
+register(id=env_id, entry_point=entry_point,
+         kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': False})
+
 eval_env = make(env_id)
 env = CustomNormalizeObservation(eval_env)
 try:
