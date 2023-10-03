@@ -57,6 +57,22 @@ class Battery:
             return False
         return True
 
+    def check_prl_constraints_for_da(self, amount, reserve_amount):
+        """
+        Check if the battery as enough energy to cover the amount and also if there is enough room left in the battery
+        to charge the amount when the promised prl amount is deducted.
+        :param reserve_amount:
+        :param amount: amount to be offered in the prl market
+        :return: true when both criteria are met, false otherwise
+        """
+        if amount > self.capacity - self.soc - reserve_amount:
+            return False
+        # check if there is enough room in the battery after the promised prl amount is added
+        if amount + reserve_amount > self.capacity - self.soc:
+            return False
+
+        return True
+
     def check_prl_constraints(self, amount):
         """
         Check if the battery as enough energy to cover the amount and also if there is enough room left in the battery
@@ -66,8 +82,10 @@ class Battery:
         """
         if amount > self.capacity - self.soc:
             return False
-        if amount > self.soc:
+        # check if there is enough room in the battery
+        if amount > self.capacity - self.soc:
             return False
+
         return True
 
     def reset(self):
@@ -77,7 +95,17 @@ class Battery:
         self.soc = 500
 
     def get_charge_log(self):
+        """
+        Retrieve the charging log for the battery.
+
+        :return: A list containing the amounts with which the battery has been charged.
+        """
         return self.charge_log
 
     def add_charge_log(self, amount):
+        """
+        Add an amount to the charge log.
+
+        :param amount: The amount of energy to add to the charge log.
+        """
         self.charge_log.append(amount)
