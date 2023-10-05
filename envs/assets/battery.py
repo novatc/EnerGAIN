@@ -80,10 +80,14 @@ class Battery:
         :param amount: amount to be offered in the prl market
         :return: true when both criteria are met, false otherwise
         """
+        # prevent the agent from offering small amounts since the official limit is 1MW
+        if amount < 200:
+            return False
+        # check if there is enough capacity in the battery to offer such an amount
         if amount > self.capacity - self.soc:
             return False
-        # check if there is enough room in the battery
-        if amount > self.capacity - self.soc:
+        # check if the battery could also charge the offered amount
+        if amount + self.soc > self.capacity:
             return False
 
         return True
@@ -92,7 +96,7 @@ class Battery:
         """
         Reset the battery to its initial state.
         """
-        self.soc = 500
+        self.soc = 0
 
     def get_charge_log(self):
         """

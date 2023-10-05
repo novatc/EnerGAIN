@@ -79,7 +79,6 @@ for _ in range(num_episodes):
     for _ in range(ep_length - 1):
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = eval_env.step(action)
-        print(info)
         episode_reward += reward
     episode_rewards.append(episode_reward)
     obs, _ = eval_env.reset()
@@ -93,12 +92,15 @@ trades_log.to_csv(f"trade_logs/{model_name}_trades.csv", index=False)
 # count how many times a buy or sell action was taken
 buy_count = 0
 sell_count = 0
+reserve_count = 0
 
 for trade in trades:
-    if trade[2] > 0:
+    if trade[3] == 'buy':
         buy_count += 1
-    elif trade[2] < 0:
+    if trade[3] == 'sell':
         sell_count += 1
+    if trade[3] == 'reserve':
+        reserve_count += 1
 
 try:
     avg_price = sum([trade[1] for trade in trades]) / len(trades)
@@ -113,6 +115,7 @@ print("Total reward:", sum(episode_rewards))
 print("Total trades:", len(trades))
 print("Buy count:", buy_count)
 print("Sell count:", sell_count)
+print("Reserve count:", reserve_count)
 print("Average reward:", sum(episode_rewards) / len(trades))
 
 if args.plot:
