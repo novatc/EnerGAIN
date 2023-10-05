@@ -196,6 +196,7 @@ class BasePRL(gym.Env):
         return observation, {}
 
     def render(self, mode='human'):
+        kernel_density_estimation(self.trade_log)
         plot_reward(self.reward_log, self.window_size, 'base')
         plot_savings(self.savings_log, self.window_size, 'base')
         plot_charge(self.window_size, self.battery, 'base')

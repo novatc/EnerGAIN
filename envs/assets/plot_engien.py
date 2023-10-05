@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+import seaborn as sns
 
 from envs.assets.env_utilities import moving_average
 
@@ -153,3 +154,23 @@ def plot_holding(holding_logs: list, model_name: str):
     plt.tight_layout()
     plt.savefig(f'img/{model_name}/{model_name}_hold.png', dpi=400)
     plt.show()
+
+
+def kernel_density_estimation(trade_list: list):
+    generated_prices = [trade[1] for trade in trade_list]
+    historic_prices = pd.read_csv('data/in-use/unscaled_eval_data.csv')
+
+    plt.figure(figsize=(10, 6))
+    sns.kdeplot(generated_prices, label='Generated Prices', fill=True)
+    sns.kdeplot(historic_prices['price'], label='Historic Prices', fill=True)
+
+    plt.title('Kernel Density Estimate of Generated and Historic Prices')
+    plt.xlabel('Price')
+    plt.ylabel('Density')
+    plt.legend()
+
+    # Display the plot
+    plt.show()
+
+
+
