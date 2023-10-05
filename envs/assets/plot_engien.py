@@ -100,6 +100,7 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
     # Get the buy and sell trades from the trade log
     buys = [trade for trade in trade_log if trade[3] == 'buy']
     sells = [trade for trade in trade_log if trade[3] == 'sell']
+    reserve = [trade for trade in trade_log if trade[3] == 'reserve']
 
     # Check if there are any buy or sell trades to plot
     if not buys and not sells:
@@ -109,15 +110,16 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
     # Plot real market prices from evaluation dataset
     plt.plot(eval_data_df.index, eval_data_df['price'], color='blue', label='Real Market Price', alpha=0.6)
 
-    # Plot buy data if available
+    # Plot trade data if available
     if buys:
         buy_steps, buy_prices, _, _, _ = zip(*buys)
         plt.scatter(buy_steps, buy_prices, c=buy_color, marker='o', label='Buy', alpha=0.6, s=10)
-
-    # Plot sell data if available
     if sells:
         sell_steps, sell_prices, _, _, _ = zip(*sells)
         plt.scatter(sell_steps, sell_prices, c=sell_color, marker='x', label='Sell', alpha=0.6, s=10)
+    if reserve:
+        reserve_steps, reserve_price, _, _, _ = zip(*reserve)
+        plt.scatter(reserve_steps, reserve_price, c='darkgoldenrod', marker='s', label='Reserve', alpha=0.6, s=10)
 
     plt.title(title + f' ({total_trades} trades)')
     plt.ylabel('Price (€/kWh)')
