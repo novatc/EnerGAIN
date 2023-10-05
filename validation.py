@@ -22,11 +22,11 @@ args = parser.parse_args()
 # Define environment parameters
 env_params = {
     'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnv',
-             'data_path': 'data/in-use/unscaled_eval_data.csv'},
+             'data_path_da': 'data/in-use/unscaled_eval_data.csv'},
     'trend': {'id': 'trend_env-v0', 'entry_point': 'envs.trend_env:TrendEnv',
-              'data_path': 'data/in-use/unscaled_eval_data.csv'},
+              'data_path_da': 'data/in-use/unscaled_eval_data.csv'},
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
-                   'data_path': 'data/in-use/unscaled_eval_data.csv'},
+                   'data_path_da': 'data/in-use/unscaled_eval_data.csv'},
     'base_prl': {'id': 'base_prl-v0', 'entry_point': 'envs.base_prl:BasePRL',
                  'data_path_prl': 'data/prm/preprocessed_prl.csv',
                  'data_path_da': 'data/in-use/unscaled_train_data.csv'},
@@ -58,8 +58,14 @@ except Exception as e:
     exit()
 
 # Register and make the environment
-register(id=env_id, entry_point=entry_point,
-         kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': True})
+# Register and make the environment
+if args.env == 'base_prl':
+    register(id=env_id, entry_point=entry_point,
+             kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': True})
+else:
+    print(f"Registering {env_id} with {entry_point}")
+    register(id=env_id, entry_point=entry_point,
+             kwargs={'da_data_path': data_path_da, 'validation': True})
 try:
     eval_env = make(env_id)
     eval_env = CustomNormalizeObservation(eval_env)

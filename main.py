@@ -26,11 +26,11 @@ args = parser.parse_args()
 # Define environment parameters
 env_params = {
     'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnv',
-             'data_path': 'data/in-use/unscaled_train_data.csv'},
+             'data_path_da': 'data/in-use/unscaled_train_data.csv'},
     'trend': {'id': 'trend_env-v0', 'entry_point': 'envs.trend_env:TrendEnv',
-              'data_path': 'data/in-use/unscaled_train_data.csv'},
+              'data_path_da': 'data/in-use/unscaled_train_data.csv'},
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
-                   'data_path': 'data/in-use/unscaled_train_data.csv'},
+                   'data_path_da': 'data/in-use/unscaled_train_data.csv'},
     'base_prl': {'id': 'base_prl-v0', 'entry_point': 'envs.base_prl:BasePRL',
                  'data_path_prl': 'data/prm/preprocessed_prl.csv',
                  'data_path_da': 'data/in-use/unscaled_train_data.csv'},
@@ -51,8 +51,12 @@ data_path_prl = env_params["base_prl"]['data_path_prl']
 os.makedirs('logging', exist_ok=True)
 
 # Register and make the environment
-register(id=env_id, entry_point=entry_point,
-         kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': False})
+if args.env == 'base_prl':
+    register(id=env_id, entry_point=entry_point,
+             kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': False})
+else:
+    register(id=env_id, entry_point=entry_point,
+             kwargs={'da_data_path': data_path_da, 'validation': False})
 
 eval_env = make(env_id)
 env = CustomNormalizeObservation(eval_env)
