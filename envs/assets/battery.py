@@ -96,7 +96,7 @@ class Battery:
         """
         Reset the battery to its initial state.
         """
-        self.soc = 0
+        self.soc = 500
 
     def get_charge_log(self):
         """
