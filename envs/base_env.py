@@ -7,9 +7,9 @@ from envs.assets.plot_engien import *
 
 
 class BaseEnv(gym.Env):
-    def __init__(self, data_path: str, validation=False):
+    def __init__(self, da_data_path: str, validation=False):
         super(BaseEnv, self).__init__()
-        self.dataframe = pd.read_csv(data_path)
+        self.dataframe = pd.read_csv(da_data_path)
 
         low_boundary = self.dataframe.min().values
 
@@ -32,6 +32,7 @@ class BaseEnv(gym.Env):
         self.rewards = []
         self.reward_log = []
         self.window_size = 20
+        self.penalty = -5
 
         self.validation = validation
 
@@ -53,7 +54,6 @@ class BaseEnv(gym.Env):
                 'action_price': price,
                 'action_amount': amount,
                 }
-
         if amount > 0:  # buy
             reward = self.trade(price, amount, 'buy')
         elif amount < 0:  # sell
@@ -68,12 +68,25 @@ class BaseEnv(gym.Env):
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
     def trade(self, price, amount, trade_type):
+        """
+        Execute a trade (buy/sell) and update the battery status and logs accordingly.
+
+        :param price: (float) The price at which the trade is attempted.
+        :param amount: (float) The amount of energy to be traded. Positive values indicate buying or charging,
+                       and negative values indicate selling or discharging.
+        :param trade_type: (str) Type of trade to execute, accepted values are 'buy' or 'sell'.
+
+        :return: (float) Absolute value of the traded energy amount multiplied by the current market price.
+                  Returns a penalty (self.penalty) if the trade is invalid or not accepted.
+
+        :raises ValueError: If `trade_type` is neither 'buy' nor 'sell'.
+        """
         if trade_type == 'buy':
             if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
-                return -10
+                return self.penalty
         elif trade_type == 'sell':
             if self.battery.can_discharge(amount) is False:
-                return -10
+                return self.penalty
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
         if self.day_ahead.accept_offer(price, trade_type):
@@ -90,11 +103,15 @@ class BaseEnv(gym.Env):
         else:
             self.invalid_trades.append((self.day_ahead.get_current_step(), price, amount, trade_type,
                                         abs(float(self.day_ahead.get_current_price()) * amount)))
-            return -10
+            return self.penalty
 
         return abs(float(self.day_ahead.get_current_price()) * amount)
 
     def get_observation(self):
+        """
+        Returns the current state of the environment
+        :return: the current state of the environment as a numpy array
+        """
         # Return the current state of the environment as a numpy array
         observation = self.dataframe.iloc[self.day_ahead.get_current_step()].to_numpy()
         return observation
@@ -113,6 +130,11 @@ class BaseEnv(gym.Env):
         return observation, {}
 
     def render(self, mode='human'):
+        """
+        Render the environment to the screen
+        :param mode:
+        :return:
+        """
         plot_reward(self.reward_log, self.window_size, 'base')
         plot_savings(self.savings_log, self.window_size, 'base')
         plot_charge(self.window_size, self.battery, 'base')
@@ -121,6 +143,11 @@ class BaseEnv(gym.Env):
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
                              sell_color='brown', model_name='base')
         plot_holding(self.holding, 'base')
+        kernel_density_estimation(self.trade_log)
 
     def get_trades(self):
+        """
+        Returns the trade log
+        :return: the trade log as a list of tuples
+        """
         return self.trade_log
