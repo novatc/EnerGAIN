@@ -42,9 +42,13 @@ prl['month_cos'] = np.cos(2 * np.pi * prl['month'] / 12)
 
 # Drop the "day_of_week, month, hour" columns
 prl = prl.drop(['day_of_week', 'month', 'hour', 'start', 'end', ], axis=1)
+prl = prl.drop(['hour_sin', 'hour_cos', 'day_of_week_sin', 'day_of_week_cos', 'month_sin', 'month_cos'], axis=1)
 
 # make price the index
 prl = prl.set_index('price')
+
+# delete last row
+prl = prl[:-1]
 
 # cut off the last 30 days
 train_data = prl.head(-24 * 30)
