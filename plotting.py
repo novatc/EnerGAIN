@@ -183,6 +183,8 @@ def plot_avg_trade_data(trade_data, eval_data='data/in-use/unscaled_eval_data.cs
     first_dataset_df['hour_of_day'] = first_dataset_df['time'].dt.hour
     avg_abs_price_by_hour = first_dataset_df.groupby('hour_of_day')['price'].mean().reset_index()
 
+    model_name = trade_data.split('/')[-1].split('.')[0]
+
     # Load the second dataset
     df2 = pd.read_csv(trade_data)
 
@@ -202,7 +204,7 @@ def plot_avg_trade_data(trade_data, eval_data='data/in-use/unscaled_eval_data.cs
     plt.xlim(-1, 24)
     plt.xlabel('Hour of the Day')
     plt.ylabel('Price for Buy')
-    plt.title('Price Data for Buy Trades')
+    plt.title(f'Price Data for Buy Trades - {model_name}')
     plt.legend()
     plt.show()
 
@@ -216,7 +218,7 @@ def plot_avg_trade_data(trade_data, eval_data='data/in-use/unscaled_eval_data.cs
     plt.xlim(-1, 24)
     plt.xlabel('Hour of the Day')
     plt.ylabel('Price for Sell')
-    plt.title('Price Data for Sell Trades')
+    plt.title(f'Price Data for Sell Trades - {model_name}')
     plt.legend()
     plt.show()
 
@@ -241,5 +243,5 @@ plot_trade_sizes(dfs, colors)
 plot_cumulative_reward(dfs, colors)
 
 # iterate over all files in the folder 'trade_logs' that end with '.csv'
-for file in os.listdir('trade_logs'):
-    plot_avg_trade_data(os.path.join('trade_logs', file))
+# for file in os.listdir('trade_logs'):
+#     plot_avg_trade_data(os.path.join('trade_logs', file))

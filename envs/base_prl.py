@@ -22,8 +22,8 @@ class BasePRL(gym.Env):
         min_array = np.concatenate((da_low_boundary, prl_low_boundary))
         max_array = np.concatenate((da_high_boundary, prl_high_boundary))
 
-        action_low = np.array([-1,   0,   0,     0, -500.0])  # prl choice, prl price, prl amount, da price, da amount
-        action_high = np.array([1, 1.0, 500,     1,  500.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_low = np.array([-1, 0, 0, 0, -500.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_high = np.array([1, 1.0, 500, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
         self.observation_space = spaces.Box(low=min_array, high=max_array,
@@ -43,6 +43,7 @@ class BasePRL(gym.Env):
         self.rewards = []
         self.reward_log = []
         self.window_size = 20
+        self.penalty = -5
 
         self.validation = validation
 
@@ -52,6 +53,22 @@ class BasePRL(gym.Env):
         self.reserve_amount = 0
 
     def step(self, action):
+        """
+        Execute a step in the environment, making trade decisions based on the provided action,
+        and updating relevant state and logs.
+
+        :param action: (list of floats) A list containing action variables which might include
+                       decisions on participating in markets, prices, and amounts to trade.
+                       Expected order: [prl_choice, price_prl, amount_prl, price_da, amount_da]
+
+        :return: (np.array, float, bool, bool, dict) A tuple containing:
+                 - The new state observation as a NumPy array.
+                 - The reward obtained in this step as a float.
+                 - A boolean indicating if the environment has reached a terminal state.
+                 - A boolean indicating if the environment has been truncated.
+                 - A dictionary containing additional information about the current state.
+
+        """
         if self.validation:
             self.day_ahead.step()
             self.prl.step()
@@ -82,7 +99,7 @@ class BasePRL(gym.Env):
                 'da amount': amount_da,
                 }
         # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
-        if prl_choice > 0 and self.prl_cooldown <= 0 and self.prl.get_current_step() % 4 == 0:
+        if prl_choice > 0 >= self.prl_cooldown and self.prl.get_current_step() % 4 == 0:
             reward = self.participate_in_prl(price_prl, amount_prl)
 
         # the agent chooses to trade on the DA market outside the 4-hour block
@@ -94,7 +111,13 @@ class BasePRL(gym.Env):
         self.prl_cooldown -= 1
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
-    def perform_da_trade(self, amount_da: float, price_da: float):
+    def perform_da_trade(self, amount_da: float, price_da: float) -> float:
+        """
+        Perform a trade on the day ahead market.
+        :param amount_da: the amount of energy to be traded
+        :param price_da: the price at which the trade is attempted
+        :return: reward for the agent based on the trade outcome
+        """
         reward = 0
 
         if amount_da > 0:  # buy
@@ -109,7 +132,7 @@ class BasePRL(gym.Env):
 
         return reward
 
-    def trade(self, price, amount, trade_type):
+    def trade(self, price, amount, trade_type) -> float:
         """
         Execute a trade in the market.
 
@@ -120,10 +143,11 @@ class BasePRL(gym.Env):
         """
         if trade_type == 'buy':
             if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
-                return -1
+                return self.penalty
         elif trade_type == 'sell':
             if self.battery.can_discharge(amount) is False:
-                return -1
+                return self.penalty
+
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
         if self.day_ahead.accept_offer(price, trade_type):
@@ -133,6 +157,7 @@ class BasePRL(gym.Env):
             # the same applies here for savings
             self.savings -= self.day_ahead.get_current_price() * amount
 
+            # updating the logs
             self.battery.add_charge_log(self.battery.get_soc())
             self.savings_log.append(self.savings)
             self.trade_log.append((self.day_ahead.get_current_step(), price, amount, trade_type,
@@ -140,11 +165,11 @@ class BasePRL(gym.Env):
         else:
             self.invalid_trades.append((self.day_ahead.get_current_step(), price, amount, trade_type,
                                         abs(float(self.day_ahead.get_current_price()) * amount)))
-            return -1
+            return self.penalty
 
         return abs(float(self.day_ahead.get_current_price()) * amount)
 
-    def participate_in_prl(self, price, amount):
+    def participate_in_prl(self, price, amount) -> float:
         """
         Attempt to participate in the PRL market.
         :param price: Offer price
@@ -174,17 +199,21 @@ class BasePRL(gym.Env):
         else:
             return -1
 
-    def get_observation(self):
+    def get_observation(self) -> np.array:
+        """
+        Get the current state of the environment.
+        :return: np.array containing the current state of the environment
+        """
         # Return the current state of the environment as a numpy array
         observation = np.concatenate((self.da_dataframe.iloc[self.day_ahead.get_current_step()].to_numpy(dtype=float),
                                       self.prl_dataframe.iloc[self.prl.get_current_step()].to_numpy(dtype=float)))
 
         return observation
 
-    def reset(self, seed=None, options=None):
+    def reset(self, seed=None, options=None) -> np.array:
         """
         Important: the observation must be a numpy array
-        :return: (np.array)
+        :return: np.array containing the initial state of the environment
         """
         # Reset the state of the environment to an initial state
         super().reset(seed=seed, options=options)
@@ -196,6 +225,11 @@ class BasePRL(gym.Env):
         return observation, {}
 
     def render(self, mode='human'):
+        """
+        Render the environment to the screen
+        :param mode:
+        :return:
+        """
         kernel_density_estimation(self.trade_log)
         plot_reward(self.reward_log, self.window_size, 'base')
         plot_savings(self.savings_log, self.window_size, 'base')
@@ -206,8 +240,16 @@ class BasePRL(gym.Env):
                              sell_color='brown', model_name='base')
         plot_holding(self.holding, 'base')
 
-    def get_trades(self):
+    def get_trades(self) -> list:
+        """
+        Returns the trade log
+        :return: list of tuples
+        """
         return self.trade_log
 
-    def get_prl_trades(self):
+    def get_prl_trades(self) -> list:
+        """
+        Returns the trade log for the PRL market
+        :return: list of tuples
+        """
         return self.prl_trades

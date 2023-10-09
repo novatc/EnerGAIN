@@ -13,7 +13,7 @@ class TrendEnv(gym.Env):
     def __init__(self, da_data_path, validation=False):
         super(TrendEnv, self).__init__()
         self.dataframe = pd.read_csv(da_data_path)
-        self.trend_horizon = 8
+        self.trend_horizon = 4
 
         low_boundary = self.dataframe.min().values
 
