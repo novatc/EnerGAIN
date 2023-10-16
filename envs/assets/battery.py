@@ -75,11 +75,20 @@ class Battery:
 
     def check_prl_constraints(self, amount):
         """
+        TODO: Umrechnung von MWH auf MW für 15 Minuten
+
+
         Check if the battery as enough energy to cover the amount and also if there is enough room left in the battery
         to charge the amount.
         :param amount: amount to be offered in the prl market
         :return: true when both criteria are met, false otherwise
+
+        :note: The amount is given in MWh, but we desire the power for 15 minutes. Therefore we have to divide the amount
+        by 0.25. Because the entire bid service is fully provided within a maximum of 30 seconds and is continuously
+        available for at least 15 minutes.
+        Energy (MWh)= Power (MW) / Time (h)
         """
+        # scale the amount to 15 minutes with the factor 0.25
         # prevent the agent from offering small amounts since the official limit is 1MW
         if amount < 200:
             return False

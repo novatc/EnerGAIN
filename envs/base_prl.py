@@ -23,7 +23,7 @@ class BasePRL(gym.Env):
         max_array = np.concatenate((da_high_boundary, prl_high_boundary))
 
         action_low = np.array([-1, 0, 0, 0, -500.0])  # prl choice, prl price, prl amount, da price, da amount
-        action_high = np.array([1, 1.0, 500, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_high = np.array([1, 1.0, 250, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
         self.observation_space = spaces.Box(low=min_array, high=max_array,
