@@ -7,9 +7,9 @@ from envs.assets.frequency_containment_reserve import FrequencyContainmentReserv
 from envs.assets.plot_engien import *
 
 
-class BasePRL(gym.Env):
+class MultiMarket(gym.Env):
     def __init__(self, da_data_path: str, prl_data_path: str, validation=False):
-        super(BasePRL, self).__init__()
+        super(MultiMarket, self).__init__()
         self.da_dataframe = pd.read_csv(da_data_path)
         self.prl_dataframe = pd.read_csv(prl_data_path)
 
@@ -22,8 +22,8 @@ class BasePRL(gym.Env):
         min_array = np.concatenate((da_low_boundary, prl_low_boundary))
         max_array = np.concatenate((da_high_boundary, prl_high_boundary))
 
-        action_low = np.array([-1, 0, 0, 0, -2500.0])  # prl choice, prl price, prl amount, da price, da amount
-        action_high = np.array([1, 1.0, 5000, 1, 2500.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_low = np.array([-1, 0, 0, 0, -500.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_high = np.array([1, 1.0, 250, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
         self.observation_space = spaces.Box(low=min_array, high=max_array,
@@ -31,7 +31,7 @@ class BasePRL(gym.Env):
 
         self.day_ahead = DayAhead(self.da_dataframe)
         self.prl = FrequencyContainmentReserve(self.prl_dataframe)
-        self.battery = Battery(5000, 2500)
+        self.battery = Battery(1000, 0)
         self.savings = 50  # €
         self.savings_log = []
 
@@ -98,13 +98,37 @@ class BasePRL(gym.Env):
                 'da price': price_da,
                 'da amount': amount_da,
                 }
-        # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
-        if prl_choice > 0 >= self.prl_cooldown and self.prl.get_current_step() % 4 == 0:
-            reward = self.participate_in_prl(price_prl, amount_prl)
 
-        # the agent chooses to trade on the DA market outside the 4-hour block
-        if prl_choice < 0 and self.prl_cooldown <= 0:
-            reward = self.perform_da_trade(amount_da=amount_da, price_da=price_da)
+        # Calculating min and max soc after potential PRL trade
+        min_soc_after_prl = self.battery.get_soc() - amount_prl
+        max_soc_after_prl = self.battery.get_capacity() - amount_prl
+
+        # After the PRL participation
+        if prl_choice > 0 and self.prl_cooldown >= 0 and self.prl.get_current_step() % 4 == 0:
+            reward += self.participate_in_prl(price_prl, amount_prl)  # Add to reward
+
+            # Adjust available energy for the DA market based on SOC constraints
+            if self.battery.get_soc() < min_soc_after_prl: # If the battery is below the minimum SOC after PRL participation
+                available_energy_da = min_soc_after_prl
+            elif self.battery.get_soc() > max_soc_after_prl: # If the battery is above the maximum SOC after PRL participation
+                available_energy_da = max_soc_after_prl
+            else:
+                available_energy_da = self.battery.get_soc()
+
+        else:
+            available_energy_da = self.battery.get_soc()
+
+        # Before participating in the DA market
+        max_charge_da = max_soc_after_prl - available_energy_da  # The maximum the agent can charge without exceeding constraints
+        min_discharge_da = available_energy_da - min_soc_after_prl  # The maximum the agent can discharge without exceeding constraints
+
+        if prl_choice <= 0 and self.prl_cooldown <= 0:
+            if amount_da > max_charge_da:  # Ensure the agent doesn't charge more than constraints
+                amount_da = max_charge_da
+            if amount_da < -min_discharge_da:  # Ensure the agent doesn't discharge more than constraints
+                amount_da = -min_discharge_da
+
+            reward += self.perform_da_trade(amount_da=amount_da, price_da=price_da)  # Add to reward
 
         self.rewards.append(reward)
         self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)

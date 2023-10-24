@@ -18,7 +18,7 @@ class Battery:
 
         :param amount: Amount of energy to charge the battery with.
         """
-        self.soc = self.soc + amount * self.charge_rate
+        self.soc = min(self.capacity, self.soc + amount * self.charge_rate)
 
     def discharge(self, amount: float):
         """
