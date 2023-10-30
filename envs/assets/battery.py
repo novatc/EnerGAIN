@@ -57,50 +57,6 @@ class Battery:
             return False
         return True
 
-    def check_prl_constraints_for_da(self, amount, reserve_amount):
-        """
-        Check if the battery as enough energy to cover the amount and also if there is enough room left in the battery
-        to charge the amount when the promised prl amount is deducted.
-        :param reserve_amount:
-        :param amount: amount to be offered in the prl market
-        :return: true when both criteria are met, false otherwise
-        """
-        if amount > self.capacity - self.soc - reserve_amount:
-            return False
-        # check if there is enough room in the battery after the promised prl amount is added
-        if amount + reserve_amount > self.capacity - self.soc:
-            return False
-
-        return True
-
-    def check_prl_constraints(self, amount):
-        """
-        TODO: Umrechnung von MWH auf MW für 15 Minuten
-
-
-        Check if the battery as enough energy to cover the amount and also if there is enough room left in the battery
-        to charge the amount.
-        :param amount: amount to be offered in the prl market
-        :return: true when both criteria are met, false otherwise
-
-        :note: The amount is given in MWh, but we desire the power for 15 minutes. Therefore we have to divide the amount
-        by 0.25. Because the entire bid service is fully provided within a maximum of 30 seconds and is continuously
-        available for at least 15 minutes.
-        Energy (MWh)= Power (MW) / Time (h)
-        """
-        # scale the amount to 15 minutes with the factor 0.25
-        # prevent the agent from offering small amounts since the official limit is 1MW
-        if amount < 200:
-            return False
-        # check if there is enough capacity in the battery to offer such an amount
-        if amount > self.capacity - self.soc:
-            return False
-        # check if the battery could also charge the offered amount
-        if amount + self.soc > self.capacity:
-            return False
-
-        return True
-
     def reset(self):
         """
         Reset the battery to its initial state.
