@@ -173,4 +173,17 @@ def kernel_density_estimation(trade_list: list):
     plt.show()
 
 
-
+def plot_soc_and_boundaries(soc_log, upper_bound_log, lower_bound_log, model_name: str):
+    plt.figure(figsize=(10, 6))
+    plt.plot(soc_log, label='SOC', color='blue')
+    plt.plot(upper_bound_log, label='Upper Boundary', color='red', linestyle='--')
+    plt.plot(lower_bound_log, label='Lower Boundary', color='green', linestyle='--')
+    plt.fill_between(range(len(soc_log)), lower_bound_log, upper_bound_log, color='gray', alpha=0.1)
+    plt.title('SOC and Boundaries over Time')
+    plt.xlabel('Time (steps)')
+    plt.ylabel('Value')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(f'img/{model_name}/{model_name}_soc_and_boundaries.png', dpi=400)
+    plt.show()
