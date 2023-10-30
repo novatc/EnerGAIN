@@ -5,26 +5,25 @@ from gymnasium.wrappers import RescaleAction, NormalizeReward
 from stable_baselines3 import SAC
 from envs.assets import env_utilities as utilities
 
-
 from cutsom_wrappers.custom_wrappers import CustomNormalizeObservation
 import warnings
 
 warnings.filterwarnings("ignore")
 
 env_params = {
-    'base_prl': {'id': 'base_prl-v0', 'entry_point': 'envs.base_prl:BasePRL',
-                 'data_path_prl': 'data/prm/preprocessed_prl.csv',
-                 'data_path_da': 'data/in-use/unscaled_train_data.csv'},
+    'multi': {'id': 'multi-v0', 'entry_point': 'envs.multi_market:MultiMarket',
+              'data_path_prl': 'data/prm/preprocessed_prl.csv',
+              'data_path_da': 'data/in-use/unscaled_train_data.csv'},
 }
 
 # Set chosen environment parameters
-env_id = env_params["base_prl"]['id']
-entry_point = env_params["base_prl"]['entry_point']
-data_path_prl = env_params["base_prl"]['data_path_prl']
-data_path_da = env_params["base_prl"]['data_path_da']
+env_id = env_params["multi"]['id']
+entry_point = env_params["multi"]['entry_point']
+data_path_prl = env_params["multi"]['data_path_prl']
+data_path_da = env_params["multi"]['data_path_da']
 try:
     # find the model that name starts with sac_{args.env}
-    model_name = [name for name in utilities.get_model_names() if name.startswith(f"sac_base_prl_")][0]
+    model_name = [name for name in utilities.get_model_names() if name.startswith(f"multi")][0]
     print(f"Loading model {model_name}")
     model = SAC.load(f"agents/{model_name}")
 except Exception as e:
@@ -61,4 +60,3 @@ trades = eval_env.get_trades()
 # list of tuples (step, price, amount, trade_type) to dataframe
 trades_log = pd.DataFrame(trades, columns=["step", "price", "amount", "trade_type", "reward"])
 trades_log.to_csv(f"trade_logs/{model_name}_trades.csv", index=False)
-
