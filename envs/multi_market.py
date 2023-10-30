@@ -23,7 +23,7 @@ class MultiMarket(gym.Env):
         max_array = np.concatenate((da_high_boundary, prl_high_boundary))
 
         action_low = np.array([-1, 0, 0, 0, -500.0])  # prl choice, prl price, prl amount, da price, da amount
-        action_high = np.array([1, 1.0, 250, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_high = np.array([1, 1.0, 500, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
         self.observation_space = spaces.Box(low=min_array, high=max_array,
@@ -31,7 +31,7 @@ class MultiMarket(gym.Env):
 
         self.day_ahead = DayAhead(self.da_dataframe)
         self.prl = FrequencyContainmentReserve(self.prl_dataframe)
-        self.battery = Battery(1000, 0)
+        self.battery = Battery(1000, 500)
         self.savings = 50  # €
         self.savings_log = []
 
@@ -39,6 +39,10 @@ class MultiMarket(gym.Env):
         self.invalid_trades = []
         self.holding = []
         self.prl_trades = []
+
+        self.soc_log = []  # To keep track of SOC values over time
+        self.upper_bound_log = []  # To keep track of upper boundaries over time
+        self.lower_bound_log = []
 
         self.rewards = []
         self.reward_log = []
@@ -51,6 +55,8 @@ class MultiMarket(gym.Env):
         # participation in the PRL market will set it to 4
         self.prl_cooldown = 0
         self.reserve_amount = 0
+        self.upper_bound = self.battery.capacity
+        self.lower_bound = 0
 
     def step(self, action):
         """
@@ -78,16 +84,31 @@ class MultiMarket(gym.Env):
             current_step = self.prl.get_current_step()
             self.day_ahead.set_step(current_step)
 
-        prl_choice = action[0].item()
-        price_prl = action[1].item()
-        amount_prl = action[2].item()
-        price_da = action[3].item()
-        amount_da = action[4].item()
+        prl_choice, price_prl, amount_prl, price_da, amount_da = action
 
         reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
         truncated = False  # this can be false all the time since there is no failure condition the agent could trigger
+
+        prl_criteria = (self.battery.capacity / amount_prl + 0.0001) > 1
+
+        if prl_choice > 0 >= self.prl_cooldown and self.prl.get_current_step() % 4 == 0 and prl_criteria:
+            reward = self.participate_in_prl(price_prl, amount_prl)
+
+        if self.lower_bound < self.battery.get_soc() + amount_da < self.upper_bound:
+            reward += self.perform_da_trade(amount_da, price_da)
+
+        else:
+            reward += self.penalty
+
+        self.rewards.append(reward)
+        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
+        self.prl_cooldown -= 1
+        if self.prl_cooldown < 0:
+            self.upper_bound = self.battery.capacity
+            self.lower_bound = 0
+
         info = {'current_price': self.day_ahead.get_current_price(),
                 'current_step': self.day_ahead.get_current_step(),
                 'savings': self.savings,
@@ -97,43 +118,18 @@ class MultiMarket(gym.Env):
                 'prl amount': amount_prl,
                 'da price': price_da,
                 'da amount': amount_da,
+                'reward': reward
                 }
+        self.upper_bound_log.append(self.upper_bound)
+        self.lower_bound_log.append(self.lower_bound)
+        self.soc_log.append(self.battery.get_soc())
 
-        # Calculating min and max soc after potential PRL trade
-        min_soc_after_prl = self.battery.get_soc() - amount_prl
-        max_soc_after_prl = self.battery.get_capacity() - amount_prl
-
-        # After the PRL participation
-        if prl_choice > 0 and self.prl_cooldown >= 0 and self.prl.get_current_step() % 4 == 0:
-            reward += self.participate_in_prl(price_prl, amount_prl)  # Add to reward
-
-            # Adjust available energy for the DA market based on SOC constraints
-            if self.battery.get_soc() < min_soc_after_prl: # If the battery is below the minimum SOC after PRL participation
-                available_energy_da = min_soc_after_prl
-            elif self.battery.get_soc() > max_soc_after_prl: # If the battery is above the maximum SOC after PRL participation
-                available_energy_da = max_soc_after_prl
-            else:
-                available_energy_da = self.battery.get_soc()
-
-        else:
-            available_energy_da = self.battery.get_soc()
-
-        # Before participating in the DA market
-        max_charge_da = max_soc_after_prl - available_energy_da  # The maximum the agent can charge without exceeding constraints
-        min_discharge_da = available_energy_da - min_soc_after_prl  # The maximum the agent can discharge without exceeding constraints
-
-        if prl_choice <= 0 and self.prl_cooldown <= 0:
-            if amount_da > max_charge_da:  # Ensure the agent doesn't charge more than constraints
-                amount_da = max_charge_da
-            if amount_da < -min_discharge_da:  # Ensure the agent doesn't discharge more than constraints
-                amount_da = -min_discharge_da
-
-            reward += self.perform_da_trade(amount_da=amount_da, price_da=price_da)  # Add to reward
-
-        self.rewards.append(reward)
-        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
-        self.prl_cooldown -= 1
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
+
+    def set_boundaries(self, amount_prl):
+        """Set boundaries based on PRL amount."""
+        self.upper_bound = ((self.battery.capacity - 0.5 * amount_prl) / self.battery.capacity) * 1000
+        self.lower_bound = ((0.5 * amount_prl) / self.battery.capacity) * 1000
 
     def perform_da_trade(self, amount_da: float, price_da: float) -> float:
         """
@@ -200,12 +196,12 @@ class MultiMarket(gym.Env):
         :param amount: Amount of energy being offered
         """
         # Check if the offer is accepted by the prl market and the battery can adhere to prl constraints
-        if self.prl.accept_offer(price) and self.battery.check_prl_constraints(amount):
+        if self.prl.accept_offer(price):
             # Update savings based on the transaction in prl market
             self.savings += (self.prl.get_current_price() * amount) * 4
             # Set cooldown and reserve amount since participation was successful
             self.prl_cooldown = 4
-            self.reserve_amount = amount
+            self.set_boundaries(amount)
             self.battery.charge_log.append(self.battery.get_soc())
             self.savings_log.append(self.savings)
             # add the next four hours to the trade look. They should be equal to each other and just differ from the
@@ -221,7 +217,7 @@ class MultiMarket(gym.Env):
                 self.trade_log.append(trade_info)
             return (self.prl.get_current_price() * amount) * 4
         else:
-            return -1
+            return self.penalty
 
     def get_observation(self) -> np.array:
         """
@@ -255,14 +251,15 @@ class MultiMarket(gym.Env):
         :return:
         """
         kernel_density_estimation(self.trade_log)
-        plot_reward(self.reward_log, self.window_size, 'base')
-        plot_savings(self.savings_log, self.window_size, 'base')
-        plot_charge(self.window_size, self.battery, 'base')
+        plot_reward(self.reward_log, self.window_size, 'multi')
+        plot_savings(self.savings_log, self.window_size, 'multi')
+        plot_charge(self.window_size, self.battery, 'multi')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
-                             model_name='base')
+                             model_name='multi')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='base')
-        plot_holding(self.holding, 'base')
+                             sell_color='brown', model_name='multi')
+        plot_holding(self.holding, 'multi')
+        plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'multi')
 
     def get_trades(self) -> list:
         """
