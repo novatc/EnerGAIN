@@ -42,8 +42,9 @@ class Battery:
         :param amount: The amount of energy to charge or discharge.
         :return: True if the battery can charge or discharge the given amount of energy, False otherwise.
         """
-        if amount > self.capacity - self.soc:
+        if amount * self.charge_rate > self.capacity - self.soc:
             return False
+
         return True
 
     def can_discharge(self, amount):
@@ -53,7 +54,7 @@ class Battery:
         :param amount: The amount of energy to discharge.
         :return: True if the battery can discharge the given amount of energy, False otherwise.
         """
-        if amount < -self.soc:
+        if amount * self.discharge_rate > self.soc:
             return False
         return True
 
