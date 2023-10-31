@@ -47,7 +47,7 @@ class MultiMarket(gym.Env):
         self.rewards = []
         self.reward_log = []
         self.window_size = 20
-        self.penalty = -5
+        self.penalty = - 10
 
         self.validation = validation
 
@@ -91,23 +91,27 @@ class MultiMarket(gym.Env):
         terminated = False  # Whether the agent reaches the terminal state
         truncated = False  # this can be false all the time since there is no failure condition the agent could trigger
 
-        prl_criteria = (self.battery.capacity / amount_prl + 0.0001) > 1
-
-        if prl_choice > 0 >= self.prl_cooldown and self.prl.get_current_step() % 4 == 0 and prl_criteria:
-            reward = self.participate_in_prl(price_prl, amount_prl)
-
-        if self.lower_bound < self.battery.get_soc() + amount_da < self.upper_bound:
-            reward += self.perform_da_trade(amount_da, price_da)
-
-        else:
-            reward += self.penalty
-
-        self.rewards.append(reward)
-        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
-        self.prl_cooldown -= 1
-        if self.prl_cooldown < 0:
+        prl_criteria = (self.battery.capacity / amount_prl) > 1
+        # Reset boundaries if PRL cooldown has expired
+        if self.prl_cooldown == 0:
             self.upper_bound = self.battery.capacity
             self.lower_bound = 0
+
+        # Perform PRL trade if constraints are met
+        if self.check_prl_constraints(prl_choice) and prl_criteria and self.check_boundaries(amount_prl):
+            reward = self.perform_prl_trade(price_prl, amount_prl)
+
+        # Perform DA trade if boundaries allow
+        if self.check_boundaries(amount_da):
+            reward += self.perform_da_trade(amount_da, price_da)
+        else:
+            # Apply penalty if boundaries are violated
+            reward += self.penalty
+
+        # Decrement PRL cooldown
+        self.prl_cooldown = max(0, self.prl_cooldown - 1)  # Ensure it doesn't go below 0
+
+        self.log_step(reward, prl_choice, price_prl, amount_prl, price_da, amount_da)
 
         info = {'current_price': self.day_ahead.get_current_price(),
                 'current_step': self.day_ahead.get_current_step(),
@@ -120,9 +124,6 @@ class MultiMarket(gym.Env):
                 'da amount': amount_da,
                 'reward': reward
                 }
-        self.upper_bound_log.append(self.upper_bound)
-        self.lower_bound_log.append(self.lower_bound)
-        self.soc_log.append(self.battery.get_soc())
 
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
@@ -130,6 +131,18 @@ class MultiMarket(gym.Env):
         """Set boundaries based on PRL amount."""
         self.upper_bound = ((self.battery.capacity - 0.5 * amount_prl) / self.battery.capacity) * 1000
         self.lower_bound = ((0.5 * amount_prl) / self.battery.capacity) * 1000
+
+    def check_boundaries(self, amount):
+        """Check if the battery can charge or discharge the given amount of energy."""
+        if self.lower_bound < self.battery.get_soc() + amount < self.upper_bound:
+            return True
+        return False
+
+    def check_prl_constraints(self, choice_value):
+        """Check if all constraints for PRL participation are met."""
+        if choice_value > 0 >= self.prl_cooldown and self.prl.get_current_step() % 4 == 0:
+            return True
+        return False
 
     def perform_da_trade(self, amount_da: float, price_da: float) -> float:
         """
@@ -189,7 +202,7 @@ class MultiMarket(gym.Env):
 
         return abs(float(self.day_ahead.get_current_price()) * amount)
 
-    def participate_in_prl(self, price, amount) -> float:
+    def perform_prl_trade(self, price, amount) -> float:
         """
         Attempt to participate in the PRL market.
         :param price: Offer price
@@ -201,6 +214,7 @@ class MultiMarket(gym.Env):
             self.savings += (self.prl.get_current_price() * amount) * 4
             # Set cooldown and reserve amount since participation was successful
             self.prl_cooldown = 4
+            # Immediately update boundaries after a successful PRL trade
             self.set_boundaries(amount)
             self.battery.charge_log.append(self.battery.get_soc())
             self.savings_log.append(self.savings)
@@ -243,6 +257,23 @@ class MultiMarket(gym.Env):
         self.prl.reset()
         observation = self.get_observation().astype(np.float32)
         return observation, {}
+
+    def log_step(self, reward, prl_choice, price_prl, amount_prl, price_da, amount_da):
+        """
+        Update the logs for the current step.
+
+        :param reward: The reward obtained in this step.
+        :param prl_choice: The PRL choice made in this step.
+        :param price_prl: The PRL price set in this step.
+        :param amount_prl: The PRL amount set in this step.
+        :param price_da: The DA price set in this step.
+        :param amount_da: The DA amount set in this step.
+        """
+        self.rewards.append(reward)
+        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
+        self.upper_bound_log.append(self.upper_bound)
+        self.lower_bound_log.append(self.lower_bound)
+        self.soc_log.append(self.battery.get_soc())
 
     def render(self, mode='human'):
         """
