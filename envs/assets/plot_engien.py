@@ -172,6 +172,27 @@ def kernel_density_estimation(trade_list: list):
     # Display the plot
     plt.show()
 
+def plot_soc_and_boundaries(soc_log, upper_bound_log, lower_bound_log, model_name='base'):
+    """
+    Plot the soc and boundaries over time.
+    :param soc_log: list with soc values
+    :param upper_bound_log: list with upper bound values
+    :param lower_bound_log: list with lower bound values
+    :param model_name: name of the model
+    :return:
+    """
+    plt.figure(figsize=(10, 6))
+    plt.plot(soc_log, label='SOC', alpha=0.5)
+    plt.plot(upper_bound_log, label='Upper Bound', alpha=0.5)
+    plt.plot(lower_bound_log, label='Lower Bound', alpha=0.5)
+    plt.title('SOC and Boundaries Over Time')
+    plt.xlabel('Number of trades')
+    plt.ylabel('Charge (kWh)')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f'img/{model_name}/{model_name}_soc_and_boundaries.png', dpi=400)
+    plt.show()
+
 
 def plot_soc_and_boundaries(soc_log, upper_bound_log, lower_bound_log, model_name: str):
     plt.figure(figsize=(10, 6))
