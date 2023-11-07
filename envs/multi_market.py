@@ -47,7 +47,7 @@ class MultiMarket(gym.Env):
         self.rewards = []
         self.reward_log = []
         self.window_size = 20
-        self.penalty = - 10
+        self.penalty = -1
 
         self.validation = validation
 
@@ -92,6 +92,9 @@ class MultiMarket(gym.Env):
         truncated = False  # this can be false all the time since there is no failure condition the agent could trigger
 
         prl_criteria = (self.battery.capacity / amount_prl) > 1
+        # if self.lower_bound > self.battery.get_soc() > self.upper_bound:
+        #     reward += self.penalty
+
         # Reset boundaries if PRL cooldown has expired
         if self.prl_cooldown == 0:
             self.upper_bound = self.battery.capacity
@@ -106,7 +109,7 @@ class MultiMarket(gym.Env):
             reward += self.perform_da_trade(amount_da, price_da)
         else:
             # Apply penalty if boundaries are violated
-            reward += self.penalty
+            reward += 0
 
         # Decrement PRL cooldown
         self.prl_cooldown = max(0, self.prl_cooldown - 1)  # Ensure it doesn't go below 0
@@ -152,16 +155,11 @@ class MultiMarket(gym.Env):
         :return: reward for the agent based on the trade outcome
         """
         reward = 0
-
         if amount_da > 0:  # buy
             reward = self.trade(price_da, amount_da, 'buy')
 
         elif amount_da < 0:  # sell
             reward = self.trade(price_da, amount_da, 'sell')
-
-        elif amount_da == 0:  # if amount is 0
-            reward = 5
-            self.holding.append((self.day_ahead.get_current_step(), 'hold'))
 
         return reward
 
@@ -180,7 +178,6 @@ class MultiMarket(gym.Env):
         elif trade_type == 'sell':
             if self.battery.can_discharge(amount) is False:
                 return self.penalty
-
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
         if self.day_ahead.accept_offer(price, trade_type):
@@ -200,7 +197,7 @@ class MultiMarket(gym.Env):
                                         abs(float(self.day_ahead.get_current_price()) * amount)))
             return self.penalty
 
-        return abs(float(self.day_ahead.get_current_price()) * amount)
+        return float(self.day_ahead.get_current_price()) * amount
 
     def perform_prl_trade(self, price, amount) -> float:
         """
