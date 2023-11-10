@@ -144,7 +144,7 @@ def plot_holding(holding_logs: list, model_name: str):
     plt.figure(figsize=(10, 6))
     eval_data_timeline = pd.read_csv('data/in-use/unscaled_eval_data.csv')
     plt.plot(eval_data_timeline.index, eval_data_timeline['price'], color='blue', label='Real Market Price', alpha=0.6)
-    steps, _, _, _, _ = zip(*holding_logs)
+    steps, _ = zip(*holding_logs)
     plt.scatter(steps, [eval_data_timeline['price'][step] for step in steps], c='black', marker='o', label='Hold',
                 alpha=0.6, s=10)
     plt.title('Hold')
