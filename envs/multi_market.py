@@ -109,7 +109,7 @@ class MultiMarket(gym.Env):
             reward += self.perform_da_trade(amount_da, price_da)
         else:
             # Apply penalty if boundaries are violated
-            reward += 0
+            reward += self.penalty
 
         # Decrement PRL cooldown
         self.prl_cooldown = max(0, self.prl_cooldown - 1)  # Ensure it doesn't go below 0
