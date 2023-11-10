@@ -51,6 +51,8 @@ class BasePRL(gym.Env):
         # participation in the PRL market will set it to 4
         self.prl_cooldown = 0
         self.reserve_amount = 0
+        self.upper_bound = self.battery.capacity
+        self.lower_bound = 0
 
     def step(self, action):
         """
@@ -78,16 +80,30 @@ class BasePRL(gym.Env):
             current_step = self.prl.get_current_step()
             self.day_ahead.set_step(current_step)
 
-        prl_choice = action[0].item()
-        price_prl = action[1].item()
-        amount_prl = action[2].item()
-        price_da = action[3].item()
-        amount_da = action[4].item()
+        prl_choice, price_prl, amount_prl, price_da, amount_da = action
 
         reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
         truncated = False  # this can be false all the time since there is no failure condition the agent could trigger
+        prl_criteria = (self.battery.capacity / amount_prl) > 1
+
+        if self.prl_cooldown == 0:
+            self.upper_bound = self.battery.capacity
+            self.lower_bound = 0
+
+        # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
+        if self.check_prl_constraints(prl_choice) and prl_criteria and self.check_boundaries(amount_prl):
+            reward = self.perform_prl_trade(price_prl, amount_prl)
+
+        # the agent chooses to trade on the DA market outside the 4-hour block
+        if prl_choice < 0 and self.prl_cooldown <= 0:
+            reward = self.perform_da_trade(amount_da=amount_da, price_da=price_da)
+
+        self.rewards.append(reward)
+        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
+        self.prl_cooldown = max(0, self.prl_cooldown - 1)  # Ensure it doesn't go below 0
+
         info = {'current_price': self.day_ahead.get_current_price(),
                 'current_step': self.day_ahead.get_current_step(),
                 'savings': self.savings,
@@ -97,19 +113,26 @@ class BasePRL(gym.Env):
                 'prl amount': amount_prl,
                 'da price': price_da,
                 'da amount': amount_da,
+                'reward': reward
                 }
-        # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
-        if prl_choice > 0 >= self.prl_cooldown and self.prl.get_current_step() % 4 == 0:
-            reward = self.participate_in_prl(price_prl, amount_prl)
-
-        # the agent chooses to trade on the DA market outside the 4-hour block
-        if prl_choice < 0 and self.prl_cooldown <= 0:
-            reward = self.perform_da_trade(amount_da=amount_da, price_da=price_da)
-
-        self.rewards.append(reward)
-        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
-        self.prl_cooldown -= 1
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
+
+    def set_boundaries(self, amount_prl):
+        """Set boundaries based on PRL amount."""
+        self.upper_bound = ((self.battery.capacity - 0.5 * amount_prl) / self.battery.capacity) * 1000
+        self.lower_bound = ((0.5 * amount_prl) / self.battery.capacity) * 1000
+
+    def check_boundaries(self, amount):
+        """Check if the battery can charge or discharge the given amount of energy."""
+        if self.lower_bound < self.battery.get_soc() + amount < self.upper_bound:
+            return True
+        return False
+
+    def check_prl_constraints(self, choice_value):
+        """Check if all constraints for PRL participation are met."""
+        if choice_value > 0 >= self.prl_cooldown and self.prl.get_current_step() % 4 == 0:
+            return True
+        return False
 
     def perform_da_trade(self, amount_da: float, price_da: float) -> float:
         """
@@ -119,14 +142,13 @@ class BasePRL(gym.Env):
         :return: reward for the agent based on the trade outcome
         """
         reward = 0
-
         if amount_da > 0:  # buy
             reward = self.trade(price_da, amount_da, 'buy')
 
-        elif amount_da < 0:  # sell
+        if amount_da < 0:  # sell
             reward = self.trade(price_da, amount_da, 'sell')
 
-        elif amount_da == 0:  # if amount is 0
+        if amount_da == 0:  # if amount is 0
             reward = 5
             self.holding.append((self.day_ahead.get_current_step(), 'hold'))
 
@@ -147,7 +169,6 @@ class BasePRL(gym.Env):
         elif trade_type == 'sell':
             if self.battery.can_discharge(amount) is False:
                 return self.penalty
-
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
         if self.day_ahead.accept_offer(price, trade_type):
@@ -167,21 +188,22 @@ class BasePRL(gym.Env):
                                         abs(float(self.day_ahead.get_current_price()) * amount)))
             return self.penalty
 
-        return abs(float(self.day_ahead.get_current_price()) * amount)
+        return float(self.day_ahead.get_current_price()) * amount
 
-    def participate_in_prl(self, price, amount) -> float:
+    def perform_prl_trade(self, price, amount) -> float:
         """
         Attempt to participate in the PRL market.
         :param price: Offer price
         :param amount: Amount of energy being offered
         """
         # Check if the offer is accepted by the prl market and the battery can adhere to prl constraints
-        if self.prl.accept_offer(price) and self.battery.check_prl_constraints(amount):
+        if self.prl.accept_offer(price):
             # Update savings based on the transaction in prl market
             self.savings += (self.prl.get_current_price() * amount) * 4
             # Set cooldown and reserve amount since participation was successful
             self.prl_cooldown = 4
-            self.reserve_amount = amount
+            # Immediately update boundaries after a successful PRL trade
+            self.set_boundaries(amount)
             self.battery.charge_log.append(self.battery.get_soc())
             self.savings_log.append(self.savings)
             # add the next four hours to the trade look. They should be equal to each other and just differ from the
@@ -197,7 +219,7 @@ class BasePRL(gym.Env):
                 self.trade_log.append(trade_info)
             return (self.prl.get_current_price() * amount) * 4
         else:
-            return -1
+            return self.penalty
 
     def get_observation(self) -> np.array:
         """
