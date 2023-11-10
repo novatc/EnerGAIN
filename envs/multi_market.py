@@ -24,13 +24,13 @@ class MultiMarket(gym.Env):
 
         observation_high = np.append(max_array, [4])
         observation_low = np.append(min_array, [0])
+        obs_shape = (self.da_dataframe.shape[1] + self.prl_dataframe.shape[1] + 1,)
 
         action_low = np.array([-1, 0, 0, 0, -500.0])  # prl choice, prl price, prl amount, da price, da amount
         action_high = np.array([1, 1.0, 500, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=observation_low, high=observation_high,
-                                            shape=(self.da_dataframe.shape[1] + self.prl_dataframe.shape[1],))
+        self.observation_space = spaces.Box(low=observation_low, high=observation_high, shape=obs_shape)
 
         self.day_ahead = DayAhead(self.da_dataframe)
         self.prl = FrequencyContainmentReserve(self.prl_dataframe)
@@ -136,8 +136,9 @@ class MultiMarket(gym.Env):
                 'reward': reward
                 }
 
-        return np.append(self.get_observation(), self.prl_cooldown).astype(
-            np.float32), reward, terminated, truncated, info
+        obs = self.get_observation()
+
+        return obs, reward, terminated, truncated, info
 
     def set_boundaries(self, amount_prl):
         """Set boundaries based on PRL amount."""
