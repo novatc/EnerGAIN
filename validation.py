@@ -120,12 +120,13 @@ try:
 except ZeroDivisionError:
     avg_amount = 0
 
-print("Total reward:", sum(episode_rewards))
-print("Total trades:", len(trades))
-print("Buy count:", buy_count)
-print("Sell count:", sell_count)
-print("Reserve count:", reserve_count)
-print("Average reward:", sum(episode_rewards) / len(trades))
+# could you pretty print these stats?
+print(f"Average reward: {np.mean(episode_rewards)}")
+print(f"Average price: {avg_price}")
+print(f"Average amount: {avg_amount}")
+print(f"Buy count: {buy_count}")
+print(f"Sell count: {sell_count}")
+print(f"Reserve count: {reserve_count}")
 
 if args.plot:
     eval_env.render()

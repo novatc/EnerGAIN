@@ -172,6 +172,7 @@ def kernel_density_estimation(trade_list: list):
     # Display the plot
     plt.show()
 
+
 def plot_soc_and_boundaries(soc_log, upper_bound_log, lower_bound_log, model_name='base'):
     """
     Plot the soc and boundaries over time.

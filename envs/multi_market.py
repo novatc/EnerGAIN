@@ -22,11 +22,14 @@ class MultiMarket(gym.Env):
         min_array = np.concatenate((da_low_boundary, prl_low_boundary))
         max_array = np.concatenate((da_high_boundary, prl_high_boundary))
 
+        observation_high = np.append(max_array, [4])
+        observation_low = np.append(min_array, [0])
+
         action_low = np.array([-1, 0, 0, 0, -500.0])  # prl choice, prl price, prl amount, da price, da amount
         action_high = np.array([1, 1.0, 500, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=min_array, high=max_array,
+        self.observation_space = spaces.Box(low=observation_low, high=observation_high,
                                             shape=(self.da_dataframe.shape[1] + self.prl_dataframe.shape[1],))
 
         self.day_ahead = DayAhead(self.da_dataframe)
@@ -47,7 +50,7 @@ class MultiMarket(gym.Env):
         self.rewards = []
         self.reward_log = []
         self.window_size = 20
-        self.penalty = -1
+        self.penalty = -2
 
         self.validation = validation
 
@@ -57,6 +60,8 @@ class MultiMarket(gym.Env):
         self.reserve_amount = 0
         self.upper_bound = self.battery.capacity
         self.lower_bound = 0
+
+        self.trade_threshold = 10
 
     def step(self, action):
         """
@@ -92,27 +97,30 @@ class MultiMarket(gym.Env):
         truncated = False  # this can be false all the time since there is no failure condition the agent could trigger
 
         prl_criteria = (self.battery.capacity / amount_prl) > 1
-        # if self.lower_bound > self.battery.get_soc() > self.upper_bound:
-        #     reward += self.penalty
+
+        # Handle PRL trade if constraints are met
+        if self.check_prl_constraints(prl_choice) and self.check_boundaries(amount_prl) and prl_criteria:
+            reward += self.perform_prl_trade(price_prl, amount_prl)
+
+        # Handle DA trade or holding
+        if -self.trade_threshold < amount_da < self.trade_threshold:
+            reward += self.handle_holding()
+        elif self.check_boundaries(amount_da):
+            reward += self.perform_da_trade(amount_da, price_da)
+        else:
+            reward += self.penalty  # Apply penalty if DA boundaries are violated
+
+        # Reward for staying within battery bounds
+        if self.lower_bound < self.battery.get_soc() < self.upper_bound:
+            reward += 2
 
         # Reset boundaries if PRL cooldown has expired
         if self.prl_cooldown == 0:
             self.upper_bound = self.battery.capacity
             self.lower_bound = 0
 
-        # Perform PRL trade if constraints are met
-        if self.check_prl_constraints(prl_choice) and prl_criteria and self.check_boundaries(amount_prl):
-            reward = self.perform_prl_trade(price_prl, amount_prl)
-
-        # Perform DA trade if boundaries allow
-        if self.check_boundaries(amount_da):
-            reward += self.perform_da_trade(amount_da, price_da)
-        else:
-            # Apply penalty if boundaries are violated
-            reward += self.penalty
-
         # Decrement PRL cooldown
-        self.prl_cooldown = max(0, self.prl_cooldown - 1)  # Ensure it doesn't go below 0
+        self.prl_cooldown = max(0, self.prl_cooldown - 1)
 
         self.log_step(reward, prl_choice, price_prl, amount_prl, price_da, amount_da)
 
@@ -128,7 +136,8 @@ class MultiMarket(gym.Env):
                 'reward': reward
                 }
 
-        return self.get_observation().astype(np.float32), reward, terminated, truncated, info
+        return np.append(self.get_observation(), self.prl_cooldown).astype(
+            np.float32), reward, terminated, truncated, info
 
     def set_boundaries(self, amount_prl):
         """Set boundaries based on PRL amount."""
@@ -160,10 +169,6 @@ class MultiMarket(gym.Env):
 
         if amount_da < 0:  # sell
             reward = self.trade(price_da, amount_da, 'sell')
-
-        if amount_da == 0:  # if amount is 0
-            reward = 5
-            self.holding.append((self.day_ahead.get_current_step(), 'hold'))
 
         return reward
 
@@ -234,6 +239,11 @@ class MultiMarket(gym.Env):
         else:
             return self.penalty
 
+    def handle_holding(self):
+        # Logic for handling the holding scenario
+        self.holding.append((self.day_ahead.get_current_step(), 'hold'))
+        return 2
+
     def get_observation(self) -> np.array:
         """
         Get the current state of the environment.
@@ -243,7 +253,7 @@ class MultiMarket(gym.Env):
         observation = np.concatenate((self.da_dataframe.iloc[self.day_ahead.get_current_step()].to_numpy(dtype=float),
                                       self.prl_dataframe.iloc[self.prl.get_current_step()].to_numpy(dtype=float)))
 
-        return observation
+        return np.append(observation, self.prl_cooldown)
 
     def reset(self, seed=None, options=None) -> np.array:
         """
