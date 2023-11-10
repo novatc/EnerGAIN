@@ -81,6 +81,7 @@ class BaseEnv(gym.Env):
 
         :raises ValueError: If `trade_type` is neither 'buy' nor 'sell'.
         """
+
         if trade_type == 'buy':
             if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
                 return self.penalty
@@ -89,8 +90,9 @@ class BaseEnv(gym.Env):
                 return self.penalty
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
+
         if self.day_ahead.accept_offer(price, trade_type):
-            # this works for both buy and sell because amount is negative for sale and + and - cancel out and fot buy
+            # this works for both buy and sell because amount is negative for sale and + and - cancel out and for buy
             # amount is positive
             self.battery.charge(amount)
             # the same applies here for savings
@@ -99,10 +101,10 @@ class BaseEnv(gym.Env):
             self.battery.add_charge_log(self.battery.get_soc())
             self.savings_log.append(self.savings)
             self.trade_log.append((self.day_ahead.get_current_step(), price, amount, trade_type,
-                                   abs(float(self.day_ahead.get_current_price()) * amount)))
+                                   (float(self.day_ahead.get_current_price()) * amount)))
         else:
             self.invalid_trades.append((self.day_ahead.get_current_step(), price, amount, trade_type,
-                                        abs(float(self.day_ahead.get_current_price()) * amount)))
+                                        (float(self.day_ahead.get_current_price()) * amount)))
             return self.penalty
 
         return abs(float(self.day_ahead.get_current_price()) * amount)

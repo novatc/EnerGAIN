@@ -158,8 +158,12 @@ class MultiMarket(gym.Env):
         if amount_da > 0:  # buy
             reward = self.trade(price_da, amount_da, 'buy')
 
-        elif amount_da < 0:  # sell
+        if amount_da < 0:  # sell
             reward = self.trade(price_da, amount_da, 'sell')
+
+        if amount_da == 0:  # if amount is 0
+            reward = 5
+            self.holding.append((self.day_ahead.get_current_step(), 'hold'))
 
         return reward
 
