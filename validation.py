@@ -22,17 +22,17 @@ args = parser.parse_args()
 # Define environment parameters
 env_params = {
     'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnv',
-             'data_path_da': 'data/in-use/unscaled_eval_data.csv'},
+             'data_path_da': 'data/in-use/month_5_data_da.csv'},
     'trend': {'id': 'trend_env-v0', 'entry_point': 'envs.trend_env:TrendEnv',
-              'data_path_da': 'data/in-use/unscaled_eval_data.csv'},
+              'data_path_da': 'data/in-use/month_5_data_da.csv'},
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
-                   'data_path_da': 'data/in-use/unscaled_eval_data.csv'},
+                   'data_path_da': 'data/in-use/month_5_data_da.csv'},
     'base_prl': {'id': 'base_prl-v0', 'entry_point': 'envs.base_prl:BasePRL',
-                 'data_path_prl': 'data/prm/preprocessed_prl.csv',
-                 'data_path_da': 'data/in-use/unscaled_train_data.csv'},
+                 'data_path_prl': 'data/in-use/month_5_data_prl.csv',
+                 'data_path_da': 'data/in-use/month_5_data_da.csv'},
     'multi': {'id': 'multi-v0', 'entry_point': 'envs.multi_market:MultiMarket',
-              'data_path_prl': 'data/prm/preprocessed_prl.csv',
-              'data_path_da': 'data/in-use/unscaled_train_data.csv'},
+              'data_path_prl': 'data/in-use/month_5_data_prl.csv',
+              'data_path_da': 'data/in-use/month_5_data_da.csv'},
 }
 
 # Check if chosen environment is valid
@@ -76,7 +76,7 @@ except Exception as e:
     print("Error creating environment: ", e)
     exit()
 
-ep_length = 24 * 30
+ep_length = eval_env.da_dataframe.shape[0]
 
 # Evaluate the agent
 episode_rewards = []
