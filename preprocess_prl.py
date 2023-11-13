@@ -1,6 +1,51 @@
 import numpy as np
 import pandas as pd
 
+
+def add_noise_to_columns(df, columns, noise_level=0.01):
+    """
+    Adds small random noise to specified columns in a DataFrame.
+    """
+    for col in columns:
+        if col in df.columns:
+            noise = np.random.normal(loc=0.0, scale=noise_level, size=len(df[col]))
+            df.loc[:, col] = df.loc[:, col] + df.loc[:, col] * noise
+    return df
+
+
+def extract_save_month_data_with_noise(env_data, month, year=2022,  noise_level=0.01):
+    """
+    Extracts data for a specified month from env_data, processes it, adds noise, and saves to CSV.
+
+    Args:
+    env_data (pd.DataFrame): The environment data DataFrame.
+    month (int): The month for which to extract data.
+    noise_level (float): The level of noise to add to specified columns.
+
+    Returns:
+    None
+    """
+    if not 1 <= month <= 12:
+        raise ValueError("Month must be an integer between 1 and 12.")
+
+    # Extract data for the specified month and create a new DataFrame
+    month_data = env_data[(env_data.index.month == month) & (env_data.index.year == year)].copy()
+    # Drop the original 'day_of_week', 'month', and 'hour' columns
+    month_data.drop(['day_of_week', 'month', 'hour', 'start', 'end'], axis=1, inplace=True)
+
+    # Add noise to specified columns
+    columns_to_add_noise = ['price', 'amount']
+    month_data_noisy = add_noise_to_columns(month_data, columns_to_add_noise, noise_level)
+
+    # Set the 'price' column as the index
+    month_data_noisy.set_index('price', inplace=True)
+
+    # Save the noisy month data to a CSV file
+    filename = f'data/in-use/month_{month}_data_prl.csv'
+    month_data_noisy.to_csv(filename)
+    print(f"Noisy data for month {month} saved to {filename}")
+
+
 prl = pd.read_csv('data/prm/prl.csv', index_col=0, sep=';')
 
 # Print missing values
@@ -30,32 +75,15 @@ prl['month'] = prl.index.month
 prl['hour'] = prl['start'].str.split(':').str[0]
 prl['hour'] = pd.to_numeric(prl['hour'], errors='coerce')
 
-# Apply cyclical encoding using sine and cosine transformations
-prl['hour_sin'] = np.sin(2 * np.pi * prl['hour'] / 24)
-prl['hour_cos'] = np.cos(2 * np.pi * prl['hour'] / 24)
-
-prl['day_of_week_sin'] = np.sin(2 * np.pi * prl['day_of_week'] / 7)
-prl['day_of_week_cos'] = np.cos(2 * np.pi * prl['day_of_week'] / 7)
-
-prl['month_sin'] = np.sin(2 * np.pi * prl['month'] / 12)
-prl['month_cos'] = np.cos(2 * np.pi * prl['month'] / 12)
-
+extract_save_month_data_with_noise(prl, 5, noise_level=0.01)
+extract_save_month_data_with_noise(prl, 9, noise_level=0.01)
 # Drop the "day_of_week, month, hour" columns
 prl = prl.drop(['day_of_week', 'month', 'hour', 'start', 'end', ], axis=1)
-prl = prl.drop(['hour_sin', 'hour_cos', 'day_of_week_sin', 'day_of_week_cos', 'month_sin', 'month_cos'], axis=1)
 
 # make price the index
 prl = prl.set_index('price')
 
 # delete last row
-prl = prl[:-1]
-
-# cut off the last 30 days
-train_data = prl.head(-24 * 30)
 
 # Save the preprocessed data to a csv file
-train_data.to_csv('data/prm/preprocessed_prl.csv')
-
-# create evaluation data
-prl = prl.tail(24 * 30)
-prl.to_csv('data/prm/eval_data.csv')
+prl.to_csv('data/prm/preprocessed_prl.csv')

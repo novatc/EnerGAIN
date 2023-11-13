@@ -2,6 +2,52 @@ import numpy as np
 import pandas as pd
 
 
+def add_noise_to_columns(df, columns, noise_level=0.01):
+    """
+    Adds small random noise to specified columns in a DataFrame.
+    """
+    for col in columns:
+        if col in df.columns:
+            noise = np.random.normal(loc=0.0, scale=noise_level, size=len(df[col]))
+            df.loc[:, col] = df.loc[:, col] + df.loc[:, col] * noise
+    return df
+
+
+def extract_save_month_data_with_noise(env_data, month, year=2022, noise_level=0.01):
+    """
+    Extracts data for a specified month and year from env_data, processes it, adds noise, and saves to CSV.
+
+    Args:
+    env_data (pd.DataFrame): The environment data DataFrame.
+    month (int): The month for which to extract data.
+    year (int): The year for which to extract data.
+    noise_level (float): The level of noise to add to specified columns.
+
+    Returns:
+    None
+    """
+    if not 1 <= month <= 12:
+        raise ValueError("Month must be an integer between 1 and 12.")
+
+    # Extract data for the specified month and year
+    month_data = env_data[(env_data.index.month == month) & (env_data.index.year == year)].copy()
+
+    # Drop the original 'day_of_week', 'month', and 'hour' columns
+    month_data.drop(['day_of_week', 'month', 'hour'], axis=1, inplace=True)
+
+    # Add noise to specified columns
+    columns_to_add_noise = ['price', 'consumption', 'prediction']
+    month_data_noisy = add_noise_to_columns(month_data, columns_to_add_noise, noise_level)
+
+    # Set the 'price' column as the index
+    month_data_noisy.set_index('price', inplace=True)
+
+    # Save the noisy month data to a CSV file
+    filename = f'data/in-use/month_{month}_data_da.csv'
+    month_data_noisy.to_csv(filename)
+    print(f"Noisy data for month {month}, year {year} saved to {filename}")
+
+
 energy_consumption = pd.read_csv('data/clean/energy_consumption_01102018_01012023.csv', index_col=0)
 energy_prediction = pd.read_csv('data/clean/energy_prediction_01102018_01012023.csv', index_col=0)
 energy_price = pd.read_csv('data/clean/trading_prices_01102018_01012023.csv', index_col=0)
@@ -61,9 +107,6 @@ prediction_values = solar_power['prediction'].values.reshape(-1, 1)  # reshape t
 
 dataset = pd.DataFrame(solar_power, columns=solar_power.columns, index=solar_power.index)
 
-# env_data = dataset[['price', 'consumption', 'prediction', 'Einstrahlung auf die Horizontale (kWh/m²)',
-#                     'Diffusstrahlung auf die Horizontale (kWh/m²)']].copy()
-
 env_data = dataset[['price', 'consumption', 'prediction']].copy()
 
 # save the number of the day of the week in a new column
@@ -82,6 +125,9 @@ env_data['day_of_week_cos'] = np.cos(2 * np.pi * env_data['day_of_week'] / 7)
 
 env_data['month_sin'] = np.sin(2 * np.pi * env_data['month'] / 12)
 env_data['month_cos'] = np.cos(2 * np.pi * env_data['month'] / 12)
+
+extract_save_month_data_with_noise(env_data, 5, noise_level=0.01)  # For May data with 1% noise
+extract_save_month_data_with_noise(env_data, 9, noise_level=0.01)  # For May data with 1% noise
 
 # Drop the original 'day_of_week' column if no longer needed
 env_data.drop('day_of_week', axis=1, inplace=True)
@@ -120,8 +166,5 @@ final_data = pd.concat([unscaled_data, time_data], axis=1)
 final_data = final_data.set_index('price')
 
 # cut off the last 30 days
-train_data = final_data.head(-24 * 30)
-train_data.to_csv('data/in-use/unscaled_train_data.csv')
 
-test_data = final_data.tail(24 * 30)
-test_data.to_csv('data/in-use/unscaled_eval_data.csv')
+final_data.to_csv('data/in-use/unscaled_train_data.csv')
