@@ -166,7 +166,7 @@ def plot_correlation_matrix(dfs):
     plt.show()
 
 
-def plot_avg_trade_data(trade_data, eval_data='data/in-use/unscaled_eval_data.csv'):
+def plot_avg_trade_data(trade_data, eval_data='data/in-use/month_5_data_da.csv'):
     """
     Generate plots for an average day
 
@@ -175,7 +175,7 @@ def plot_avg_trade_data(trade_data, eval_data='data/in-use/unscaled_eval_data.cs
     - eval_data : Path to the first dataset containing hourly data
 
     """
-    start_time = datetime.strptime('2022-12-01 00:00', '%Y-%m-%d %H:%M')
+    start_time = datetime.strptime('2023-05-01 00:00', '%Y-%m-%d %H:%M')
 
     # Read the first dataset and calculate 'time' and 'abs_price'
     first_dataset_df = pd.read_csv(eval_data)
