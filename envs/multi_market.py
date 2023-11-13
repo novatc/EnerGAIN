@@ -8,7 +8,7 @@ from envs.assets.plot_engien import *
 
 
 class MultiMarket(gym.Env):
-    def __init__(self, da_data_path: str, prl_data_path: str, validation=False):
+    def __init__(self, da_data_path: str, prl_data_path: str, validation=True):
         super(MultiMarket, self).__init__()
         self.da_dataframe = pd.read_csv(da_data_path)
         self.prl_dataframe = pd.read_csv(prl_data_path)
@@ -61,7 +61,7 @@ class MultiMarket(gym.Env):
         self.upper_bound = self.battery.capacity
         self.lower_bound = 0
 
-        self.trade_threshold = 10
+        self.trade_threshold = 50
 
     def step(self, action):
         """
@@ -103,7 +103,7 @@ class MultiMarket(gym.Env):
             reward += self.perform_prl_trade(price_prl, amount_prl)
 
         # Handle DA trade or holding
-        if -self.trade_threshold < amount_da < self.trade_threshold:
+        if -self.trade_threshold < abs(amount_da) < self.trade_threshold:
             reward += self.handle_holding()
         elif self.check_boundaries(amount_da):
             reward += self.perform_da_trade(amount_da, price_da)
@@ -115,7 +115,7 @@ class MultiMarket(gym.Env):
             reward += 1
         # Penalty for violating battery bounds
         if self.battery.get_soc() < self.lower_bound or self.battery.get_soc() > self.upper_bound:
-            reward += -1
+            reward += -0.5
 
         # Reset boundaries if PRL cooldown has expired
         if self.prl_cooldown == 0:
@@ -296,15 +296,15 @@ class MultiMarket(gym.Env):
         :param mode:
         :return:
         """
-        kernel_density_estimation(self.trade_log)
+        kernel_density_estimation(self.trade_log, 'multi', da_data=self.da_dataframe)
         plot_reward(self.reward_log, self.window_size, 'multi')
         plot_savings(self.savings_log, self.window_size, 'multi')
         plot_charge(self.window_size, self.battery, 'multi')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
-                             model_name='multi')
+                             model_name='multi', data=self.da_dataframe)
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='multi')
-        plot_holding(self.holding, 'multi')
+                             sell_color='brown', model_name='multi', data=self.da_dataframe)
+        plot_holding(self.holding, 'multi', da_data=self.da_dataframe)
         plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'multi')
 
     def get_trades(self) -> list:

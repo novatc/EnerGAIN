@@ -83,7 +83,7 @@ def plot_charge(window_size: int, battery, model_name: str):
     plt.show()
 
 
-def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_color: str, model_name: str):
+def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_color: str, model_name: str, data: pd.DataFrame):
     """
     Plot the given trades over time.
     :param trade_source: list of trades, could be valid or invalid trades
@@ -95,7 +95,7 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
     """
     plt.figure(figsize=(10, 6))
     trade_log = trade_source
-    eval_data_df = pd.read_csv('data/in-use/unscaled_eval_data.csv')
+    eval_data_df = data
     total_trades = len(trade_log)
 
     # Get the buy and sell trades from the trade log
@@ -131,9 +131,10 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
     plt.show()
 
 
-def plot_holding(holding_logs: list, model_name: str):
+def plot_holding(holding_logs: list, model_name: str, da_data: pd.DataFrame):
     """
     Plot the holding over time.
+    :param da_data_path: the path to the used da data
     :param model_name: name of the model
     :param holding_logs: list with timestamps when the agent decided to hold
     :return:
@@ -142,7 +143,7 @@ def plot_holding(holding_logs: list, model_name: str):
         print("No trades to plot.")
         return
     plt.figure(figsize=(10, 6))
-    eval_data_timeline = pd.read_csv('data/in-use/unscaled_eval_data.csv')
+    eval_data_timeline = da_data
     plt.plot(eval_data_timeline.index, eval_data_timeline['price'], color='blue', label='Real Market Price', alpha=0.6)
     steps, _ = zip(*holding_logs)
     plt.scatter(steps, [eval_data_timeline['price'][step] for step in steps], c='black', marker='o', label='Hold',
@@ -156,9 +157,9 @@ def plot_holding(holding_logs: list, model_name: str):
     plt.show()
 
 
-def kernel_density_estimation(trade_list: list):
+def kernel_density_estimation(trade_list: list, model_name: str, da_data: pd.DataFrame):
     generated_prices = [trade[1] for trade in trade_list]
-    historic_prices = pd.read_csv('data/in-use/unscaled_eval_data.csv')
+    historic_prices = da_data
 
     plt.figure(figsize=(10, 6))
     sns.kdeplot(generated_prices, label='Generated Prices', fill=True)
