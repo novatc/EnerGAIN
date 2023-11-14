@@ -26,7 +26,7 @@ class MultiMarket(gym.Env):
         observation_low = np.append(min_array, [0])
         obs_shape = (self.da_dataframe.shape[1] + self.prl_dataframe.shape[1] + 1,)
 
-        action_low = np.array([-1, 0, 0, 0, -500.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_low = np.array([-1, 0, 0, -1, -500.0])  # prl choice, prl price, prl amount, da price, da amount
         action_high = np.array([1, 1.0, 500, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
@@ -115,7 +115,7 @@ class MultiMarket(gym.Env):
             reward += 1.5
         # Penalty for violating battery bounds
         if self.battery.get_soc() < self.lower_bound or self.battery.get_soc() > self.upper_bound:
-            reward += -1
+            reward += -0.5
 
         # Reset boundaries if PRL cooldown has expired
         if self.prl_cooldown == 0:
@@ -187,9 +187,14 @@ class MultiMarket(gym.Env):
         """
         if trade_type == 'buy':
             if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
+                self.invalid_trades.append((self.day_ahead.get_current_step(), price, amount, trade_type,
+                                            (float(self.day_ahead.get_current_price())),
+                                            'battery' if not self.battery.can_charge(amount) else 'savings'))
                 return self.penalty
         elif trade_type == 'sell':
             if self.battery.can_discharge(amount) is False:
+                self.invalid_trades.append((self.day_ahead.get_current_step(), price, amount, trade_type,
+                                            (float(self.day_ahead.get_current_price())), 'battery'))
                 return self.penalty
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
@@ -207,7 +212,7 @@ class MultiMarket(gym.Env):
                                    (float(self.day_ahead.get_current_price()) * amount)))
         else:
             self.invalid_trades.append((self.day_ahead.get_current_step(), price, amount, trade_type,
-                                        (float(self.day_ahead.get_current_price()) * amount)))
+                                        (float(self.day_ahead.get_current_price())), 'market'))
             return self.penalty
 
         return float(self.day_ahead.get_current_price()) * amount
@@ -246,7 +251,7 @@ class MultiMarket(gym.Env):
     def handle_holding(self):
         # Logic for handling the holding scenario
         self.holding.append((self.day_ahead.get_current_step(), 'hold'))
-        return 2
+        return 1
 
     def get_observation(self) -> np.array:
         """
@@ -313,6 +318,13 @@ class MultiMarket(gym.Env):
         :return: list of tuples
         """
         return self.trade_log
+
+    def get_invalid_trades(self) -> list:
+        """
+        Returns the trade log
+        :return: list of tuples
+        """
+        return self.invalid_trades
 
     def get_prl_trades(self) -> list:
         """
