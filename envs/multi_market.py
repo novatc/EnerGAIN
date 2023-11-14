@@ -115,7 +115,7 @@ class MultiMarket(gym.Env):
             reward += 1.5
         # Penalty for violating battery bounds
         if self.battery.get_soc() < self.lower_bound or self.battery.get_soc() > self.upper_bound:
-            reward += -0.5
+            reward += -10
 
         # Reset boundaries if PRL cooldown has expired
         if self.prl_cooldown == 0:
@@ -209,7 +209,7 @@ class MultiMarket(gym.Env):
             self.battery.add_charge_log(self.battery.get_soc())
             self.savings_log.append(self.savings)
             self.trade_log.append((self.day_ahead.get_current_step(), price, amount, trade_type,
-                                   (float(self.day_ahead.get_current_price()) * amount)))
+                                   (float(self.day_ahead.get_current_price()) * amount), '--'))
         else:
             self.invalid_trades.append((self.day_ahead.get_current_step(), price, amount, trade_type,
                                         (float(self.day_ahead.get_current_price())), 'market'))

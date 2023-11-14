@@ -113,10 +113,10 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
 
     # Plot trade data if available
     if buys:
-        buy_steps, buy_prices, _, _, _ = zip(*buys)
+        buy_steps, buy_prices, _, _, _, _ = zip(*buys)
         plt.scatter(buy_steps, buy_prices, c=buy_color, marker='o', label='Buy', alpha=0.6, s=10)
     if sells:
-        sell_steps, sell_prices, _, _, _ = zip(*sells)
+        sell_steps, sell_prices, _, _, _, _ = zip(*sells)
         plt.scatter(sell_steps, sell_prices, c=sell_color, marker='x', label='Sell', alpha=0.6, s=10)
     if reserve:
         reserve_steps, reserve_price, _, _, _ = zip(*reserve)
