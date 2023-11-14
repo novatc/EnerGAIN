@@ -126,8 +126,8 @@ env_data['day_of_week_cos'] = np.cos(2 * np.pi * env_data['day_of_week'] / 7)
 env_data['month_sin'] = np.sin(2 * np.pi * env_data['month'] / 12)
 env_data['month_cos'] = np.cos(2 * np.pi * env_data['month'] / 12)
 
-extract_save_month_data_with_noise(env_data, 5, noise_level=0.01)  # For May data with 1% noise
-extract_save_month_data_with_noise(env_data, 9, noise_level=0.01)  # For May data with 1% noise
+extract_save_month_data_with_noise(env_data, 5, noise_level=0.05)  # For May data with 1% noise
+extract_save_month_data_with_noise(env_data, 9, noise_level=0.05)  # For May data with 1% noise
 
 # Drop the original 'day_of_week' column if no longer needed
 env_data.drop('day_of_week', axis=1, inplace=True)
