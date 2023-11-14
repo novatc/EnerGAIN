@@ -17,22 +17,26 @@ parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'base_prl',
                     help='Environment to use.')
 parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run.')
 parser.add_argument('--plot', action='store_true', help='Plot the results.')
+parser.add_argument('--month', type=int, default=5, help='Month to use for validation.', choices=[5, 9])
 args = parser.parse_args()
+
+validation_da_data_path = f'data/in-use/month_{args.month}_data_da.csv'
+validation_prl_data_path = f'data/in-use/month_{args.month}_data_prl.csv'
 
 # Define environment parameters
 env_params = {
     'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnv',
-             'data_path_da': 'data/in-use/month_5_data_da.csv'},
+             'data_path_da': validation_da_data_path},
     'trend': {'id': 'trend_env-v0', 'entry_point': 'envs.trend_env:TrendEnv',
-              'data_path_da': 'data/in-use/month_5_data_da.csv'},
+              'data_path_da': validation_da_data_path},
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
-                   'data_path_da': 'data/in-use/month_5_data_da.csv'},
+                   'data_path_da': validation_da_data_path},
     'base_prl': {'id': 'base_prl-v0', 'entry_point': 'envs.base_prl:BasePRL',
-                 'data_path_prl': 'data/in-use/month_5_data_prl.csv',
-                 'data_path_da': 'data/in-use/month_5_data_da.csv'},
+                 'data_path_prl': validation_prl_data_path,
+                 'data_path_da': validation_da_data_path},
     'multi': {'id': 'multi-v0', 'entry_point': 'envs.multi_market:MultiMarket',
-              'data_path_prl': 'data/in-use/month_5_data_prl.csv',
-              'data_path_da': 'data/in-use/month_5_data_da.csv'},
+              'data_path_prl': validation_prl_data_path,
+              'data_path_da': validation_da_data_path},
 }
 
 # Check if chosen environment is valid
@@ -97,6 +101,11 @@ trades = eval_env.get_trades()
 trades_log = pd.DataFrame(trades, columns=["step", "price", "amount", "trade_type", "reward"])
 # write trades to csv
 trades_log.to_csv(f"trade_logs/{model_name}_trades.csv", index=False)
+invalid_trades = eval_env.get_invalid_trades()
+# list of tuples (step, price, amount, trade_type, reason) to dataframe
+invalid_trades_log = pd.DataFrame(invalid_trades, columns=["step", "price", "amount", "trade_type", "real price", "reason"])
+# write invalid trades to csv
+invalid_trades_log.to_csv(f"trade_logs/invalid/{model_name}_invalid_trades.csv", index=False)
 
 # count how many times a buy or sell action was taken
 buy_count = 0
@@ -121,12 +130,15 @@ except ZeroDivisionError:
     avg_amount = 0
 
 # could you pretty print these stats?
-print(f"Average reward: {np.mean(episode_rewards)}")
+
 print(f"Average price: {avg_price}")
 print(f"Average amount: {avg_amount}")
 print(f"Buy count: {buy_count}")
 print(f"Sell count: {sell_count}")
 print(f"Reserve count: {reserve_count}")
+print(f"Average reward: {(episode_rewards[0] / len(trades))}")
+print(f"Total reward: {np.sum(episode_rewards)}")
+print(f"Total profit: {sum([trade[1] for trade in trades])}")
 
 if args.plot:
     eval_env.render()
