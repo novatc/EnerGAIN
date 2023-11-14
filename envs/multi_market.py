@@ -112,10 +112,10 @@ class MultiMarket(gym.Env):
 
         # Reward for staying within battery bounds
         if self.lower_bound < self.battery.get_soc() < self.upper_bound:
-            reward += 1
+            reward += 1.5
         # Penalty for violating battery bounds
         if self.battery.get_soc() < self.lower_bound or self.battery.get_soc() > self.upper_bound:
-            reward += -0.5
+            reward += -1
 
         # Reset boundaries if PRL cooldown has expired
         if self.prl_cooldown == 0:
