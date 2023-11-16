@@ -97,13 +97,15 @@ for _ in range(num_episodes):
     obs, _ = eval_env.reset()
 
 trades = eval_env.get_trades()
-# list of tuples (step, price, amount, trade_type) to dataframe
-trades_log = pd.DataFrame(trades, columns=["step", "price", "amount", "trade_type", "reward", "reason"])
+# list of tuples (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount, reward,
+#   case)) to dataframe
+
+trades_log = pd.DataFrame(trades, columns=["step", "type", "market price", "offered_price", "amount", "reward", "case"])
 # write trades to csv
 trades_log.to_csv(f"trade_logs/{model_name}_trades.csv", index=False)
 invalid_trades = eval_env.get_invalid_trades()
-# list of tuples (step, price, amount, trade_type, reason) to dataframe
-invalid_trades_log = pd.DataFrame(invalid_trades, columns=["step", "price", "amount", "trade_type","real price","reason"])
+invalid_trades_log = pd.DataFrame(invalid_trades, columns=["step", "type", "market price", "offered_price", "amount",
+                                                           "reward", "case"])
 # write invalid trades to csv
 invalid_trades_log.to_csv(f"trade_logs/invalid/{model_name}_invalid_trades.csv", index=False)
 
@@ -113,19 +115,19 @@ sell_count = 0
 reserve_count = 0
 
 for trade in trades:
-    if trade[3] == 'buy':
+    if trade[1] == 'buy':
         buy_count += 1
-    if trade[3] == 'sell':
+    if trade[1] == 'sell':
         sell_count += 1
-    if trade[3] == 'reserve':
+    if trade[1] == 'reserve':
         reserve_count += 1
 
 try:
-    avg_price = sum([trade[1] for trade in trades]) / len(trades)
+    avg_price = sum([trade[2] for trade in trades]) / len(trades)
 except ZeroDivisionError:
     avg_price = 0
 try:
-    avg_amount = sum([trade[2] for trade in trades]) / len(trades)
+    avg_amount = sum([trade[4] for trade in trades]) / len(trades)
 except ZeroDivisionError:
     avg_amount = 0
 
@@ -138,7 +140,7 @@ print(f"Sell count: {sell_count}")
 print(f"Reserve count: {reserve_count}")
 print(f"Average reward: {(episode_rewards[0] / len(trades))}")
 print(f"Total reward: {np.sum(episode_rewards)}")
-print(f"Total profit: {sum([trade[1] for trade in trades])}")
+print(f"Total profit: {sum([trade[2] for trade in trades])}")
 
 if args.plot:
     eval_env.render()

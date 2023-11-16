@@ -43,7 +43,6 @@ def plot_savings(savings_log: list, window_size: int, model_name: str):
     plt.plot(savings_log, label='Original', alpha=0.5)
     smoothed_data = moving_average(savings_log, window_size)
     smoothed_steps = np.arange(window_size - 1, len(savings_log))
-    plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {window_size})')
     plt.title('Savings Over Time')
     plt.xlabel('Number of trades')
     plt.ylabel('Savings (€)')
@@ -99,9 +98,9 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
     total_trades = len(trade_log)
 
     # Get the buy and sell trades from the trade log
-    buys = [trade for trade in trade_log if trade[3] == 'buy']
-    sells = [trade for trade in trade_log if trade[3] == 'sell']
-    reserve = [trade for trade in trade_log if trade[3] == 'reserve']
+    buys = [trade for trade in trade_log if trade[1] == 'buy']
+    sells = [trade for trade in trade_log if trade[1] == 'sell']
+    reserve = [trade for trade in trade_log if trade[1] == 'reserve']
 
     # Check if there are any buy or sell trades to plot
     if not buys and not sells:
@@ -111,15 +110,15 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
     # Plot real market prices from evaluation dataset
     plt.plot(eval_data_df.index, eval_data_df['price'], color='blue', label='Real Market Price', alpha=0.6)
 
-    # Plot trade data if available
+    # Plot trade data if available     columns = ["step", "type", "market price", "offered_price", "amount", "reward", "case"]
     if buys:
-        buy_steps, buy_prices, _, _, _, _ = zip(*buys)
+        buy_steps, _, _, buy_prices, _, _, _ = zip(*buys)
         plt.scatter(buy_steps, buy_prices, c=buy_color, marker='o', label='Buy', alpha=0.6, s=10)
     if sells:
-        sell_steps, sell_prices, _, _, _, _ = zip(*sells)
+        sell_steps, _, _, sell_prices, _, _, _ = zip(*sells)
         plt.scatter(sell_steps, sell_prices, c=sell_color, marker='x', label='Sell', alpha=0.6, s=10)
     if reserve:
-        reserve_steps, reserve_price, _, _, _ = zip(*reserve)
+        reserve_steps, _, _, reserve_price, _, _, _ = zip(*reserve)
         plt.scatter(reserve_steps, reserve_price, c='darkgoldenrod', marker='s', label='Reserve', alpha=0.6, s=10)
 
     plt.title(title + f' ({total_trades} trades)')
@@ -158,7 +157,7 @@ def plot_holding(holding_logs: list, model_name: str, da_data: pd.DataFrame):
 
 
 def kernel_density_estimation(trade_list: list, model_name: str, da_data: pd.DataFrame):
-    generated_prices = [trade[1] for trade in trade_list]
+    generated_prices = [trade[3] for trade in trade_list]
     historic_prices = da_data
 
     plt.figure(figsize=(10, 6))
@@ -171,28 +170,6 @@ def kernel_density_estimation(trade_list: list, model_name: str, da_data: pd.Dat
     plt.legend()
 
     # Display the plot
-    plt.show()
-
-
-def plot_soc_and_boundaries(soc_log, upper_bound_log, lower_bound_log, model_name='base'):
-    """
-    Plot the soc and boundaries over time.
-    :param soc_log: list with soc values
-    :param upper_bound_log: list with upper bound values
-    :param lower_bound_log: list with lower bound values
-    :param model_name: name of the model
-    :return:
-    """
-    plt.figure(figsize=(10, 6))
-    plt.plot(soc_log, label='SOC', alpha=0.5)
-    plt.plot(upper_bound_log, label='Upper Bound', alpha=0.5)
-    plt.plot(lower_bound_log, label='Lower Bound', alpha=0.5)
-    plt.title('SOC and Boundaries Over Time')
-    plt.xlabel('Number of trades')
-    plt.ylabel('Charge (kWh)')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(f'img/{model_name}/{model_name}_soc_and_boundaries.png', dpi=400)
     plt.show()
 
 
