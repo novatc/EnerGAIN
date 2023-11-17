@@ -114,7 +114,7 @@ class MultiMarket(gym.Env):
             reward += -10
 
         # Handle PRL trade if constraints are met
-        if self.check_prl_constraints(prl_choice) and self.check_boundaries(amount_prl) and prl_criteria:
+        if self.check_prl_constraints(prl_choice) and prl_criteria:
             reward += self.perform_prl_trade(price_prl, amount_prl)
 
         # Handle DA trade or holding
