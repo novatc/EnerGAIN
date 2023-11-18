@@ -54,6 +54,9 @@ class Battery:
         :param amount: The amount of energy to discharge.
         :return: True if the battery can discharge the given amount of energy, False otherwise.
         """
+        # abs() because amount is negative when selling. The check would have always returned True otherwise because
+        # a negative amount is always smaller than the soc which is always positive.
+        amount = abs(amount)
         if amount * self.discharge_rate > self.soc:
             return False
         return True
