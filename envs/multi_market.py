@@ -53,7 +53,7 @@ class MultiMarket(gym.Env):
         self.rewards = []
         self.reward_log = []
         self.window_size = 20
-        self.penalty = -10
+        self.penalty = -5
 
         self.validation = validation
 
@@ -108,7 +108,7 @@ class MultiMarket(gym.Env):
 
         # Reward for staying within battery bounds
         if self.lower_bound < self.battery.get_soc() < self.upper_bound:
-            reward += 1.5
+            reward += 5
         # Penalty for violating battery bounds
         if self.battery.get_soc() < self.lower_bound or self.battery.get_soc() > self.upper_bound:
             reward += -10
@@ -118,7 +118,7 @@ class MultiMarket(gym.Env):
             reward += self.perform_prl_trade(price_prl, amount_prl)
 
         # Handle DA trade or holding
-        if -self.trade_threshold < abs(amount_da) < self.trade_threshold:
+        if -self.trade_threshold < amount_da < self.trade_threshold:
             reward += self.handle_holding()
         elif self.check_boundaries(amount_da):
             reward += self.perform_da_trade(amount_da, price_da)

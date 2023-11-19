@@ -31,7 +31,10 @@ class BaseEnv(gym.Env):
 
         self.reward_log = []
         self.window_size = 20
-        self.penalty = -10
+        self.penalty = -5
+
+        self.trade_threshold = 50
+
 
         self.validation = validation
 
@@ -41,21 +44,18 @@ class BaseEnv(gym.Env):
         else:
             self.day_ahead.random_walk()
 
-        price = action[0].item()
-        amount = action[1].item()
+        price, amount = action
 
         reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
         truncated = False  # this can be false all the time since there is no failure condition the agent could trigger
 
-        if amount > 0:  # buy
-            reward += self.trade(price, amount, 'buy')
-        elif amount < 0:  # sell
-            reward += self.trade(price, amount, 'sell')
-        else:  # if amount is 0
-            self.holding.append((self.day_ahead.get_current_step(), 'hold'))
-            reward += 5
+        # Handle DA trade or holding
+        if -self.trade_threshold < amount < self.trade_threshold:
+            reward += self.handle_holding()
+
+        reward += self.perform_da_trade(amount, price)
 
         self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
         info = {'current_price': self.day_ahead.get_current_price(),
@@ -66,6 +66,22 @@ class BaseEnv(gym.Env):
                 'action_amount': amount,
                 }
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
+
+    def perform_da_trade(self, amount_da: float, price_da: float) -> float:
+        """
+        Perform a trade on the day ahead market.
+        :param amount_da: the amount of energy to be traded
+        :param price_da: the price at which the trade is attempted
+        :return: reward for the agent based on the trade outcome
+        """
+        reward = 0
+        if amount_da > 0:  # buy
+            reward = self.trade(price_da, amount_da, 'buy')
+
+        if amount_da < 0:  # sell
+            reward = self.trade(price_da, amount_da, 'sell')
+
+        return reward
 
     def trade(self, price, amount, trade_type):
         """
