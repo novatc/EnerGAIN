@@ -26,7 +26,7 @@ def plot_trade_data(dfs, column, colors, trade_type=None):
     plt.figure(figsize=(20, 8))
     for i, (name, df) in enumerate(dfs.items()):
         if trade_type:
-            df = df[df['trade_type'] == trade_type]
+            df = df[df['type'] == trade_type]
         x_values = df.index.values
         y_values = df[column].values
         plt.scatter(x_values, y_values, label=name, alpha=0.5, s=50, color=colors[i % len(colors)])
@@ -118,7 +118,7 @@ def plot_trade_sizes(dfs, colors):
         name = name.split('.')[0]
         for j, trade_type in enumerate(['buy', 'sell']):
             # Filter by trade type ('buy' or 'sell')
-            filtered_df = df[df['trade_type'] == trade_type]
+            filtered_df = df[df['type'] == trade_type]
 
             # Extract the 'amount' column
             trade_sizes = filtered_df['amount']
@@ -192,8 +192,8 @@ def plot_avg_trade_data(trade_data, eval_data='data/in-use/month_5_data_da.csv')
     df2['time'] = df2['step'].apply(lambda x: start_time + timedelta(hours=x))
 
     # Filter 'buy' and 'sell' trades
-    df2_buy = df2[df2['trade_type'] == 'buy']
-    df2_sell = df2[df2['trade_type'] == 'sell']
+    df2_buy = df2[df2['type'] == 'buy']
+    df2_sell = df2[df2['type'] == 'sell']
 
     # Plot for 'buy' trades
     plt.figure(figsize=(14, 8))
@@ -236,8 +236,8 @@ colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 dfs = load_csv_files_from_folder(folder_path)
 plot_trade_data(dfs, 'amount', colors, trade_type='buy')
 plot_trade_data(dfs, 'amount', colors, trade_type='sell')
-plot_trade_data(dfs, 'price', colors, trade_type='buy')
-plot_trade_data(dfs, 'price', colors, trade_type='sell')
+plot_trade_data(dfs, 'offered_price', colors, trade_type='buy')
+plot_trade_data(dfs, 'offered_price', colors, trade_type='sell')
 plot_trade_durations(dfs, colors)
 plot_trade_sizes(dfs, colors)
 plot_cumulative_reward(dfs, colors)
