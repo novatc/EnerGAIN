@@ -12,7 +12,8 @@ import warnings
 
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Evaluate a SAC model.')
-parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'base_prl', 'multi'], default="base",
+parser.add_argument('--env',
+                    choices=['base', 'trend', 'no_savings', 'base_prl', 'multi', 'multi_no_savings'], default="base",
                     required=True,
                     help='Environment to use.')
 parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run.')
@@ -37,6 +38,9 @@ env_params = {
     'multi': {'id': 'multi-v0', 'entry_point': 'envs.multi_market:MultiMarket',
               'data_path_prl': validation_prl_data_path,
               'data_path_da': validation_da_data_path},
+    'multi_no_savings': {'id': 'multi_no_savings-v0', 'entry_point': 'envs.multi_no_savings:MultiNoSavings',
+                         'data_path_prl': validation_prl_data_path,
+                         'data_path_da': validation_da_data_path}
 }
 
 # Check if chosen environment is valid
@@ -66,7 +70,7 @@ except Exception as e:
 
 # Register and make the environment
 # Register and make the environment
-if args.env == 'base_prl' or args.env == 'multi':
+if args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings':
     register(id=env_id, entry_point=entry_point,
              kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': True})
 else:

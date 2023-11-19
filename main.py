@@ -16,7 +16,8 @@ from stable_baselines3 import SAC
 parser = argparse.ArgumentParser(description='Train a SAC model.')
 parser.add_argument('--training_steps', type=int, required=True, default=100,
                     help='Number of training steps.')
-parser.add_argument('--env', choices=['base', 'trend', 'no_savings', 'base_prl', 'multi'], default="base",
+parser.add_argument('--env',
+                    choices=['base', 'trend', 'no_savings', 'base_prl', 'multi', 'multi_no_savings'], default="base",
                     required=True,
                     help='Environment to use.')
 parser.add_argument('--save', action='store_true',
@@ -37,12 +38,16 @@ env_params = {
     'multi': {'id': 'multi-v0', 'entry_point': 'envs.multi_market:MultiMarket',
               'data_path_prl': 'data/prm/preprocessed_prl.csv',
               'data_path_da': 'data/in-use/unscaled_train_data.csv'},
+    'multi_no_savings': {'id': 'multi_no_savings-v0', 'entry_point': 'envs.multi_no_savings:MultiNoSavings',
+              'data_path_prl': 'data/prm/preprocessed_prl.csv',
+              'data_path_da': 'data/in-use/unscaled_train_data.csv'}
 }
 
 # Check if chosen environment is valid
 if args.env not in env_params:
     raise ValueError(
-        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'unscaled', 'base_prl', 'multi and"
+        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'unscaled', 'base_prl', 'multi', "
+        f"'multi_no_savings' and"
         f" 'no_savings'.")
 
 # Set chosen environment parameters
@@ -54,7 +59,7 @@ data_path_prl = env_params["base_prl"]['data_path_prl']
 os.makedirs('logging', exist_ok=True)
 
 # Register and make the environment
-if args.env == 'base_prl' or args.env == 'multi':
+if args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings':
     register(id=env_id, entry_point=entry_point,
              kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': False})
 else:
