@@ -44,7 +44,7 @@ class FrequencyContainmentReserve:
         """
         return self.current_step
 
-    def random_walk(self, sequence_length=24 * 14):
+    def random_walk(self, sequence_length=24 * 30):
         """
         Choose a random starting position and increment the current step by sequence_length from
         that position.
