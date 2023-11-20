@@ -254,8 +254,16 @@ class MultiTrend(gym.Env):
             # add the next four hours to the trade look. They should be equal to each other and just differ from the
             # step value
             for i in range(4):
-                self.log_trades(True, 'reserve', price, amount,
-                                float((self.prl.get_current_price() * amount) * 4), 'prl accepted')
+                trade_info = (
+                    self.prl.get_current_step() + i,
+                    'reserve',
+                    self.prl.get_current_price(),
+                    price,
+                    amount,
+                    self.prl.get_current_price() * amount * 4,
+                    'prl accepted'
+                )
+                self.trade_log.append(trade_info)
 
             self.set_boundaries(amount)
             return float((self.prl.get_current_price() * amount) * 4)
