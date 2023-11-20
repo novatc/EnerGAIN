@@ -13,7 +13,8 @@ import warnings
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Evaluate a SAC model.')
 parser.add_argument('--env',
-                    choices=['base', 'trend', 'no_savings', 'base_prl', 'multi', 'multi_no_savings'], default="base",
+                    choices=['base', 'trend', 'no_savings', 'base_prl', 'multi', 'multi_no_savings', 'multi_trend'],
+                    default="base",
                     required=True,
                     help='Environment to use.')
 parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run.')
@@ -28,19 +29,28 @@ validation_prl_data_path = f'data/in-use/month_{args.month}_data_prl.csv'
 env_params = {
     'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnv',
              'data_path_da': validation_da_data_path},
+
     'trend': {'id': 'trend_env-v0', 'entry_point': 'envs.trend_env:TrendEnv',
               'data_path_da': validation_da_data_path},
+
     'no_savings': {'id': 'no_savings_env-v0', 'entry_point': 'envs.no_savings_env:NoSavingsEnv',
                    'data_path_da': validation_da_data_path},
+
     'base_prl': {'id': 'base_prl-v0', 'entry_point': 'envs.base_prl:BasePRL',
                  'data_path_prl': validation_prl_data_path,
                  'data_path_da': validation_da_data_path},
+
     'multi': {'id': 'multi-v0', 'entry_point': 'envs.multi_market:MultiMarket',
               'data_path_prl': validation_prl_data_path,
               'data_path_da': validation_da_data_path},
+
     'multi_no_savings': {'id': 'multi_no_savings-v0', 'entry_point': 'envs.multi_no_savings:MultiNoSavings',
                          'data_path_prl': validation_prl_data_path,
-                         'data_path_da': validation_da_data_path}
+                         'data_path_da': validation_da_data_path},
+
+    'multi_trend': {'id': 'multi_trend-v0', 'entry_point': 'envs.multi_trend:MultiTrend',
+                    'data_path_prl': validation_prl_data_path,
+                    'data_path_da': validation_da_data_path}
 }
 
 # Check if chosen environment is valid
@@ -70,7 +80,7 @@ except Exception as e:
 
 # Register and make the environment
 # Register and make the environment
-if args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings':
+if args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings' or args.env == 'multi_trend':
     register(id=env_id, entry_point=entry_point,
              kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': True})
 else:
