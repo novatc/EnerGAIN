@@ -8,7 +8,7 @@ from envs.assets.plot_engien import *
 
 
 class MultiMarket(gym.Env):
-    def __init__(self, da_data_path: str, prl_data_path: str, validation=True):
+    def __init__(self, da_data_path: str, prl_data_path: str, validation=False):
         super(MultiMarket, self).__init__()
         self.da_dataframe = pd.read_csv(da_data_path)
         self.prl_dataframe = pd.read_csv(prl_data_path)
@@ -27,13 +27,17 @@ class MultiMarket(gym.Env):
         observation_high = np.append(max_array, [4])
         observation_low = np.append(min_array, [0])
 
-        obs_shape = (self.da_dataframe.shape[1] + self.prl_dataframe.shape[1] + 1,)
+        # +3 for prl cooldown, upper & lower bounds
+        obs_shape = (self.da_dataframe.shape[1] + self.prl_dataframe.shape[1] + 3,)
 
         action_low = np.array([-1, 0, 0, -1, -500.0])  # prl choice, prl price, prl amount, da price, da amount
         action_high = np.array([1, 1.0, 500, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=observation_low, high=observation_high, shape=obs_shape)
+        self.observation_space = spaces.Box(low=np.append(observation_low, [0, 0]),  # Add 0 for lower and upper bounds
+                                            high=np.append(observation_high, [1000, 1000]),
+                                            # Assuming 1000 is the max bound
+                                            shape=obs_shape)
 
         self.day_ahead = DayAhead(self.da_dataframe)
         self.prl = FrequencyContainmentReserve(self.prl_dataframe)
@@ -83,12 +87,13 @@ class MultiMarket(gym.Env):
                  - A dictionary containing additional information about the current state.
 
         """
+        should_truncated = False
         if self.validation:
             self.day_ahead.step()
             self.prl.step()
         else:
             # make sure the two markets are always in sync
-            self.prl.random_walk()
+            should_truncated = self.prl.random_walk()
             current_step = self.prl.get_current_step()
             self.day_ahead.set_step(current_step)
 
@@ -97,9 +102,7 @@ class MultiMarket(gym.Env):
         reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
-        truncated = False  # this can be false all the time since there is no failure condition the agent could trigger
-
-        prl_criteria = (self.battery.capacity / amount_prl) > 1
+        truncated = should_truncated  # this will be true if the agent does a time jump
 
         # Reset boundaries if PRL cooldown has expired
         if self.prl_cooldown == 0:
@@ -111,10 +114,10 @@ class MultiMarket(gym.Env):
             reward += 5
         # Penalty for violating battery bounds
         if self.battery.get_soc() < self.lower_bound or self.battery.get_soc() > self.upper_bound:
-            reward += -10
+            reward += -50
 
         # Handle PRL trade if constraints are met
-        if self.check_prl_constraints(prl_choice) and prl_criteria:
+        if self.check_prl_constraints(prl_choice):
             reward += self.perform_prl_trade(price_prl, amount_prl)
 
         # Handle DA trade or holding
@@ -216,8 +219,8 @@ class MultiMarket(gym.Env):
             self.savings_log.append(self.savings)
             self.log_trades(True, trade_type, price, amount, self.day_ahead.get_current_price() * amount, 'accepted')
         else:
-            self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
-            return self.penalty
+            self.log_trades(False, trade_type, price, amount, 0, 'market rejected')
+            return 0
 
         return float(self.day_ahead.get_current_price()) * amount
 
@@ -253,7 +256,7 @@ class MultiMarket(gym.Env):
             self.set_boundaries(amount)
             return float((self.prl.get_current_price() * amount) * 4)
         else:
-            return self.penalty
+            return 0
 
     def handle_holding(self):
         # Logic for handling the holding scenario
@@ -269,7 +272,8 @@ class MultiMarket(gym.Env):
         observation = np.concatenate((self.da_dataframe.iloc[self.day_ahead.get_current_step()].to_numpy(dtype=float),
                                       self.prl_dataframe.iloc[self.prl.get_current_step()].to_numpy(dtype=float)))
 
-        return np.append(observation, self.prl_cooldown)
+        # Append the current SOC boundaries to the observation
+        return np.append(observation, [self.prl_cooldown, self.lower_bound, self.upper_bound])
 
     def reset(self, seed=None, options=None) -> np.array:
         """

@@ -44,17 +44,19 @@ class FrequencyContainmentReserve:
         """
         return self.current_step
 
-    def random_walk(self, sequence_length=24 * 30):
+    def random_walk(self, sequence_length=24 * 14):
         """
-        Choose a random starting position and increment the current step by sequence_length (90 days) from
+        Choose a random starting position and increment the current step by sequence_length from
         that position.
-        After completing the sequence_length (90 days) steps, select a new random starting position.
+        After completing the sequence_length steps, select a new random starting position.
 
         :param sequence_length: the length of the sequence to increment the current step by.
         """
+        truncated = False
         # If this is the first call or 120 steps have been taken since the last random start,
         # choose a new random starting position
         if self.current_step == 0 or self.steps_since_last_random_start >= sequence_length:
+            truncated = True
             dataset_length = len(self.dataset)
             self.current_step = random.randint(0, dataset_length - 1)
             self.steps_since_last_random_start = 0  # Reset the step counter
@@ -63,6 +65,7 @@ class FrequencyContainmentReserve:
 
         self.current_step = (self.current_step + 1) % len(self.dataset)
         self.steps_since_last_random_start += 1  # Increment the step counter
+        return truncated
 
     def previous_hours(self, hours: int) -> np.array:
         """

@@ -89,7 +89,7 @@ except Exception as e:
 start_time = time.time()  # Get the current time
 
 # Create and train model
-model = SAC("MlpPolicy", env, verbose=1)
+model = SAC("MlpPolicy", env, verbose=0)
 model.learn(total_timesteps=args.training_steps)
 now = time.strftime("%d.%m-%H-%M")
 if args.save:
