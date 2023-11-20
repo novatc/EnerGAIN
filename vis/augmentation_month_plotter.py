@@ -115,7 +115,7 @@ env_data['month'] = env_data.index.month
 env_data['hour'] = env_data.index.hour
 
 may_normal = extract_save_month_data_with_noise(env_data, 5, noise_level=0.00)  # For May data with 1% noise
-may_augmented = extract_save_month_data_with_noise(env_data, 5, noise_level=0.1)  # For May data with 1% noise
+may_augmented = extract_save_month_data_with_noise(env_data, 5, noise_level=0.2)  # For May data with 1% noise
 
 # plot the data in comparison
 plt.figure(figsize=(14, 7))
