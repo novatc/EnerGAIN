@@ -82,8 +82,9 @@ prl = prl.drop(['day_of_week', 'month', 'hour', 'start', 'end', ], axis=1)
 
 # make price the index
 prl = prl.set_index('price')
+# cut off the last row
+prl.drop(prl.tail(1).index, inplace=True)
 
-# delete last row
 
 # Save the preprocessed data to a csv file
 prl.to_csv('data/prm/preprocessed_prl.csv')

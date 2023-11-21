@@ -143,15 +143,12 @@ env_data = env_data.set_index('price')
 
 # cut the last 120 (one week) rows of the dataframe and save them as the test set
 test_set = env_data.tail(24 * 30)
-test_set.to_csv('data/in-use/eval_data.csv')
 
-env_data.to_csv('data/in-use/train_data.csv')
 # save the dataframe to a csv file
 solar_power.to_csv('data/clean/dataset_01102018_01012023.csv')
 # save some test data to a csv file
 test_data = solar_power.tail(24 * 5)
 test_data = test_data[['price', 'consumption', 'prediction']]
-test_data.to_csv('data/in-use/test_data.csv')
 
 time_data = env_data.iloc[:, -6:]
 

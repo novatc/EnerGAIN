@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from datetime import datetime
 
@@ -31,9 +32,22 @@ average_year_df['hour'] = average_year_df['date'].dt.hour
 # Merging the average values with the average year DataFrame
 average_year_complete = average_year_df.merge(average_by_hour, on=['month', 'day', 'hour'], how='left')
 
+# Apply cyclical encoding using sine and cosine transformations
+average_year_complete['hour_sin'] = np.sin(2 * np.pi * average_year_complete['hour'] / 24)
+average_year_complete['hour_cos'] = np.cos(2 * np.pi * average_year_complete['hour'] / 24)
+
+average_year_complete['day_of_week_sin'] = np.sin(2 * np.pi * average_year_complete['day'] / 7)
+average_year_complete['day_of_week_cos'] = np.cos(2 * np.pi * average_year_complete['day'] / 7)
+
+average_year_complete['month_sin'] = np.sin(2 * np.pi * average_year_complete['month'] / 12)
+average_year_complete['month_cos'] = np.cos(2 * np.pi * average_year_complete['month'] / 12)
+
 # Dropping the extra columns and setting 'date' as index
 average_year_complete.drop(['month', 'day', 'hour'], axis=1, inplace=True)
-average_year_complete.set_index('date', inplace=True)
+average_year_complete.set_index('price', inplace=True)
+
+# drop the date column
+average_year_complete.drop('date', axis=1, inplace=True)
 
 # Saving the final DataFrame to a CSV file
 average_year_csv_path_complete = 'data/in-use/eval_data/average_year_da.csv'

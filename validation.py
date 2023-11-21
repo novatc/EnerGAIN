@@ -22,8 +22,8 @@ parser.add_argument('--plot', action='store_true', help='Plot the results.')
 parser.add_argument('--month', type=int, default=5, help='Month to use for validation.', choices=[5, 9])
 args = parser.parse_args()
 
-validation_da_data_path = f'data/in-use/month_{args.month}_data_da.csv'
-validation_prl_data_path = f'data/in-use/month_{args.month}_data_prl.csv'
+validation_da_data_path = f'data/in-use/eval_data/average_year_da.csv'
+validation_prl_data_path = f'data/in-use/eval_data/average_year_prl.csv'
 
 # Define environment parameters
 env_params = {
