@@ -75,8 +75,8 @@ prl['month'] = prl.index.month
 prl['hour'] = prl['start'].str.split(':').str[0]
 prl['hour'] = pd.to_numeric(prl['hour'], errors='coerce')
 
-extract_save_month_data_with_noise(prl, 5, noise_level=0.15)
-extract_save_month_data_with_noise(prl, 9, noise_level=0.15)
+prl.to_csv('data/prm/env_prl.csv')
+
 # Drop the "day_of_week, month, hour" columns
 prl = prl.drop(['day_of_week', 'month', 'hour', 'start', 'end', ], axis=1)
 

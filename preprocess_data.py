@@ -116,6 +116,8 @@ env_data['month'] = env_data.index.month
 # save the number of the hour in a new column
 env_data['hour'] = env_data.index.hour
 
+env_data.to_csv('data/in-use/env_data.csv')
+
 # Apply cyclical encoding using sine and cosine transformations
 env_data['hour_sin'] = np.sin(2 * np.pi * env_data['hour'] / 24)
 env_data['hour_cos'] = np.cos(2 * np.pi * env_data['hour'] / 24)
@@ -125,9 +127,6 @@ env_data['day_of_week_cos'] = np.cos(2 * np.pi * env_data['day_of_week'] / 7)
 
 env_data['month_sin'] = np.sin(2 * np.pi * env_data['month'] / 12)
 env_data['month_cos'] = np.cos(2 * np.pi * env_data['month'] / 12)
-
-extract_save_month_data_with_noise(env_data, 5, noise_level=0.05)  # For May data with 1% noise
-extract_save_month_data_with_noise(env_data, 9, noise_level=0.05)  # For May data with 1% noise
 
 # Drop the original 'day_of_week' column if no longer needed
 env_data.drop('day_of_week', axis=1, inplace=True)
