@@ -111,7 +111,7 @@ class MultiMarket(gym.Env):
 
         # Reward for staying within battery bounds
         if self.lower_bound < self.battery.get_soc() < self.upper_bound:
-            reward += 10
+            reward += 50
         # Penalty for violating battery bounds
         if self.battery.get_soc() < self.lower_bound or self.battery.get_soc() > self.upper_bound:
             reward += -100
@@ -166,6 +166,30 @@ class MultiMarket(gym.Env):
             return True
         return False
 
+    def clip_trade_amount(self, amount, trade_type):
+        """
+        Clips the trade amount to ensure that the state of charge remains within the bounds.
+
+        :param amount: (float) The amount of energy to be traded.
+        :param trade_type: (str) Type of trade to execute, accepted values are 'buy' or 'sell'.
+        :return: (float) The clipped amount of energy that can be safely traded.
+        """
+        new_amount = amount
+        if trade_type == 'buy':
+            potential_soc = self.battery.get_soc() + amount
+            if not (self.lower_bound < potential_soc < self.upper_bound):
+                new_amount = min(amount, self.upper_bound - self.battery.get_soc())
+                # print(f"Clipped buy amount from {amount} to {new_amount}")
+        elif trade_type == 'sell':
+            potential_soc = self.battery.get_soc() - amount
+            if not (self.lower_bound < potential_soc < self.upper_bound):
+                new_amount = max(amount, self.battery.get_soc() - self.upper_bound)
+                # print(f"Clipped sell amount from {amount} to {new_amount}")
+        else:
+            raise ValueError(f"Invalid trade type: {trade_type}")
+
+        return new_amount
+
     def perform_da_trade(self, amount_da: float, price_da: float) -> float:
         """
         Perform a trade on the day ahead market.
@@ -174,6 +198,7 @@ class MultiMarket(gym.Env):
         :return: reward for the agent based on the trade outcome
         """
         reward = 0
+        amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
         if amount_da > 0:  # buy
             reward = self.trade(price_da, amount_da, 'buy')
 
