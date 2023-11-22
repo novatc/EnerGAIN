@@ -111,10 +111,10 @@ class MultiMarket(gym.Env):
 
         # Reward for staying within battery bounds
         if self.lower_bound < self.battery.get_soc() < self.upper_bound:
-            reward += 5
+            reward += 10
         # Penalty for violating battery bounds
         if self.battery.get_soc() < self.lower_bound or self.battery.get_soc() > self.upper_bound:
-            reward += -50
+            reward += -100
 
         # Handle PRL trade if constraints are met
         if self.check_prl_constraints(prl_choice):
