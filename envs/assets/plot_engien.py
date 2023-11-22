@@ -110,7 +110,7 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
     # Plot real market prices from evaluation dataset
     plt.plot(eval_data_df.index, eval_data_df['price'], color='blue', label='Real Market Price', alpha=0.6)
 
-    # Plot trade data if available     columns = ["step", "type", "market price", "offered_price", "amount", "reward", "case"]
+    # Plot trade data if available
     if buys:
         buy_steps, _, _, buy_prices, _, _, _ = zip(*buys)
         plt.scatter(buy_steps, buy_prices, c=buy_color, marker='o', label='Buy', alpha=0.6, s=10)

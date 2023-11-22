@@ -53,14 +53,6 @@ average_year_df_detailed = filtered_df.groupby(['month', 'day', 'hour']).agg({'p
 for i in range(1, 13):
     extract_save_month_data(average_year_df_detailed, i)
 
-# Apply cyclic encoding to the 'month' and 'day' hour columns
-average_year_df_detailed['month_sin'] = np.sin(average_year_df_detailed['month'] * (2. * np.pi / 12))
-average_year_df_detailed['month_cos'] = np.cos(average_year_df_detailed['month'] * (2. * np.pi / 12))
-average_year_df_detailed['day_sin'] = np.sin(average_year_df_detailed['day'] * (2. * np.pi / 31))
-average_year_df_detailed['day_cos'] = np.cos(average_year_df_detailed['day'] * (2. * np.pi / 31))
-average_year_df_detailed['hour_sin'] = np.sin(average_year_df_detailed['hour'] * (2. * np.pi / 24))
-average_year_df_detailed['hour_cos'] = np.cos(average_year_df_detailed['hour'] * (2. * np.pi / 24))
-
 
 # Sort the dataframe in chronological order (by month, day, and hour)
 average_year_df_detailed = average_year_df_detailed.sort_values(by=['month', 'day', 'hour'])
