@@ -19,11 +19,15 @@ parser.add_argument('--env',
                     help='Environment to use.')
 parser.add_argument('--episodes', type=int, default=1, help='Number of episodes to run.')
 parser.add_argument('--plot', action='store_true', help='Plot the results.')
-parser.add_argument('--month', type=int, default=5, help='Month to use for validation.', choices=[5, 9])
+parser.add_argument('--month', type=int, default=5, help='Month to use for validation.')
 args = parser.parse_args()
 
-validation_da_data_path = f'data/in-use/eval_data/average_year_da.csv'
-validation_prl_data_path = f'data/in-use/eval_data/average_year_prl.csv'
+validation_da_data_path = f'data/in-use/eval_data/month_{args.month}_data_da.csv'
+validation_prl_data_path = f'data/in-use/eval_data/month_{args.month}_data_prl.csv'
+
+if args.month == 0:
+    validation_da_data_path = f'data/in-use/eval_data/average_da_year.csv'
+    validation_prl_data_path = f'data/in-use/eval_data/average_prl_year.csv'
 
 # Define environment parameters
 env_params = {
