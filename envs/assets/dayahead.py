@@ -2,6 +2,8 @@ import random
 import numpy as np
 import pandas as pd
 
+from collections import deque
+
 
 class DayAhead:
     def __init__(self, dataset):
@@ -14,6 +16,7 @@ class DayAhead:
         self.current_step = 0
         self.steps_since_last_random_start = 0
         self.current_price = 0
+        self.price_history = deque(maxlen=10)  # 'n' is the number of steps for averaging
 
     def get_current_price(self):
         """
@@ -42,6 +45,8 @@ class DayAhead:
         Increment the current step by 1. If the current step is equal to the length of the dataset, reset the first step
         """
         self.current_step = (self.current_step + 1) % len(self.dataset)
+        current_price = self.get_current_price()
+        self.price_history.append(current_price)
 
     def set_step(self, step):
         """
@@ -67,6 +72,11 @@ class DayAhead:
         :return: the market price at the given step.
         """
         return self.dataset.iloc[step]['price']
+
+    def get_average_price(self):
+        if not self.price_history:
+            return 0
+        return sum(self.price_history) / len(self.price_history)
 
     def random_walk(self, sequence_length=24 * 30):
         """
