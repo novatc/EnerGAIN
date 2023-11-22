@@ -60,7 +60,8 @@ prl.index = pd.to_datetime(prl.index, dayfirst=True)
 # Convert the "price" column to a numeric type
 prl['price'] = pd.to_numeric(prl['price'], errors='coerce')
 
-# Interpolate missing values in the "price, amount" column
+# Interpolate missing values in the "price, amount" column using something else than linear interpolation
+# for example, use the method='time'
 prl['price'] = prl['price'].interpolate(method='linear')
 prl['price'] = prl['price'] / 1000  # convert to €/kWh
 prl['amount'] = prl['amount'].interpolate(method='linear')
@@ -75,6 +76,7 @@ prl['month'] = prl.index.month
 prl['hour'] = prl['start'].str.split(':').str[0]
 prl['hour'] = pd.to_numeric(prl['hour'], errors='coerce')
 
+
 prl.to_csv('data/prm/env_prl.csv')
 
 # Drop the "day_of_week, month, hour" columns
@@ -82,8 +84,6 @@ prl = prl.drop(['day_of_week', 'month', 'hour', 'start', 'end', ], axis=1)
 
 # make price the index
 prl = prl.set_index('price')
-# cut off the last row
-prl.drop(prl.tail(1).index, inplace=True)
 
 
 # Save the preprocessed data to a csv file

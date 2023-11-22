@@ -1,8 +1,9 @@
+import numpy as np
 import pandas as pd
 from datetime import datetime
 
 
-def extract_save_month_data(env_data, month, year=2023):
+def extract_save_month_data(env_data, month):
     """
     Extracts data for a specified month and year from env_data, processes it, adds noise, and saves to CSV.
 
@@ -20,11 +21,8 @@ def extract_save_month_data(env_data, month, year=2023):
 
     # Create a copy of the DataFrame and convert 'date' column to datetime
     data_copy = env_data.copy()
-    data_copy['Datum'] = pd.to_datetime(data_copy['date'])
-    data_copy.set_index('Datum', inplace=True)
-
     # Extract data for the specified month and year
-    month_data = data_copy[(data_copy.index.month == month) & (data_copy.index.year == year)].copy()
+    month_data = data_copy[(data_copy.month == month)].copy()
 
     # Check for the existence of columns before dropping
     columns_to_drop = ['day', 'month', 'hour', 'day']
@@ -36,50 +34,38 @@ def extract_save_month_data(env_data, month, year=2023):
     # Save the noisy month data to a CSV file
     filename = f'data/in-use/eval_data/month_{month}_data_prl.csv'
     month_data.to_csv(filename)
-    print(f"data for month {month}, year {year} saved to {filename}")
+    print(f"data for month {month} saved to {filename}")
 
 
 # Load the data from the CSV file
-new_file_path = 'data/prm/env_prl.csv'  # Replace with your new file path
-new_data = pd.read_csv(new_file_path)
+path = 'data/prm/env_prl.csv'
+env_prl = pd.read_csv(path)
 
-# Converting the 'Datum' column to datetime format for filtering and extraction
-new_data['Datum'] = pd.to_datetime(new_data['Datum'])
+env_prl['Datum'] = pd.to_datetime(env_prl['Datum'])
+filtered_df = env_prl[(env_prl['Datum'] >= '2019-01-01') & (env_prl['Datum'] <= '2022-12-31')]
 
-# Filtering the data between January 1, 2019, and December 31, 2022
-filtered_new_data = new_data[(new_data['Datum'] >= '2019-01-01') & (new_data['Datum'] <= '2022-12-31')].copy()
+# Add a 'day' column to the dataframe
+filtered_df['day'] = filtered_df['Datum'].dt.day
 
-# Extracting month and day using .loc
-filtered_new_data.loc[:, 'month'] = filtered_new_data['Datum'].dt.month
-filtered_new_data.loc[:, 'day'] = filtered_new_data['Datum'].dt.day
-filtered_new_data.loc[:, 'hour'] = filtered_new_data['Datum'].dt.hour
-
-# Grouping the data by month, day, and hour to calculate the average
-average_by_hour_new = filtered_new_data.groupby(['month', 'day', 'hour']).agg(
-    {'price': 'mean', 'amount': 'mean'}).reset_index()
-
-# Generating a DataFrame for the average year
-year_dates_new = pd.date_range(start='2023-01-01', end='2023-12-31', freq='H')
-average_year_new_df = pd.DataFrame({'date': year_dates_new})
-
-# Extracting month, day, and hour for the average year DataFrame
-average_year_new_df['month'] = average_year_new_df['date'].dt.month
-average_year_new_df['day'] = average_year_new_df['date'].dt.day
-average_year_new_df['hour'] = average_year_new_df['date'].dt.hour
-
-# Merging the average values with the average year DataFrame
-average_year_complete_new = average_year_new_df.merge(average_by_hour_new, on=['month', 'day', 'hour'], how='left')
+# Group by month, day, and hour, and calculate the average amount and price
+average_year_df_detailed = filtered_df.groupby(['month', 'day', 'hour']).agg({'price': 'mean', 'amount': 'mean'}).reset_index()
 
 for i in range(1, 13):
-    extract_save_month_data(average_year_complete_new, i)
+    extract_save_month_data(average_year_df_detailed, i)
 
-# Dropping the extra columns and setting 'date' as index
-average_year_complete_new.drop(['month', 'day', 'hour'], axis=1, inplace=True)
-average_year_complete_new.set_index('date', inplace=True)
+# Apply cyclic encoding to the 'month' and 'day' hour columns
+average_year_df_detailed['month_sin'] = np.sin(average_year_df_detailed['month'] * (2. * np.pi / 12))
+average_year_df_detailed['month_cos'] = np.cos(average_year_df_detailed['month'] * (2. * np.pi / 12))
+average_year_df_detailed['day_sin'] = np.sin(average_year_df_detailed['day'] * (2. * np.pi / 31))
+average_year_df_detailed['day_cos'] = np.cos(average_year_df_detailed['day'] * (2. * np.pi / 31))
+average_year_df_detailed['hour_sin'] = np.sin(average_year_df_detailed['hour'] * (2. * np.pi / 24))
+average_year_df_detailed['hour_cos'] = np.cos(average_year_df_detailed['hour'] * (2. * np.pi / 24))
 
-# Saving the final DataFrame to a CSV file
-average_year_csv_path_complete_new = 'data/in-use/eval_data/average_year_prl.csv'
-average_year_complete_new.to_csv(average_year_csv_path_complete_new)
 
-# Output the path to the saved CSV file
-print(f"CSV file saved as: {average_year_csv_path_complete_new}")
+# Sort the dataframe in chronological order (by month, day, and hour)
+average_year_df_detailed = average_year_df_detailed.sort_values(by=['month', 'day', 'hour'])
+
+# Drop the 'month', 'day', and 'hour' columns
+average_year_df_detailed.drop(['month', 'day', 'hour'], axis=1, inplace=True)
+
+average_year_df_detailed.to_csv('data/in-use/eval_data/average_prl_year.csv', index=False)
