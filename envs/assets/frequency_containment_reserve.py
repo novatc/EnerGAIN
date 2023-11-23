@@ -53,7 +53,6 @@ class FrequencyContainmentReserve:
             return 0
         return sum(self.price_history) / len(self.price_history)
 
-
     def random_walk(self, sequence_length=24 * 30):
         """
         Choose a random starting position and increment the current step by sequence_length from
@@ -117,5 +116,3 @@ class FrequencyContainmentReserve:
             return True
         else:
             return False
-
-
