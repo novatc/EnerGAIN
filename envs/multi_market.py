@@ -8,7 +8,7 @@ from envs.assets.plot_engien import *
 
 
 class MultiMarket(gym.Env):
-    def __init__(self, da_data_path: str, prl_data_path: str, validation=False):
+    def __init__(self, da_data_path: str, prl_data_path: str, validation):
         super(MultiMarket, self).__init__()
         self.da_dataframe = pd.read_csv(da_data_path)
         self.prl_dataframe = pd.read_csv(prl_data_path)
@@ -30,7 +30,7 @@ class MultiMarket(gym.Env):
         # +3 for prl cooldown, upper & lower bounds
         obs_shape = (self.da_dataframe.shape[1] + self.prl_dataframe.shape[1] + 3,)
 
-        action_low = np.array([-1, 0, 0, -1, -500.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_low = np.array([-1, 0, 0, -0.004, -500.0])  # prl choice, prl price, prl amount, da price, da amount
         action_high = np.array([1, 1.0, 500, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
@@ -108,10 +108,12 @@ class MultiMarket(gym.Env):
         if self.prl_cooldown == 0:
             self.upper_bound = self.battery.capacity
             self.lower_bound = 0
+            self.battery.charge(self.reserve_amount)
+            self.reserve_amount = 0
 
         # Reward for staying within battery bounds
         if self.lower_bound < self.battery.get_soc() < self.upper_bound:
-            reward += 5
+            reward += 10
         # Penalty for violating battery bounds
         if self.battery.get_soc() < self.lower_bound or self.battery.get_soc() > self.upper_bound:
             reward += -10
@@ -168,6 +170,31 @@ class MultiMarket(gym.Env):
             return True
         return False
 
+    def is_trade_valid(self, price, amount, trade_type):
+        """
+        Check if a trade is valid, i.e. if the battery can handle the trade and if the agent has enough savings.
+
+        :param price: (float) The price at which the trade is attempted.
+        :param amount: (float) The amount of energy to be traded. Positive values indicate buying or charging,
+                       and negative values indicate selling or discharging.
+        :param trade_type: (str) Type of trade to execute, accepted values are 'buy' or 'sell'.
+
+        :return: (bool) True if the trade is valid, False otherwise.
+        """
+        if trade_type == 'buy':
+            if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
+                self.log_trades(False, 'buy', price, amount, self.penalty,
+                                'savings' if self.savings <= 0 else 'battery')
+                return False
+        elif trade_type == 'sell':
+            if self.battery.can_discharge(amount) is False:
+                self.log_trades(False, 'sell', price, amount, self.penalty, 'battery')
+                return False
+        else:
+            raise ValueError(f"Invalid trade type: {trade_type}")
+
+        return True
+
     def clip_trade_amount(self, amount, trade_type):
         """
         Clips the trade amount to ensure that the state of charge remains within the bounds.
@@ -192,21 +219,15 @@ class MultiMarket(gym.Env):
 
         return new_amount
 
-    def perform_da_trade(self, amount_da: float, price_da: float) -> float:
+    def perform_da_trade(self, energy_amount: float, market_price: float) -> float:
         """
-        Perform a trade on the day ahead market.
-        :param amount_da: the amount of energy to be traded
-        :param price_da: the price at which the trade is attempted
-        :return: reward for the agent based on the trade outcome
+        Perform a trade on the day-ahead market.
+
+        :param energy_amount: Energy to be traded (positive for buying, negative for selling).
+        :param market_price: Price at which the trade is attempted.
+        :return: Reward based on the trade outcome.
         """
-        reward = 0
-        if amount_da > 0:  # buy
-            reward = self.trade(price_da, amount_da, 'buy')
-
-        if amount_da < 0:  # sell
-            reward = self.trade(price_da, amount_da, 'sell')
-
-        return reward
+        return self.trade(market_price, energy_amount, 'buy' if energy_amount > 0 else 'sell')
 
     def trade(self, price, amount, trade_type):
         """
@@ -222,49 +243,63 @@ class MultiMarket(gym.Env):
 
         :raises ValueError: If `trade_type` is neither 'buy' nor 'sell'.
         """
-
-        if trade_type == 'buy':
-            if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
-                case = 'savings' if self.savings <= 0 else 'battery'
-                self.log_trades(False, 'buy', price, amount, self.penalty, case)
-                return self.penalty
-        elif trade_type == 'sell':
-            if self.battery.can_discharge(amount) is False:
-                self.log_trades(False, 'sell', price, amount, self.penalty, 'battery')
-                return self.penalty
-        else:
+        if trade_type not in ['buy', 'sell']:
             raise ValueError(f"Invalid trade type: {trade_type}")
 
-        if self.day_ahead.accept_offer(price, trade_type):
-            # this works for both buy and sell because amount is negative for sale and + and - cancel out and for buy
-            # amount is positive
-            self.battery.charge(amount)
-            # the same applies here for savings
-            self.savings -= self.day_ahead.get_current_price() * amount
-            self.battery.add_charge_log(self.battery.get_soc())
-            self.savings_log.append(self.savings)
-            self.log_trades(True, trade_type, price, amount, self.day_ahead.get_current_price() * amount, 'accepted')
-        else:
-            self.log_trades(False, trade_type, price, amount, 0, 'market rejected')
+        # Check if the trade is valid
+        if not self.is_trade_valid(price, amount, trade_type):
             return self.penalty
 
-        return float(self.day_ahead.get_current_price()) * amount
+        return self.execute_trade(price, amount, trade_type)
+
+    def execute_trade(self, price, amount, trade_type):
+        """
+        Execute the validated trade and update the system status.
+
+        :param price: Price at which the trade is executed.
+        :param amount: Amount of energy involved in the trade.
+        :param trade_type: 'buy' or 'sell'.
+        :return: Profit (or loss) from the trade.
+        """
+        current_price = self.day_ahead.get_current_price()
+        profit = 0
+        if self.day_ahead.accept_offer(price, trade_type):
+            if trade_type == 'buy':
+                self.battery.charge(amount)  # Charge battery for buy trades
+                self.savings -= current_price * amount  # Update savings
+                profit = -current_price * amount  # Negative profit for buying
+
+            elif trade_type == 'sell':
+                self.battery.charge(amount)  # Discharge battery for sell trades
+                self.savings += current_price * abs(amount)  # Update savings
+                profit = current_price * abs(amount)  # Positive profit for selling
+        else:
+            self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
+            return self.penalty
+
+        # Logging the trade details
+        self.battery.add_charge_log(self.battery.get_soc())
+        self.savings_log.append(self.savings)
+        self.log_trades(True, trade_type, price, amount, profit, 'accepted')
+
+        return profit
 
     def perform_prl_trade(self, price, amount) -> float:
         """
-        Attempt to participate in the PRL market.
+        Attempt to participate in the PRL market. It's a pay as bid market,
+         so the agent will always get the price it offered.
         :param price: Offer price
         :param amount: Amount of energy being offered
         """
         # Check if the offer is accepted by the prl market and the battery can adhere to prl constraints
         if self.prl.accept_offer(price):
             # Update savings based on the transaction in prl market
-            self.savings += (self.prl.get_current_price() * amount) * 4
+            self.savings += (price * amount)
             # Set cooldown and reserve amount since participation was successful
-            self.prl_cooldown = 4
-            # Immediately update boundaries after a successful PRL trade
             self.battery.charge_log.append(self.battery.get_soc())
             self.savings_log.append(self.savings)
+            self.battery.discharge(amount)
+            self.reserve_amount = amount
             # add the next four hours to the trade look. They should be equal to each other and just differ from the
             # step value
             for i in range(4):
@@ -274,15 +309,17 @@ class MultiMarket(gym.Env):
                     self.prl.get_current_price(),
                     price,
                     amount,
-                    self.prl.get_current_price() * amount * 4,
+                    price * amount ,
                     'prl accepted'
                 )
                 self.trade_log.append(trade_info)
 
             self.set_boundaries(amount)
-            return float((self.prl.get_current_price() * amount) * 4)
+            self.prl_cooldown = 4
+
+            return float(price * amount)
         else:
-            return 0
+            return self.penalty
 
     def handle_holding(self):
         # Logic for handling the holding scenario
