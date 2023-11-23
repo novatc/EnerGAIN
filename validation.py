@@ -13,7 +13,8 @@ import warnings
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Evaluate a SAC model.')
 parser.add_argument('--env',
-                    choices=['base', 'trend', 'no_savings', 'base_prl', 'multi', 'multi_no_savings', 'multi_trend'],
+                    choices=['base', 'trend', 'no_savings', 'base_prl', 'multi', 'multi_no_savings',
+                             'multi_trend', 'reward_boosting'],
                     default="base",
                     required=True,
                     help='Environment to use.')
@@ -54,7 +55,11 @@ env_params = {
 
     'multi_trend': {'id': 'multi_trend-v0', 'entry_point': 'envs.multi_trend:MultiTrend',
                     'data_path_prl': validation_prl_data_path,
-                    'data_path_da': validation_da_data_path}
+                    'data_path_da': validation_da_data_path},
+
+    'reward_boosting': {'id': 'reward_boosting-v0', 'entry_point': 'envs.reward_boosting:RewardBoosting',
+                        'data_path_prl': validation_prl_data_path,
+                        'data_path_da': validation_da_data_path}
 }
 
 # Check if chosen environment is valid
@@ -84,7 +89,8 @@ except Exception as e:
 
 # Register and make the environment
 # Register and make the environment
-if args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings' or args.env == 'multi_trend':
+if (args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings'
+        or args.env == 'multi_trend') or args.env == 'reward_boosting':
     register(id=env_id, entry_point=entry_point,
              kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': True})
 else:
@@ -115,8 +121,6 @@ for _ in range(num_episodes):
     obs, _ = eval_env.reset()
 
 trades = eval_env.get_trades()
-# list of tuples (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount, reward,
-#   case)) to dataframe
 
 trades_log = pd.DataFrame(trades, columns=["step", "type", "market price", "offered_price", "amount", "reward", "case"])
 # write trades to csv

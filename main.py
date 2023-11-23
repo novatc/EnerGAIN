@@ -17,7 +17,8 @@ parser = argparse.ArgumentParser(description='Train a SAC model.')
 parser.add_argument('--training_steps', type=int, required=True, default=100,
                     help='Number of training steps.')
 parser.add_argument('--env',
-                    choices=['base', 'trend', 'no_savings', 'base_prl', 'multi', 'multi_no_savings', 'multi_trend'],
+                    choices=['base', 'trend', 'no_savings', 'base_prl', 'multi', 'multi_no_savings',
+                             'multi_trend', 'reward_boosting'],
                     default="base",
                     required=True,
                     help='Environment to use.')
@@ -50,7 +51,11 @@ env_params = {
 
     'multi_trend': {'id': 'multi_trend-v0', 'entry_point': 'envs.multi_trend:MultiTrend',
                     'data_path_prl': 'data/prm/preprocessed_prl.csv',
-                    'data_path_da': 'data/in-use/unscaled_train_data.csv'}
+                    'data_path_da': 'data/in-use/unscaled_train_data.csv'},
+
+    'reward_boosting': {'id': 'reward_boosting-v0', 'entry_point': 'envs.reward_boosting:RewardBoosting',
+                        'data_path_prl': 'data/prm/preprocessed_prl.csv',
+                        'data_path_da': 'data/in-use/unscaled_train_data.csv'}
 }
 
 # Check if chosen environment is valid
@@ -69,7 +74,8 @@ data_path_prl = env_params["base_prl"]['data_path_prl']
 os.makedirs('logging', exist_ok=True)
 
 # Register and make the environment
-if args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings' or args.env == 'multi_trend':
+if (args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings'
+        or args.env == 'multi_trend' or args.env == 'reward_boosting'):
     register(id=env_id, entry_point=entry_point,
              kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': False})
 else:
