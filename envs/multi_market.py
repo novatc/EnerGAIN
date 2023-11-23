@@ -56,8 +56,8 @@ class MultiMarket(gym.Env):
 
         self.rewards = []
         self.reward_log = []
-        self.window_size = 20
-        self.penalty = -5
+        self.window_size = 1
+        self.penalty = -10
 
         self.validation = validation
 
@@ -111,16 +111,18 @@ class MultiMarket(gym.Env):
 
         # Reward for staying within battery bounds
         if self.lower_bound < self.battery.get_soc() < self.upper_bound:
-            reward += 50
+            reward += 5
         # Penalty for violating battery bounds
         if self.battery.get_soc() < self.lower_bound or self.battery.get_soc() > self.upper_bound:
-            reward += -100
+            reward += -10
 
         # Handle PRL trade if constraints are met
         if self.check_prl_constraints(prl_choice):
             reward += self.perform_prl_trade(price_prl, amount_prl)
 
         # Handle DA trade or holding
+        # clip the amount for the day ahead market to ensure that the battery can handle the trade
+        amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
         if -self.trade_threshold < amount_da < self.trade_threshold:
             reward += self.handle_holding()
         elif self.check_boundaries(amount_da):
@@ -198,7 +200,6 @@ class MultiMarket(gym.Env):
         :return: reward for the agent based on the trade outcome
         """
         reward = 0
-        amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
         if amount_da > 0:  # buy
             reward = self.trade(price_da, amount_da, 'buy')
 
@@ -245,7 +246,7 @@ class MultiMarket(gym.Env):
             self.log_trades(True, trade_type, price, amount, self.day_ahead.get_current_price() * amount, 'accepted')
         else:
             self.log_trades(False, trade_type, price, amount, 0, 'market rejected')
-            return 0
+            return self.penalty
 
         return float(self.day_ahead.get_current_price()) * amount
 
