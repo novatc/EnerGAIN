@@ -31,29 +31,24 @@ class BaseEnv(gym.Env):
 
         self.reward_log = []
         self.window_size = 20
-        self.penalty = -5
-
-        self.trade_threshold = 50
-
+        self.penalty = -10
 
         self.validation = validation
 
     def step(self, action):
+        should_truncated = False
+
         if self.validation:
             self.day_ahead.step()
         else:
-            self.day_ahead.random_walk()
+            should_truncated = self.day_ahead.random_walk()
 
         price, amount = action
 
         reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
-        truncated = False  # this can be false all the time since there is no failure condition the agent could trigger
-
-        # Handle DA trade or holding
-        if -self.trade_threshold < amount < self.trade_threshold:
-            reward += self.handle_holding()
+        truncated = should_truncated  # this can be false all the time since there is no failure condition the agent could trigger
 
         reward += self.perform_da_trade(amount, price)
 
@@ -67,21 +62,15 @@ class BaseEnv(gym.Env):
                 }
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
-    def perform_da_trade(self, amount_da: float, price_da: float) -> float:
+    def perform_da_trade(self, energy_amount: float, market_price: float) -> float:
         """
-        Perform a trade on the day ahead market.
-        :param amount_da: the amount of energy to be traded
-        :param price_da: the price at which the trade is attempted
-        :return: reward for the agent based on the trade outcome
+        Perform a trade on the day-ahead market.
+
+        :param energy_amount: Energy to be traded (positive for buying, negative for selling).
+        :param market_price: Price at which the trade is attempted.
+        :return: Reward based on the trade outcome.
         """
-        reward = 0
-        if amount_da > 0:  # buy
-            reward = self.trade(price_da, amount_da, 'buy')
-
-        if amount_da < 0:  # sell
-            reward = self.trade(price_da, amount_da, 'sell')
-
-        return reward
+        return self.trade(market_price, energy_amount, 'buy' if energy_amount > 0 else 'sell')
 
     def trade(self, price, amount, trade_type):
         """
@@ -97,33 +86,71 @@ class BaseEnv(gym.Env):
 
         :raises ValueError: If `trade_type` is neither 'buy' nor 'sell'.
         """
-
-        if trade_type == 'buy':
-            if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
-                case = 'savings' if self.savings <= 0 else 'battery'
-                self.log_trades(False, 'buy', price, amount, self.penalty, case)
-                return self.penalty
-        elif trade_type == 'sell':
-            if self.battery.can_discharge(amount) is False:
-                self.log_trades(False, 'sell', price, amount, self.penalty, 'battery')
-                return self.penalty
-        else:
+        if trade_type not in ['buy', 'sell']:
             raise ValueError(f"Invalid trade type: {trade_type}")
 
+        # Check if the trade is valid
+        if not self.is_trade_valid(price, amount, trade_type):
+            return self.penalty
+
+        return self.execute_trade(price, amount, trade_type)
+
+    def execute_trade(self, price, amount, trade_type):
+        """
+        Execute the validated trade and update the system status.
+
+        :param price: Price at which the trade is executed.
+        :param amount: Amount of energy involved in the trade.
+        :param trade_type: 'buy' or 'sell'.
+        :return: Profit (or loss) from the trade.
+        """
+        current_price = self.day_ahead.get_current_price()
+        profit = 0
         if self.day_ahead.accept_offer(price, trade_type):
-            # this works for both buy and sell because amount is negative for sale and + and - cancel out and for buy
-            # amount is positive
-            self.battery.charge(amount)
-            # the same applies here for savings
-            self.savings -= self.day_ahead.get_current_price() * amount
-            self.battery.add_charge_log(self.battery.get_soc())
-            self.savings_log.append(self.savings)
-            self.log_trades(True, trade_type, price, amount, self.day_ahead.get_current_price() * amount, 'accepted')
+            if trade_type == 'buy':
+                self.battery.charge(amount)  # Charge battery for buy trades
+                self.savings -= current_price * amount  # Update savings
+                profit = -current_price * amount  # Negative profit for buying
+
+            elif trade_type == 'sell':
+                self.battery.charge(amount)  # Discharge battery for sell trades
+                self.savings += current_price * abs(amount)  # Update savings
+                profit = current_price * abs(amount)  # Positive profit for selling
         else:
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
             return self.penalty
 
-        return float(self.day_ahead.get_current_price()) * amount
+        # Logging the trade details
+        self.battery.add_charge_log(self.battery.get_soc())
+        self.savings_log.append(self.savings)
+        self.log_trades(True, trade_type, price, amount, profit, 'accepted')
+
+        return profit
+
+    def is_trade_valid(self, price, amount, trade_type):
+        """
+        Check if a trade is valid, i.e. if the battery can handle the trade and if the agent has enough savings.
+
+        :param price: (float) The price at which the trade is attempted.
+        :param amount: (float) The amount of energy to be traded. Positive values indicate buying or charging,
+                       and negative values indicate selling or discharging.
+        :param trade_type: (str) Type of trade to execute, accepted values are 'buy' or 'sell'.
+
+        :return: (bool) True if the trade is valid, False otherwise.
+        """
+        if trade_type == 'buy':
+            if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
+                self.log_trades(False, 'buy', price, amount, self.penalty,
+                                'savings' if self.savings <= 0 else 'battery')
+                return False
+        elif trade_type == 'sell':
+            if self.battery.can_discharge(amount) is False:
+                self.log_trades(False, 'sell', price, amount, self.penalty, 'battery')
+                return False
+        else:
+            raise ValueError(f"Invalid trade type: {trade_type}")
+
+        return True
 
     def handle_holding(self):
         # Logic for handling the holding scenario
