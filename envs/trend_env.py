@@ -13,7 +13,7 @@ class TrendEnv(gym.Env):
     def __init__(self, da_data_path, validation=False):
         super(TrendEnv, self).__init__()
         self.da_dataframe = pd.read_csv(da_data_path)
-        self.trend_horizon = 4
+        self.trend_horizon = 8
 
         low_boundary = self.da_dataframe.min().values
 
@@ -25,7 +25,7 @@ class TrendEnv(gym.Env):
         # add 10 to each value in the high boundary to make sure the agent can't reach the upper boundary
         high_boundary += 10
 
-        action_low = np.array([-1.0, 1000.0])
+        action_low = np.array([0.0, -1000.0])
         action_high = np.array([1.0, 1000.0])
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(2,), dtype=np.float32)
@@ -59,10 +59,9 @@ class TrendEnv(gym.Env):
             self.day_ahead.step()
         else:
             should_truncated = self.day_ahead.random_walk(24 * 7)
+        reward = 0
 
         price, amount = action
-
-        reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
         truncated = should_truncated  # this can be Fasle all the time since there is no failure condition the agent could trigger
@@ -72,7 +71,6 @@ class TrendEnv(gym.Env):
             reward += self.handle_holding()
 
         reward += self.perform_da_trade(energy_amount=amount, market_price=price)
-
         self.reward_log.append(
             (self.reward_log[-1] + reward) if self.reward_log else reward)  # to keep track of the reward over time
         info = {'current_price': self.day_ahead.get_current_price(),
@@ -209,7 +207,7 @@ class TrendEnv(gym.Env):
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
                              model_name='trend', data=self.da_dataframe)
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='trend', data=self.da_dataframe)
+                             sell_color='brown', model_name='base', data=self.da_dataframe)
         plot_holding(self.holding, 'trend', da_data=self.da_dataframe)
         kernel_density_estimation(self.trade_log, model_name='trend', da_data=self.da_dataframe)
 
@@ -243,3 +241,4 @@ class TrendEnv(gym.Env):
             self.invalid_trades.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
                  reward, case))
+
