@@ -31,7 +31,7 @@ class BaseEnv(gym.Env):
 
         self.reward_log = []
         self.window_size = 5
-        self.penalty = -30
+        self.penalty = -10
 
         self.trade_threshold = 10
 
@@ -46,7 +46,7 @@ class BaseEnv(gym.Env):
 
         price, amount = action
 
-        reward = 0
+        reward = -1
 
         terminated = False  # Whether the agent reaches the terminal state
         truncated = should_truncated  # this can be false all the time since there is no failure condition the agent could trigger
@@ -160,7 +160,7 @@ class BaseEnv(gym.Env):
     def handle_holding(self):
         # Logic for handling the holding scenario
         self.holding.append((self.day_ahead.get_current_step(), 'hold'))
-        return 5
+        return 1
 
     def get_observation(self):
         """
