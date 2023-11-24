@@ -30,8 +30,8 @@ class MultiMarket(gym.Env):
         # +3 for prl cooldown, upper & lower bounds
         obs_shape = (self.da_dataframe.shape[1] + self.prl_dataframe.shape[1] + 3,)
 
-        action_low = np.array([-1, 0, 0, 0, -500.0])  # prl choice, prl price, prl amount, da price, da amount
-        action_high = np.array([1, 1.0, 500, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_low = np.array([-1, 0, 0, 0, -1000.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_high = np.array([1, 1.0, 500, 1, 1000.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
         self.observation_space = spaces.Box(low=np.append(observation_low, [0, 0]),  # Add 0 for lower and upper bounds
@@ -114,9 +114,6 @@ class MultiMarket(gym.Env):
         # Reward for staying within battery bounds
         if self.lower_bound < self.battery.get_soc() < self.upper_bound:
             reward += 10
-        # Penalty for violating battery bounds
-        if self.battery.get_soc() < self.lower_bound or self.battery.get_soc() > self.upper_bound:
-            reward += -10
 
         # Handle PRL trade if constraints are met
         if self.check_prl_constraints(prl_choice):
@@ -295,12 +292,11 @@ class MultiMarket(gym.Env):
         if self.prl.accept_offer(price):
             # Update savings based on the transaction in prl market
             self.savings += (price * amount)
-            # Set cooldown and reserve amount since participation was successful
             self.battery.charge_log.append(self.battery.get_soc())
             self.savings_log.append(self.savings)
             self.battery.discharge(amount)
             self.reserve_amount = amount
-            # add the next four hours to the trade look. They should be equal to each other and just differ from the
+            # add the next four hours to the trade log. They should be equal to each other and just differ from the
             # step value
             for i in range(4):
                 trade_info = (
