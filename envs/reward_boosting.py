@@ -273,7 +273,9 @@ class RewardBoosting(gym.Env):
                 # If the offered price is lower than the average price,
                 # add 10 to the profit to incentive buying at lower prices
                 if price < self.day_ahead.get_average_price():
-                    profit += 10
+                    # boost profit with the difference between the offered price and the average price
+                    difference = self.day_ahead.get_average_price() - price
+                    profit += difference
 
             elif trade_type == 'sell':
                 self.battery.charge(amount)  # Discharge battery for sell trades
@@ -283,7 +285,8 @@ class RewardBoosting(gym.Env):
                 # if the offered price is higher than the average price,
                 # add 10 to the profit to incentive selling at higher prices
                 if price > self.day_ahead.get_average_price():
-                    profit += 10
+                    difference = price - self.day_ahead.get_average_price()
+                    profit += difference
         else:
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
             return self.penalty

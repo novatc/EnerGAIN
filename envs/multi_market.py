@@ -56,7 +56,7 @@ class MultiMarket(gym.Env):
 
         self.rewards = []
         self.reward_log = []
-        self.window_size = 1
+        self.window_size = 5
         self.penalty = -10
 
         self.validation = validation
@@ -68,7 +68,7 @@ class MultiMarket(gym.Env):
         self.upper_bound = self.battery.capacity
         self.lower_bound = 0
 
-        self.trade_threshold = 50
+        self.trade_threshold = 10
 
     def step(self, action):
         """
@@ -309,7 +309,7 @@ class MultiMarket(gym.Env):
                     self.prl.get_current_price(),
                     price,
                     amount,
-                    price * amount ,
+                    price * amount,
                     'prl accepted'
                 )
                 self.trade_log.append(trade_info)
