@@ -93,7 +93,7 @@ class RewardBoosting(gym.Env):
             self.prl.step()
         else:
             # make sure the two markets are always in sync
-            should_truncated = self.prl.random_walk()
+            should_truncated = self.prl.random_walk(24*7)
             current_step = self.prl.get_current_step()
             self.day_ahead.set_step(current_step)
 
@@ -307,7 +307,7 @@ class RewardBoosting(gym.Env):
         # Check if the offer is accepted by the prl market and the battery can adhere to prl constraints
         if self.prl.accept_offer(price):
             # Update savings based on the transaction in prl market
-            self.savings += (self.prl.get_current_price() * amount) * 4
+            self.savings += (self.prl.get_current_price() * amount)
             # Set cooldown and reserve amount since participation was successful
             self.battery.charge_log.append(self.battery.get_soc())
             self.savings_log.append(self.savings)
@@ -322,7 +322,7 @@ class RewardBoosting(gym.Env):
                     self.prl.get_current_price(),
                     price,
                     amount,
-                    self.prl.get_current_price() * amount * 4,
+                    self.prl.get_current_price() * amount,
                     'prl accepted'
                 )
                 self.trade_log.append(trade_info)
@@ -330,7 +330,7 @@ class RewardBoosting(gym.Env):
             self.set_boundaries(amount)
             self.prl_cooldown = 4
 
-            return float((self.prl.get_current_price() * amount) * 4)
+            return float((self.prl.get_current_price() * amount))
         else:
             return self.penalty
 
