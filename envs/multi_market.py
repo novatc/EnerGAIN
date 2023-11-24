@@ -57,7 +57,7 @@ class MultiMarket(gym.Env):
         self.rewards = []
         self.reward_log = []
         self.window_size = 5
-        self.penalty = -10
+        self.penalty = -30
 
         self.validation = validation
 
@@ -112,8 +112,8 @@ class MultiMarket(gym.Env):
             self.reserve_amount = 0
 
         # Reward for staying within battery bounds
-        if self.lower_bound < self.battery.get_soc() < self.upper_bound:
-            reward += 10
+        if not self.lower_bound < self.battery.get_soc() < self.upper_bound:
+            reward += self.penalty
 
         # Handle PRL trade if constraints are met
         if self.check_prl_constraints(prl_choice):
@@ -320,7 +320,7 @@ class MultiMarket(gym.Env):
     def handle_holding(self):
         # Logic for handling the holding scenario
         self.holding.append((self.day_ahead.get_current_step(), 'hold'))
-        return 5
+        return 1
 
     def get_observation(self) -> np.array:
         """

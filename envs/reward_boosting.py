@@ -57,7 +57,7 @@ class RewardBoosting(gym.Env):
         self.rewards = []
         self.reward_log = []
         self.window_size = 1
-        self.penalty = -10
+        self.penalty = -30
 
         self.validation = validation
 
@@ -112,11 +112,8 @@ class RewardBoosting(gym.Env):
             self.reserve_amount = 0
 
         # Reward for staying within battery bounds
-        if self.lower_bound < self.battery.get_soc() < self.upper_bound:
-            reward += 5
-        # Penalty for violating battery bounds
-        if self.battery.get_soc() < self.lower_bound or self.battery.get_soc() > self.upper_bound:
-            reward += -10
+        if not self.lower_bound < self.battery.get_soc() < self.upper_bound:
+            reward += self.penalty
 
         # Handle PRL trade if constraints are met
         if self.check_prl_constraints(prl_choice):
