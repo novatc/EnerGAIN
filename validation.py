@@ -155,14 +155,15 @@ except ZeroDivisionError:
 
 # could you pretty print these stats?
 
-print(f"Average price: {avg_price}")
-print(f"Average amount: {avg_amount}")
+print(f"Average price: {avg_price:.2f}")
+print(f"Average amount: {avg_amount:.2f}")
 print(f"Buy count: {buy_count}")
 print(f"Sell count: {sell_count}")
 print(f"Reserve count: {reserve_count}")
-print(f"Average reward: {(episode_rewards[0] / len(trades))}")
-print(f"Total reward: {np.sum(episode_rewards)}")
-print(f"Total profit: {sum([trade[2] for trade in trades])}")
+print(f"Average reward: {(episode_rewards[0] / len(trades)):.2f}")
+print(f"Total reward: {np.sum(episode_rewards):.2f}")
+print(f"Total profit: {sum([trade[2] for trade in trades]):.2f}")
+
 
 if args.plot:
     eval_env.render()
