@@ -15,8 +15,8 @@ class BaseEnv(gym.Env):
 
         high_boundary = self.da_dataframe.max().values
 
-        action_low = np.array([0.0, -500.0])  # price, amount
-        action_high = np.array([1.0, 500.0])  # price, amount
+        action_low = np.array([0.0, -1000.0])  # price, amount
+        action_high = np.array([1.0, 1000.0])  # price, amount
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=low_boundary, high=high_boundary, shape=(self.da_dataframe.shape[1],))
 
@@ -31,7 +31,7 @@ class BaseEnv(gym.Env):
 
         self.reward_log = []
         self.window_size = 5
-        self.penalty = -10
+        self.penalty = -30
 
         self.trade_threshold = 10
 
@@ -42,7 +42,7 @@ class BaseEnv(gym.Env):
         if self.validation:
             self.day_ahead.step()
         else:
-            should_truncated = self.day_ahead.random_walk(27 * 7)
+            should_truncated = self.day_ahead.random_walk(24 * 7)
 
         price, amount = action
 
