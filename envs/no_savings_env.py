@@ -1,14 +1,17 @@
 import gymnasium as gym
+import pandas as pd
 from gymnasium import spaces
+import numpy as np
 
 from envs.assets.battery import Battery
 from envs.assets.dayahead import DayAhead
-from envs.assets.plot_engien import *
+from envs.assets.plot_engien import plot_reward, plot_charge, plot_trades_timeline, plot_holding, \
+    kernel_density_estimation, plot_savings
 
 
-class NoSavings(gym.Env):
+class NoSavingsEnv(gym.Env):
     def __init__(self, da_data_path: str, validation=False):
-        super(NoSavings, self).__init__()
+        super(NoSavingsEnv, self).__init__()
         self.da_dataframe = pd.read_csv(da_data_path)
 
         low_boundary = self.da_dataframe.min().values
@@ -49,7 +52,7 @@ class NoSavings(gym.Env):
         reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
-        truncated = should_truncated  # this can be false all the time since there is no failure condition the agent could trigger
+        truncated = should_truncated
 
         # Handle DA trade or holding
         if -self.trade_threshold < amount < self.trade_threshold:
@@ -58,6 +61,7 @@ class NoSavings(gym.Env):
         reward += self.perform_da_trade(energy_amount=amount, market_price=price)
 
         self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
+
         info = {'current_price': self.day_ahead.get_current_price(),
                 'current_step': self.day_ahead.get_current_step(),
                 'savings': self.savings,
@@ -178,7 +182,6 @@ class NoSavings(gym.Env):
         """
         # Reset the state of the environment to an initial state
         super().reset(seed=seed, options=options)
-        self.savings = 50
         self.battery.reset()
         self.day_ahead.reset()
         observation = self.get_observation().astype(np.float32)
@@ -190,15 +193,15 @@ class NoSavings(gym.Env):
         :param mode:
         :return:
         """
-        plot_reward(self.reward_log, self.window_size, 'base')
-        plot_savings(self.savings_log, self.window_size, 'base')
-        plot_charge(self.window_size, self.battery, 'base')
+        plot_reward(self.reward_log, self.window_size, 'no_savings')
+        plot_savings(self.savings_log, self.window_size, 'no_savings')
+        plot_charge(self.window_size, self.battery, 'no_savings')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
-                             model_name='base', data=self.da_dataframe)
+                             model_name='no_savings', data=self.da_dataframe)
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='base', data=self.da_dataframe)
-        plot_holding(self.holding, 'base', da_data=self.da_dataframe)
-        kernel_density_estimation(self.trade_log, model_name='base', da_data=self.da_dataframe)
+                             sell_color='brown', model_name='no_savings', data=self.da_dataframe)
+        plot_holding(self.holding, 'no_savings', da_data=self.da_dataframe)
+        kernel_density_estimation(self.trade_log, model_name='no_savings', da_data=self.da_dataframe)
 
     def get_trades(self):
         """
