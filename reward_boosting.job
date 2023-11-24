@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --mem=8G
 #SBATCH --gres=gpu:1
-#SBATCH --partition=mpcg.p
+#SBATCH --partition=rose.p
 #SBATCH --time=0-10:00
 #SBATCH --output=slurm.%j.out
 #SBATCH --error=slurm.%j.err
