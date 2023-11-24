@@ -30,7 +30,7 @@ class MultiMarket(gym.Env):
         # +3 for prl cooldown, upper & lower bounds
         obs_shape = (self.da_dataframe.shape[1] + self.prl_dataframe.shape[1] + 3,)
 
-        action_low = np.array([-1, 0, 0, -0.004, -500.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_low = np.array([-1, 0, 0, 0, -500.0])  # prl choice, prl price, prl amount, da price, da amount
         action_high = np.array([1, 1.0, 500, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
@@ -93,7 +93,7 @@ class MultiMarket(gym.Env):
             self.prl.step()
         else:
             # make sure the two markets are always in sync
-            should_truncated = self.prl.random_walk()
+            should_truncated = self.prl.random_walk(24*7)
             current_step = self.prl.get_current_step()
             self.day_ahead.set_step(current_step)
 
@@ -324,7 +324,7 @@ class MultiMarket(gym.Env):
     def handle_holding(self):
         # Logic for handling the holding scenario
         self.holding.append((self.day_ahead.get_current_step(), 'hold'))
-        return 1
+        return 5
 
     def get_observation(self) -> np.array:
         """

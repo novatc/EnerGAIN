@@ -78,7 +78,7 @@ class DayAhead:
             return 0
         return sum(self.price_history) / len(self.price_history)
 
-    def random_walk(self, sequence_length=24 * 30):
+    def random_walk(self, sequence_length: int):
         """
         Choose a random starting position and increment the current step by sequence_length (90 days) from
         that position.
@@ -88,7 +88,10 @@ class DayAhead:
         """
         # If this is the first call or 120 steps have been taken since the last random start,
         # choose a new random starting position
+        truncated = False
+
         if self.current_step == 0 or self.steps_since_last_random_start >= sequence_length:
+            truncated = True
             dataset_length = len(self.dataset)
             self.current_step = random.randint(0, dataset_length - 1)
             self.steps_since_last_random_start = 0  # Reset the step counter
@@ -97,6 +100,7 @@ class DayAhead:
 
         self.current_step = (self.current_step + 1) % len(self.dataset)
         self.steps_since_last_random_start += 1  # Increment the step counter
+        return truncated
 
     def previous_hours(self, hours: int) -> np.array:
         """
