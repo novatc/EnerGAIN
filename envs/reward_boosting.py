@@ -93,7 +93,7 @@ class RewardBoosting(gym.Env):
             self.prl.step()
         else:
             # make sure the two markets are always in sync
-            should_truncated = self.prl.random_walk()
+            should_truncated = self.prl.random_walk(24*7)
             current_step = self.prl.get_current_step()
             self.day_ahead.set_step(current_step)
 
