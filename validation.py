@@ -176,8 +176,8 @@ stats = {
     "total_profit": eval_env.savings_log[-1]
 }
 
-with open(f"trade_logs/{model_name}_stats.json", "w") as f:
-    json.dump(stats, f)
+with open(f"agent_data/{model_name}_stats.json", "w") as f:
+    json.dump(stats, f, indent=4)
 
 if args.plot:
     eval_env.render()

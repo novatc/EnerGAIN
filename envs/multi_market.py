@@ -93,7 +93,7 @@ class MultiMarket(gym.Env):
             self.prl.step()
         else:
             # make sure the two markets are always in sync
-            should_truncated = self.prl.random_walk(24*7)
+            should_truncated = self.prl.random_walk(24 * 7)
             current_step = self.prl.get_current_step()
             self.day_ahead.set_step(current_step)
 
@@ -366,7 +366,6 @@ class MultiMarket(gym.Env):
         :param mode:
         :return:
         """
-        kernel_density_estimation(self.trade_log, 'multi', da_data=self.da_dataframe)
         plot_reward(self.reward_log, self.window_size, 'multi')
         plot_savings(self.savings_log, self.window_size, 'multi')
         plot_charge(self.window_size, self.battery, 'multi')
@@ -376,6 +375,7 @@ class MultiMarket(gym.Env):
                              sell_color='brown', model_name='multi', data=self.da_dataframe)
         plot_holding(self.holding, 'multi', da_data=self.da_dataframe)
         plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'multi')
+        kernel_density_estimation(self.trade_log, 'multi', da_data=self.da_dataframe)
 
     def get_trades(self) -> list:
         """

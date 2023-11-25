@@ -18,7 +18,7 @@ def plot_reward(reward_log: list, window_size: int, model_name: str):
     :return:
     """
     os.makedirs(f'agent_data/{model_name}', exist_ok=True)
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(14, 7))
     plt.plot(reward_log, label='Original', alpha=0.5)
     smoothed_data = moving_average(reward_log, window_size)
     smoothed_steps = np.arange(window_size - 1, len(reward_log))
@@ -28,7 +28,7 @@ def plot_reward(reward_log: list, window_size: int, model_name: str):
     plt.ylabel('Reward')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'agent_data/{model_name}/{model_name}_reward.svg', dpi=400, format='svg')
+    plt.savefig(f'agent_data/{model_name}/{model_name}_reward.svg', dpi=1200, format='svg')
     plt.show()
 
 
@@ -40,7 +40,7 @@ def plot_savings(savings_log: list, window_size: int, model_name: str):
     :param savings_log: the savings log.
     :return:
     """
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(14, 7))
     plt.plot(savings_log, label='Original', alpha=0.5)
     smoothed_data = moving_average(savings_log, window_size)
     smoothed_steps = np.arange(window_size - 1, len(savings_log))
@@ -49,7 +49,7 @@ def plot_savings(savings_log: list, window_size: int, model_name: str):
     plt.ylabel('Savings (€)')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'agent_data/{model_name}/{model_name}_savings.svg', dpi=400, format='svg')
+    plt.savefig(f'agent_data/{model_name}/{model_name}_savings.svg', dpi=1200, format='svg')
     plt.show()
 
 
@@ -61,7 +61,7 @@ def plot_charge(window_size: int, battery, model_name: str):
     :param model_name: name of the model
     :return:
     """
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(14, 7))
     charge_log = battery.get_charge_log()
 
     # Original data
@@ -79,7 +79,7 @@ def plot_charge(window_size: int, battery, model_name: str):
     plt.ylabel('Charge (kWh)')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'agent_data/{model_name}/{model_name}_charge.svg', dpi=400, format='svg')
+    plt.savefig(f'agent_data/{model_name}/{model_name}_charge.svg', dpi=1200, format='svg')
     plt.show()
 
 
@@ -93,7 +93,7 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
     :param model_name: name of the model
     :return:
     """
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(14, 7))
     trade_log = trade_source
     eval_data_df = data
     total_trades = len(trade_log)
@@ -127,7 +127,7 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
     plt.xlabel('Step')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'agent_data/{model_name}/{model_name}_trades_timeline.svg', dpi=400, format='svg')
+    plt.savefig(f'agent_data/{model_name}/{model_name}_trades_timeline.svg', dpi=1200, format='svg')
     plt.show()
 
 
@@ -142,7 +142,7 @@ def plot_holding(holding_logs: list, model_name: str, da_data: pd.DataFrame):
     if not holding_logs:
         print("No trades to plot.")
         return
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(14, 7))
     eval_data_timeline = da_data
     plt.plot(eval_data_timeline.index, eval_data_timeline['price'], color='blue', label='Real Market Price', alpha=0.6)
     steps, _ = zip(*holding_logs)
@@ -153,7 +153,7 @@ def plot_holding(holding_logs: list, model_name: str, da_data: pd.DataFrame):
     plt.xlabel('Step')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'agent_data/{model_name}/{model_name}_hold.svg', dpi=400, format='svg')
+    plt.savefig(f'agent_data/{model_name}/{model_name}_hold.svg', dpi=1200, format='svg')
     plt.show()
 
 
@@ -170,19 +170,19 @@ def kernel_density_estimation(trade_list: list, model_name: str, da_data: pd.Dat
                          max(generated_prices + list(historic_prices)), 1000)
 
     # Create figure and plot data
-    plt.figure(figsize=(10, 6))
-    plt.plot(x_vals, generated_density(x_vals), label='Generated Prices', fill=True)
-    plt.plot(x_vals, historic_density(x_vals), label='Historic Prices', fill=True)
+    plt.figure(figsize=(14, 7))
+    plt.plot(x_vals, generated_density(x_vals), label='Generated Prices')
+    plt.plot(x_vals, historic_density(x_vals), label='Historic Prices')
     plt.title('Kernel Density Estimate of Generated and Historic Prices')
     plt.xlabel('Price')
     plt.ylabel('Density')
     plt.legend()
-    plt.savefig(f'agent_data/{model_name}/{model_name}_KDE.svg', dpi=400, format='svg')
+    plt.savefig(f'agent_data/{model_name}/{model_name}_KDE.svg', dpi=1200, format='svg')
     plt.show()
 
 
 def plot_soc_and_boundaries(soc_log, upper_bound_log, lower_bound_log, model_name: str):
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(14, 7))
     plt.plot(soc_log, label='SOC', color='blue')
     plt.plot(upper_bound_log, label='Upper Boundary', color='red', linestyle='--')
     plt.plot(lower_bound_log, label='Lower Boundary', color='green', linestyle='--')
@@ -193,5 +193,5 @@ def plot_soc_and_boundaries(soc_log, upper_bound_log, lower_bound_log, model_nam
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(f'agent_data/{model_name}/{model_name}_soc_and_boundaries.svg', dpi=400, format='svg')
+    plt.savefig(f'agent_data/{model_name}/{model_name}_soc_and_boundaries.svg', dpi=1200, format='svg')
     plt.show()
