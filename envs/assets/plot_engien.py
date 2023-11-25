@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 import seaborn as sns
+from scipy.stats import gaussian_kde
 
 from envs.assets.env_utilities import moving_average
 
@@ -16,7 +17,7 @@ def plot_reward(reward_log: list, window_size: int, model_name: str):
     :param reward_log: the reward log.
     :return:
     """
-    os.makedirs(f'img/{model_name}', exist_ok=True)
+    os.makedirs(f'agent_data/{model_name}', exist_ok=True)
     plt.figure(figsize=(10, 6))
     plt.plot(reward_log, label='Original', alpha=0.5)
     smoothed_data = moving_average(reward_log, window_size)
@@ -27,7 +28,7 @@ def plot_reward(reward_log: list, window_size: int, model_name: str):
     plt.ylabel('Reward')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'img/{model_name}/{model_name}_reward.png', dpi=400)
+    plt.savefig(f'agent_data/{model_name}/{model_name}_reward.svg', dpi=400, format='svg')
     plt.show()
 
 
@@ -48,7 +49,7 @@ def plot_savings(savings_log: list, window_size: int, model_name: str):
     plt.ylabel('Savings (€)')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'img/{model_name}/{model_name}_savings.png', dpi=400)
+    plt.savefig(f'agent_data/{model_name}/{model_name}_savings.svg', dpi=400, format='svg')
     plt.show()
 
 
@@ -78,7 +79,7 @@ def plot_charge(window_size: int, battery, model_name: str):
     plt.ylabel('Charge (kWh)')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'img/{model_name}/{model_name}_charge.png', dpi=400)
+    plt.savefig(f'agent_data/{model_name}/{model_name}_charge.svg', dpi=400, format='svg')
     plt.show()
 
 
@@ -126,7 +127,7 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
     plt.xlabel('Step')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'img/{model_name}/{model_name}_trades_timeline.png', dpi=400)
+    plt.savefig(f'agent_data/{model_name}/{model_name}_trades_timeline.svg', dpi=400, format='svg')
     plt.show()
 
 
@@ -152,24 +153,31 @@ def plot_holding(holding_logs: list, model_name: str, da_data: pd.DataFrame):
     plt.xlabel('Step')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'img/{model_name}/{model_name}_hold.png', dpi=400)
+    plt.savefig(f'agent_data/{model_name}/{model_name}_hold.svg', dpi=400, format='svg')
     plt.show()
 
 
 def kernel_density_estimation(trade_list: list, model_name: str, da_data: pd.DataFrame):
     generated_prices = [trade[3] for trade in trade_list]
-    historic_prices = da_data
+    historic_prices = da_data['price'].values
 
+    # Generate density functions
+    generated_density = gaussian_kde(generated_prices)
+    historic_density = gaussian_kde(historic_prices)
+
+    # Generate points for plotting
+    x_vals = np.linspace(min(generated_prices + list(historic_prices)),
+                         max(generated_prices + list(historic_prices)), 1000)
+
+    # Create figure and plot data
     plt.figure(figsize=(10, 6))
-    sns.kdeplot(generated_prices, label='Generated Prices', fill=True)
-    sns.kdeplot(historic_prices['price'], label='Historic Prices', fill=True)
-
+    plt.plot(x_vals, generated_density(x_vals), label='Generated Prices', fill=True)
+    plt.plot(x_vals, historic_density(x_vals), label='Historic Prices', fill=True)
     plt.title('Kernel Density Estimate of Generated and Historic Prices')
     plt.xlabel('Price')
     plt.ylabel('Density')
     plt.legend()
-
-    # Display the plot
+    plt.savefig(f'agent_data/{model_name}/{model_name}_KDE.svg', dpi=400, format='svg')
     plt.show()
 
 
@@ -185,5 +193,5 @@ def plot_soc_and_boundaries(soc_log, upper_bound_log, lower_bound_log, model_nam
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(f'img/{model_name}/{model_name}_soc_and_boundaries.png', dpi=400)
+    plt.savefig(f'agent_data/{model_name}/{model_name}_soc_and_boundaries.svg', dpi=400, format='svg')
     plt.show()

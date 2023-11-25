@@ -3,12 +3,12 @@ import argparse
 import numpy as np
 import pandas as pd
 from gymnasium import register, make
-from gymnasium.wrappers import RescaleAction
 from stable_baselines3 import SAC
 
 from cutsom_wrappers.custom_wrappers import CustomNormalizeObservation
 from envs.assets import env_utilities as utilities
 import warnings
+import json
 
 # Define and parse command-line arguments
 parser = argparse.ArgumentParser(description='Evaluate a SAC model.')
@@ -90,7 +90,7 @@ except Exception as e:
 # Register and make the environment
 # Register and make the environment
 if (args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings'
-        or args.env == 'multi_trend') or args.env == 'reward_boosting':
+    or args.env == 'multi_trend') or args.env == 'reward_boosting':
     register(id=env_id, entry_point=entry_point,
              kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': True})
 else:
@@ -162,8 +162,22 @@ print(f"Sell count: {sell_count}")
 print(f"Reserve count: {reserve_count}")
 print(f"Average reward: {(episode_rewards[0] / len(trades)):.2f}")
 print(f"Total reward: {np.sum(episode_rewards):.2f}")
-print(f"Total profit: {sum([trade[2] for trade in trades]):.2f}")
+print(f"Total profit: {eval_env.savings_log[-1]:.2f}")
 
+# write these states to a json file
+stats = {
+    "avg_price": avg_price,
+    "avg_amount": avg_amount,
+    "buy_count": buy_count,
+    "sell_count": sell_count,
+    "reserve_count": reserve_count,
+    "avg_reward": episode_rewards[0] / len(trades),
+    "total_reward": np.sum(episode_rewards),
+    "total_profit": eval_env.savings_log[-1]
+}
+
+with open(f"trade_logs/{model_name}_stats.json", "w") as f:
+    json.dump(stats, f)
 
 if args.plot:
     eval_env.render()
