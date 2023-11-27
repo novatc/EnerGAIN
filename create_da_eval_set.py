@@ -24,7 +24,7 @@ def extract_save_month_data(env_data, month):
     month_data = data_copy[(data_copy.month == month)].copy()
 
     # Check for the existence of columns before dropping
-    columns_to_drop = ['day', 'month', 'hour', 'day']
+    columns_to_drop = ['day', 'month', 'hour', 'day', 'date']
     month_data = month_data.drop(columns=[col for col in columns_to_drop if col in month_data.columns])
 
     # Set the 'price' column as the index
@@ -46,7 +46,7 @@ filtered_df = env_prl[(env_prl['date'] >= '2019-01-01') & (env_prl['date'] <= '2
 # Add a 'day' column to the dataframe
 filtered_df['day'] = filtered_df['date'].dt.day
 
-# Group by month, day, and hour, and calculate the average amount and price
+# Group by month, day, and hour, and calculate the average amount and price but keep the date column
 average_year_df_detailed = filtered_df.groupby(['month', 'day', 'hour']).agg(
     {'price': 'mean', 'consumption': 'mean', 'prediction': 'mean'}).reset_index()
 
@@ -58,6 +58,11 @@ average_year_df_detailed['day_cos'] = np.cos(average_year_df_detailed['day'] * (
 average_year_df_detailed['hour_sin'] = np.sin(average_year_df_detailed['hour'] * (2. * np.pi / 24))
 average_year_df_detailed['hour_cos'] = np.cos(average_year_df_detailed['hour'] * (2. * np.pi / 24))
 
+# create new date column
+average_year_df_detailed['date'] = pd.to_datetime(average_year_df_detailed[['month', 'day', 'hour']].assign(year=2020))
+
+
+average_year_df_detailed.to_csv('data/in-use/average_da_year.csv', index=False)
 # Sort the dataframe in chronological order (by month, day, and hour)
 average_year_df_detailed = average_year_df_detailed.sort_values(by=['month', 'day', 'hour'])
 
@@ -65,6 +70,6 @@ for i in range(1, 13):
     extract_save_month_data(average_year_df_detailed, i)
 
 # Drop the 'month', 'day', and 'hour' columns
-average_year_df_detailed.drop(['month', 'day', 'hour'], axis=1, inplace=True)
+average_year_df_detailed.drop(['month', 'day', 'hour', 'date'], axis=1, inplace=True)
 
 average_year_df_detailed.to_csv('data/in-use/eval_data/average_da_year.csv', index=False)
