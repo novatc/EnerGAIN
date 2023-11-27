@@ -68,7 +68,7 @@ class MultiMarket(gym.Env):
         self.upper_bound = self.battery.capacity
         self.lower_bound = 0
 
-        self.trade_threshold = 10
+        self.trade_threshold = 50
 
     def step(self, action):
         """

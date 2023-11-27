@@ -36,7 +36,7 @@ class NoSavingsEnv(gym.Env):
         self.window_size = 5
         self.penalty = -30
 
-        self.trade_threshold = 10
+        self.trade_threshold = 50
 
         self.validation = validation
 
