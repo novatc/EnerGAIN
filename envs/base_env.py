@@ -33,7 +33,7 @@ class BaseEnv(gym.Env):
         self.window_size = 5
         self.penalty = -10
 
-        self.trade_threshold = 10
+        self.trade_threshold = 50
 
         self.validation = validation
 
@@ -54,8 +54,8 @@ class BaseEnv(gym.Env):
         # Handle DA trade or holding
         if -self.trade_threshold < amount < self.trade_threshold:
             reward += self.handle_holding()
-
-        reward += self.perform_da_trade(energy_amount=amount, market_price=price)
+        else:
+            reward += self.perform_da_trade(energy_amount=amount, market_price=price)
 
         self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
         info = {'current_price': self.day_ahead.get_current_price(),
