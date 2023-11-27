@@ -22,16 +22,26 @@ class BasePRL(gym.Env):
         min_array = np.concatenate((da_low_boundary, prl_low_boundary))
         max_array = np.concatenate((da_high_boundary, prl_high_boundary))
 
-        action_low = np.array([-1, 0, 0, 0, -2500.0])  # prl choice, prl price, prl amount, da price, da amount
-        action_high = np.array([1, 1.0, 5000, 1, 2500.0])  # prl choice, prl price, prl amount, da price, da amount
+        # adding one more entry for the prl cooldown. The cooldown is the number of steps the agent has to wait until
+        # it can participate in the PRL market again, representing the 4-hour block per trade
+        observation_high = np.append(max_array, [4])
+        observation_low = np.append(min_array, [0])
+
+        # +3 for prl cooldown, upper & lower bounds
+        obs_shape = (self.da_dataframe.shape[1] + self.prl_dataframe.shape[1] + 3,)
+
+        action_low = np.array([-1, 0, 0, 0, -1000.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_high = np.array([1, 1.0, 500, 1, 1000.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=min_array, high=max_array,
-                                            shape=(self.da_dataframe.shape[1] + self.prl_dataframe.shape[1],))
+        self.observation_space = spaces.Box(low=np.append(observation_low, [0, 0]),  # Add 0 for lower and upper bounds
+                                            high=np.append(observation_high, [1000, 1000]),
+                                            # Assuming 1000 is the max bound
+                                            shape=obs_shape)
 
         self.day_ahead = DayAhead(self.da_dataframe)
         self.prl = FrequencyContainmentReserve(self.prl_dataframe)
-        self.battery = Battery(5000, 2500)
+        self.battery = Battery(1000, 500)
         self.savings = 50  # €
         self.savings_log = []
 
@@ -40,10 +50,14 @@ class BasePRL(gym.Env):
         self.holding = []
         self.prl_trades = []
 
+        self.soc_log = []  # To keep track of SOC values over time
+        self.upper_bound_log = []  # To keep track of upper boundaries over time
+        self.lower_bound_log = []
+
         self.rewards = []
         self.reward_log = []
-        self.window_size = 20
-        self.penalty = -5
+        self.window_size = 5
+        self.penalty = -30
 
         self.validation = validation
 
@@ -53,6 +67,8 @@ class BasePRL(gym.Env):
         self.reserve_amount = 0
         self.upper_bound = self.battery.capacity
         self.lower_bound = 0
+
+        self.trade_threshold = 10
 
     def step(self, action):
         """
@@ -71,12 +87,13 @@ class BasePRL(gym.Env):
                  - A dictionary containing additional information about the current state.
 
         """
+        should_truncated = False
         if self.validation:
             self.day_ahead.step()
             self.prl.step()
         else:
             # make sure the two markets are always in sync
-            self.prl.random_walk()
+            should_truncated = self.prl.random_walk(24 * 7)
             current_step = self.prl.get_current_step()
             self.day_ahead.set_step(current_step)
 
@@ -85,22 +102,28 @@ class BasePRL(gym.Env):
         reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
-        truncated = False  # this can be false all the time since there is no failure condition the agent could trigger
-        prl_criteria = (self.battery.capacity / amount_prl) > 1
+        truncated = should_truncated
 
+        # Reset boundaries if PRL cooldown has expired
         if self.prl_cooldown == 0:
             self.upper_bound = self.battery.capacity
             self.lower_bound = 0
+            self.battery.charge(self.reserve_amount)
+            self.reserve_amount = 0
+
+        # Penalty for crossing the battery bounds
+        if not self.lower_bound < self.battery.get_soc() < self.upper_bound:
+            reward += self.penalty
 
         # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
-        if self.check_prl_constraints(prl_choice) and prl_criteria and self.check_boundaries(amount_prl):
+        if self.check_prl_constraints(prl_choice) and self.check_boundaries(amount_prl):
             reward = self.perform_prl_trade(price_prl, amount_prl)
 
         # the agent chooses to trade on the DA market outside the 4-hour block
+        amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
         if prl_choice < 0 and self.prl_cooldown <= 0:
-            reward = self.perform_da_trade(amount_da=amount_da, price_da=price_da)
+            reward = self.perform_da_trade(amount_da, price_da)
 
-        self.rewards.append(reward)
         self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
         self.prl_cooldown = max(0, self.prl_cooldown - 1)  # Ensure it doesn't go below 0
 
@@ -116,6 +139,55 @@ class BasePRL(gym.Env):
                 'reward': reward
                 }
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
+
+    def is_trade_valid(self, price, amount, trade_type):
+        """
+        Check if a trade is valid, i.e. if the battery can handle the trade and if the agent has enough savings.
+
+        :param price: (float) The price at which the trade is attempted.
+        :param amount: (float) The amount of energy to be traded. Positive values indicate buying or charging,
+                       and negative values indicate selling or discharging.
+        :param trade_type: (str) Type of trade to execute, accepted values are 'buy' or 'sell'.
+
+        :return: (bool) True if the trade is valid, False otherwise.
+        """
+        if trade_type == 'buy':
+            if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
+                self.log_trades(False, 'buy', price, amount, self.penalty,
+                                'savings' if self.savings <= 0 else 'battery')
+                return False
+        elif trade_type == 'sell':
+            if self.battery.can_discharge(amount) is False:
+                self.log_trades(False, 'sell', price, amount, self.penalty, 'battery')
+                return False
+        else:
+            raise ValueError(f"Invalid trade type: {trade_type}")
+
+        return True
+
+    def clip_trade_amount(self, amount, trade_type):
+        """
+        Clips the trade amount to ensure that the state of charge remains within the bounds.
+
+        :param amount: (float) The amount of energy to be traded.
+        :param trade_type: (str) Type of trade to execute, accepted values are 'buy' or 'sell'.
+        :return: (float) The clipped amount of energy that can be safely traded.
+        """
+        new_amount = amount
+        if trade_type == 'buy':
+            potential_soc = self.battery.get_soc() + amount
+            if not (self.lower_bound < potential_soc < self.upper_bound):
+                new_amount = min(amount, self.upper_bound - self.battery.get_soc())
+                # print(f"Clipped buy amount from {amount} to {new_amount}")
+        elif trade_type == 'sell':
+            potential_soc = self.battery.get_soc() - amount
+            if not (self.lower_bound < potential_soc < self.upper_bound):
+                new_amount = max(amount, self.battery.get_soc() - self.upper_bound)
+                # print(f"Clipped sell amount from {amount} to {new_amount}")
+        else:
+            raise ValueError(f"Invalid trade type: {trade_type}")
+
+        return new_amount
 
     def set_boundaries(self, amount_prl):
         """Set boundaries based on PRL amount."""
@@ -134,92 +206,111 @@ class BasePRL(gym.Env):
             return True
         return False
 
-    def perform_da_trade(self, amount_da: float, price_da: float) -> float:
+    def perform_da_trade(self, energy_amount: float, market_price: float) -> float:
         """
-        Perform a trade on the day ahead market.
-        :param amount_da: the amount of energy to be traded
-        :param price_da: the price at which the trade is attempted
-        :return: reward for the agent based on the trade outcome
+        Perform a trade on the day-ahead market.
+
+        :param energy_amount: Energy to be traded (positive for buying, negative for selling).
+        :param market_price: Price at which the trade is attempted.
+        :return: Reward based on the trade outcome.
         """
-        reward = 0
-        if amount_da > 0:  # buy
-            reward = self.trade(price_da, amount_da, 'buy')
+        return self.trade(market_price, energy_amount, 'buy' if energy_amount > 0 else 'sell')
 
-        if amount_da < 0:  # sell
-            reward = self.trade(price_da, amount_da, 'sell')
-
-        if amount_da == 0:  # if amount is 0
-            reward = 5
-            self.holding.append((self.day_ahead.get_current_step(), 'hold'))
-
-        return reward
-
-    def trade(self, price, amount, trade_type) -> float:
+    def trade(self, price, amount, trade_type):
         """
-        Execute a trade in the market.
+        Execute a trade (buy/sell) and update the battery status and logs accordingly.
 
-        :param price: Price at which trade is attempted
-        :param amount: Amount of energy being traded
-        :param trade_type: Type of trade - 'buy' or 'sell'
-        :return: Reward for the agent based on trade outcome
+        :param price: (float) The price at which the trade is attempted.
+        :param amount: (float) The amount of energy to be traded. Positive values indicate buying or charging,
+                       and negative values indicate selling or discharging.
+        :param trade_type: (str) Type of trade to execute, accepted values are 'buy' or 'sell'.
+
+        :return: (float) Absolute value of the traded energy amount multiplied by the current market price.
+                  Returns a penalty (self.penalty) if the trade is invalid or not accepted.
+
+        :raises ValueError: If `trade_type` is neither 'buy' nor 'sell'.
         """
-        if trade_type == 'buy':
-            if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
-                return self.penalty
-        elif trade_type == 'sell':
-            if self.battery.can_discharge(amount) is False:
-                return self.penalty
-        else:
+        if trade_type not in ['buy', 'sell']:
             raise ValueError(f"Invalid trade type: {trade_type}")
-        if self.day_ahead.accept_offer(price, trade_type):
-            # this works for both buy and sell because amount is negative for sale and + and - cancel out and fot buy
-            # amount is positive
-            self.battery.charge(amount)
-            # the same applies here for savings
-            self.savings -= self.day_ahead.get_current_price() * amount
 
-            # updating the logs
-            self.battery.add_charge_log(self.battery.get_soc())
-            self.savings_log.append(self.savings)
-            self.trade_log.append((self.day_ahead.get_current_step(), price, amount, trade_type,
-                                   abs(float(self.day_ahead.get_current_price()) * amount)))
-        else:
-            self.invalid_trades.append((self.day_ahead.get_current_step(), price, amount, trade_type,
-                                        abs(float(self.day_ahead.get_current_price()) * amount)))
+        # Check if the trade is valid
+        if not self.is_trade_valid(price, amount, trade_type):
             return self.penalty
 
-        return float(self.day_ahead.get_current_price()) * amount
+        return self.execute_trade(price, amount, trade_type)
+
+    def execute_trade(self, price, amount, trade_type):
+        """
+        Execute the validated trade and update the system status.
+
+        :param price: Price at which the trade is executed.
+        :param amount: Amount of energy involved in the trade.
+        :param trade_type: 'buy' or 'sell'.
+        :return: Profit (or loss) from the trade.
+        """
+        current_price = self.day_ahead.get_current_price()
+        profit = 0
+        if self.day_ahead.accept_offer(price, trade_type):
+            if trade_type == 'buy':
+                self.battery.charge(amount)  # Charge battery for buy trades
+                self.savings -= current_price * amount  # Update savings
+                profit = -current_price * amount  # Negative profit for buying
+
+            elif trade_type == 'sell':
+                self.battery.charge(amount)  # Discharge battery for sell trades
+                self.savings += current_price * abs(amount)  # Update savings
+                profit = current_price * abs(amount)  # Positive profit for selling
+        else:
+            self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
+            return self.penalty
+
+        # Logging the trade details
+        self.battery.add_charge_log(self.battery.get_soc())
+        self.savings_log.append(self.savings)
+        self.log_trades(True, trade_type, price, amount, profit, 'accepted')
+
+        return profit
 
     def perform_prl_trade(self, price, amount) -> float:
         """
-        Attempt to participate in the PRL market.
+        Attempt to participate in the PRL market. It's a pay as bid market,
+         so the agent will always get the price it offered.
         :param price: Offer price
         :param amount: Amount of energy being offered
         """
         # Check if the offer is accepted by the prl market and the battery can adhere to prl constraints
         if self.prl.accept_offer(price):
             # Update savings based on the transaction in prl market
-            self.savings += (self.prl.get_current_price() * amount) * 4
-            # Set cooldown and reserve amount since participation was successful
-            self.prl_cooldown = 4
-            # Immediately update boundaries after a successful PRL trade
-            self.set_boundaries(amount)
+            self.savings += (price * amount)
             self.battery.charge_log.append(self.battery.get_soc())
             self.savings_log.append(self.savings)
-            # add the next four hours to the trade look. They should be equal to each other and just differ from the
+            self.battery.discharge(amount)
+            self.reserve_amount = amount
+            # add the next four hours to the trade log. They should be equal to each other and just differ from the
             # step value
             for i in range(4):
                 trade_info = (
                     self.prl.get_current_step() + i,
+                    'reserve',
+                    self.prl.get_current_price(),
                     price,
                     amount,
-                    'reserve',
-                    abs(float((self.prl.get_current_price() * amount) * 4))
+                    price * amount,
+                    'prl accepted'
                 )
                 self.trade_log.append(trade_info)
-            return (self.prl.get_current_price() * amount) * 4
+
+            self.set_boundaries(amount)
+            self.prl_cooldown = 4
+
+            return float(price * amount)
         else:
             return self.penalty
+
+    def handle_holding(self):
+        # Logic for handling the holding scenario
+        self.holding.append((self.day_ahead.get_current_step(), 'hold'))
+        return 1
 
     def get_observation(self) -> np.array:
         """
@@ -230,7 +321,9 @@ class BasePRL(gym.Env):
         observation = np.concatenate((self.da_dataframe.iloc[self.day_ahead.get_current_step()].to_numpy(dtype=float),
                                       self.prl_dataframe.iloc[self.prl.get_current_step()].to_numpy(dtype=float)))
 
-        return observation
+        # Append the current SOC boundaries to the observation
+        return np.append(observation, [self.prl_cooldown, self.lower_bound, self.upper_bound])
+
 
     def reset(self, seed=None, options=None) -> np.array:
         """
@@ -252,15 +345,16 @@ class BasePRL(gym.Env):
         :param mode:
         :return:
         """
-        kernel_density_estimation(self.trade_log)
-        plot_reward(self.reward_log, self.window_size, 'base')
-        plot_savings(self.savings_log, self.window_size, 'base')
-        plot_charge(self.window_size, self.battery, 'base')
+        plot_reward(self.reward_log, self.window_size, 'base_prl')
+        plot_savings(self.savings_log, self.window_size, 'base_prl')
+        plot_charge(self.window_size, self.battery, 'base_prl')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
-                             model_name='base')
+                             model_name='base_prl', data=self.da_dataframe)
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='base')
-        plot_holding(self.holding, 'base')
+                             sell_color='brown', model_name='base_prl', data=self.da_dataframe)
+        plot_holding(self.holding, 'base_prl', da_data=self.da_dataframe)
+        plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'base_prl')
+        kernel_density_estimation(self.trade_log, 'base_prl', da_data=self.da_dataframe)
 
     def get_trades(self) -> list:
         """
@@ -275,3 +369,31 @@ class BasePRL(gym.Env):
         :return: list of tuples
         """
         return self.prl_trades
+
+    def get_invalid_trades(self) -> list:
+        """
+        Returns the trade log
+        :return: list of tuples
+        """
+        return self.invalid_trades
+
+    def log_trades(self, valid: bool, type: str, offered_price: float, amount: float, reward: float,
+                   case: str) -> None:
+        """
+        Log the trades
+        :param type: the trade type
+        :param valid: if the trade was accepted or not
+        :param offered_price: the offered price
+        :param amount: the trade amount
+        :param reward: the reward based on the offer
+        :param case: if not valid, why
+        :return: None
+        """
+        if valid:
+            self.trade_log.append(
+                (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
+                 reward, case))
+        else:
+            self.invalid_trades.append(
+                (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
+                 reward, case))
