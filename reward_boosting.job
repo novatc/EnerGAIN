@@ -3,10 +3,12 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --mem=8G
+#SBATCH --gres=gpu:1
+#SBATCH --partition=rose.p
 #SBATCH --time=0-10:00
 #SBATCH --output=slurm.%j.out
 #SBATCH --error=slurm.%j.err
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=lucas.wagner@uol.de
 
-python ../main.py --training_steps 500_000 --env base --save
+python main.py --training_steps 500_000 --env reward_boosting --save

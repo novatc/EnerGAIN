@@ -9,4 +9,4 @@
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=lucas.wagner@uol.de
 
-python ../main.py --training_steps 500_000 --env no_savings --save
+python main.py --training_steps 500_000 --env no_savings --save
