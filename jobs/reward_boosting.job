@@ -11,4 +11,4 @@
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=lucas.wagner@uol.de
 
-python main.py --training_steps 500_000 --env reward_boosting --save
+python ../main.py --training_steps 500_000 --env reward_boosting --save
