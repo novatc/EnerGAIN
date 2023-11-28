@@ -112,7 +112,7 @@ class FrequencyContainmentReserve:
         :return: True if the offer is accepted, False otherwise.
         """
         current_price = self.get_current_price()
-        if offer_price > current_price:
+        if offer_price < current_price:
             return True
         else:
             return False
