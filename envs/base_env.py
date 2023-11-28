@@ -31,7 +31,7 @@ class BaseEnv(gym.Env):
 
         self.reward_log = []
         self.window_size = 5
-        self.penalty = -10
+        self.penalty = -30
 
         self.trade_threshold = 10
 
