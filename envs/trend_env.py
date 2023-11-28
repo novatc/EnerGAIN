@@ -207,7 +207,7 @@ class TrendEnv(gym.Env):
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
                              model_name='trend', data=self.da_dataframe)
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='base', data=self.da_dataframe)
+                             sell_color='brown', model_name='trend', data=self.da_dataframe)
         plot_holding(self.holding, 'trend', da_data=self.da_dataframe)
         kernel_density_estimation(self.trade_log, model_name='trend', da_data=self.da_dataframe)
 
