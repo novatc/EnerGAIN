@@ -74,7 +74,7 @@ os.makedirs('logging', exist_ok=True)
 
 # Register and make the environment
 if (args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings'
-        or args.env == 'multi_trend' or args.env == 'reward_boosting'):
+        or args.env == 'multi_trend'):
     register(id=env_id, entry_point=entry_point,
              kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': True})
 else:
