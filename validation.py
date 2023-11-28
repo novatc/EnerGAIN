@@ -57,8 +57,7 @@ env_params = {
                     'data_path_prl': validation_prl_data_path,
                     'data_path_da': validation_da_data_path},
 
-    'reward_boosting': {'id': 'reward_boosting-v0', 'entry_point': 'envs.reward_boosting:RewardBoosting',
-                        'data_path_prl': validation_prl_data_path,
+    'reward_boosting': {'id': 'reward_boosting-v0', 'entry_point': 'envs.base_boost:BaseBoost',
                         'data_path_da': validation_da_data_path}
 }
 

@@ -1,53 +1,37 @@
 import gymnasium as gym
-import pandas as pd
 from gymnasium import spaces
-import numpy as np
 
 from envs.assets.battery import Battery
 from envs.assets.dayahead import DayAhead
-from envs.assets.plot_engien import plot_reward, plot_savings, plot_charge, plot_trades_timeline, plot_holding, \
-    kernel_density_estimation
+from envs.assets.plot_engien import *
 
 
-class TrendEnv(gym.Env):
-    def __init__(self, da_data_path, validation=False):
-        super(TrendEnv, self).__init__()
+class BaseBoost(gym.Env):
+    def __init__(self, da_data_path: str, validation=False):
+        super(BaseBoost, self).__init__()
         self.da_dataframe = pd.read_csv(da_data_path)
-        self.trend_horizon = 8
 
         low_boundary = self.da_dataframe.min().values
 
         high_boundary = self.da_dataframe.max().values
 
-        low_boundary = np.tile(low_boundary, self.trend_horizon)  # repeat the array 4 times to match the obs space
-        high_boundary = np.tile(high_boundary, self.trend_horizon)
-
-        # add 10 to each value in the high boundary to make sure the agent can't reach the upper boundary
-        high_boundary += 10
-
-        action_low = np.array([0.0, -1000.0])
-        action_high = np.array([1.0, 1000.0])
-
+        action_low = np.array([0.0, -1000.0])  # price, amount
+        action_high = np.array([1.0, 1000.0])  # price, amount
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-low_boundary, high=high_boundary,
-                                            shape=((self.da_dataframe.shape[1]) * self.trend_horizon,))
+        self.observation_space = spaces.Box(low=low_boundary, high=high_boundary, shape=(self.da_dataframe.shape[1],))
 
         self.day_ahead = DayAhead(self.da_dataframe)
-        self.savings = 50  # €
         self.battery = Battery(1000, 500)
-        self.battery.add_charge_log(self.battery.get_soc())
-
+        self.savings = 50  # €
         self.savings_log = []
-        self.savings_log.append(self.savings)
 
         self.trade_log = []
         self.invalid_trades = []
         self.holding = []
 
-        self.rewards = []
         self.reward_log = []
         self.window_size = 5
-        self.penalty = -30
+        self.penalty = -10
 
         self.trade_threshold = 50
 
@@ -59,20 +43,21 @@ class TrendEnv(gym.Env):
             self.day_ahead.step()
         else:
             should_truncated = self.day_ahead.random_walk(24 * 7)
-        reward = 0
 
         price, amount = action
 
+        reward = -1
+
         terminated = False  # Whether the agent reaches the terminal state
-        truncated = should_truncated  # this can be Fasle all the time since there is no failure condition the agent could trigger
+        truncated = should_truncated  # this can be false all the time since there is no failure condition the agent could trigger
 
         # Handle DA trade or holding
         if -self.trade_threshold < amount < self.trade_threshold:
             reward += self.handle_holding()
+        else:
+            reward += self.perform_da_trade(energy_amount=amount, market_price=price)
 
-        reward += self.perform_da_trade(energy_amount=amount, market_price=price)
-        self.reward_log.append(
-            (self.reward_log[-1] + reward) if self.reward_log else reward)  # to keep track of the reward over time
+        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
         info = {'current_price': self.day_ahead.get_current_price(),
                 'current_step': self.day_ahead.get_current_step(),
                 'savings': self.savings,
@@ -80,7 +65,6 @@ class TrendEnv(gym.Env):
                 'action_price': price,
                 'action_amount': amount,
                 }
-        # Return the current state of the environment as a numpy array, the reward,
         return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
     def is_trade_valid(self, price, amount, trade_type):
@@ -158,10 +142,23 @@ class TrendEnv(gym.Env):
                 self.savings -= current_price * amount  # Update savings
                 profit = -current_price * amount  # Negative profit for buying
 
+                # If the offered price is lower than the average price,
+                # add 10 to the profit to incentive buying at lower prices
+                if price < self.day_ahead.get_average_price():
+                    # boost profit with the difference between the offered price and the average price
+                    difference = self.day_ahead.get_average_price() - price
+                    profit += difference
+
             elif trade_type == 'sell':
                 self.battery.charge(amount)  # Discharge battery for sell trades
                 self.savings += current_price * abs(amount)  # Update savings
                 profit = current_price * abs(amount)  # Positive profit for selling
+
+                # if the offered price is higher than the average price,
+                # add difference to the profit to incentive selling at higher prices
+                if price > self.day_ahead.get_average_price():
+                    difference = price - self.day_ahead.get_average_price()
+                    profit += difference
         else:
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
             return self.penalty
@@ -176,12 +173,16 @@ class TrendEnv(gym.Env):
     def handle_holding(self):
         # Logic for handling the holding scenario
         self.holding.append((self.day_ahead.get_current_step(), 'hold'))
-        return 5
+        return 1
 
     def get_observation(self):
+        """
+        Returns the current state of the environment
+        :return: the current state of the environment as a numpy array
+        """
         # Return the current state of the environment as a numpy array
-        trend_data = self.day_ahead.previous_hours(self.trend_horizon)
-        return trend_data
+        observation = self.da_dataframe.iloc[self.day_ahead.get_current_step()].to_numpy()
+        return observation
 
     def reset(self, seed=None, options=None):
         """
@@ -193,7 +194,8 @@ class TrendEnv(gym.Env):
         self.savings = 50
         self.battery.reset()
         self.day_ahead.reset()
-        return self.get_observation().astype(np.float32), {}
+        observation = self.get_observation().astype(np.float32)
+        return observation, {}
 
     def render(self, mode='human'):
         """
@@ -201,15 +203,15 @@ class TrendEnv(gym.Env):
         :param mode:
         :return:
         """
-        plot_reward(self.reward_log, self.window_size, 'trend')
-        plot_savings(self.savings_log, self.window_size, 'trend')
-        plot_charge(self.window_size, self.battery, 'trend')
+        plot_reward(self.reward_log, self.window_size, 'base')
+        plot_savings(self.savings_log, self.window_size, 'base')
+        plot_charge(self.window_size, self.battery, 'base')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
-                             model_name='trend', data=self.da_dataframe)
+                             model_name='base', data=self.da_dataframe)
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='trend', data=self.da_dataframe)
-        plot_holding(self.holding, 'trend', da_data=self.da_dataframe)
-        kernel_density_estimation(self.trade_log, model_name='trend', da_data=self.da_dataframe)
+                             sell_color='brown', model_name='base', data=self.da_dataframe)
+        plot_holding(self.holding, 'base', da_data=self.da_dataframe)
+        kernel_density_estimation(self.trade_log, model_name='base', da_data=self.da_dataframe)
 
     def get_trades(self):
         """
@@ -241,4 +243,3 @@ class TrendEnv(gym.Env):
             self.invalid_trades.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
                  reward, case))
-
