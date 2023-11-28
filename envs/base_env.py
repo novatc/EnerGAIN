@@ -33,7 +33,7 @@ class BaseEnv(gym.Env):
         self.window_size = 5
         self.penalty = -10
 
-        self.trade_threshold = 20
+        self.trade_threshold = 10
 
         self.validation = validation
 
