@@ -1,0 +1,12 @@
+#!/bin/bash
+
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --mem=8G
+#SBATCH --time=0-10:00
+#SBATCH --output=slurm.%j.out
+#SBATCH --error=slurm.%j.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=lucas.wagner@uol.de
+
+python main.py --training_steps 1_000_000 --env base_prl --save
