@@ -148,7 +148,7 @@ try:
 except ZeroDivisionError:
     avg_price = 0
 try:
-    avg_amount = sum([trade[4] for trade in trades]) / len(trades)
+    avg_amount = sum([abs(trade[4]) for trade in trades]) / len(trades)
 except ZeroDivisionError:
     avg_amount = 0
 
