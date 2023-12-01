@@ -41,7 +41,7 @@ def plot_savings(savings_log: list, window_size: int, model_name: str):
     :return:
     """
     plt.figure(figsize=(14, 7))
-    plt.plot(savings_log, label='Original', alpha=0.5)
+    plt.plot(savings_log, label='Kapital', alpha=0.5)
     smoothed_data = moving_average(savings_log, window_size)
     smoothed_steps = np.arange(window_size - 1, len(savings_log))
     plt.title('Savings Over Time')

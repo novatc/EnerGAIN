@@ -213,6 +213,9 @@ class NoSavingsEnv(gym.Env):
     def get_invalid_trades(self):
         return self.invalid_trades
 
+    def get_holdings(self):
+        return self.holding
+
     def log_trades(self, valid: bool, type: str, offered_price: float, amount: float, reward: float,
                    case: str) -> None:
         """

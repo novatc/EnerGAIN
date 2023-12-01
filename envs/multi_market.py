@@ -398,6 +398,9 @@ class MultiMarket(gym.Env):
         """
         return self.prl_trades
 
+    def get_holdings(self):
+        return self.holding
+
     def log_trades(self, valid: bool, type: str, offered_price: float, amount: float, reward: float,
                    case: str) -> None:
         """
