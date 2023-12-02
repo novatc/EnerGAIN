@@ -161,3 +161,6 @@ class DayAhead:
 
     def set_current_price(self, price):
         self.current_price = price
+
+    def get_max_steps(self):
+        return len(self.dataset)
