@@ -2,10 +2,10 @@ import os
 import time
 import argparse
 
-import numpy as np
-from stable_baselines3.common.env_checker import check_env
 from gymnasium import register
 from gymnasium import make
+
+from callbacks.summary_writer import SummaryWriterCallback
 from cutsom_wrappers.custom_wrappers import CustomNormalizeObservation
 from gymnasium.wrappers import NormalizeReward
 from gymnasium.wrappers import RescaleAction
@@ -95,9 +95,10 @@ except Exception as e:
 start_time = time.time()  # Get the current time
 
 # Create and train model
-model = SAC("MlpPolicy", env, verbose=0, device='cuda')
+model = SAC("MlpPolicy", env, verbose=0, device='mps', tensorboard_log='logging/'
+                                                                       'tensorboard_logs/')
 print(f'Training device: {model.device}')
-model.learn(total_timesteps=args.training_steps)
+model.learn(total_timesteps=args.training_steps, callback=SummaryWriterCallback())
 now = time.strftime("%d.%m-%H-%M")
 if args.save:
     model.save(f"agents/sac_{args.env}_{args.training_steps / 1000}k_{now}.zip")
