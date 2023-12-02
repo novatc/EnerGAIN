@@ -194,9 +194,9 @@ class BaseEnv(gym.Env):
         plot_savings(self.savings_log, self.window_size, 'base')
         plot_charge(self.window_size, self.battery, 'base')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
-                             model_name='base', data=self.da_dataframe)
+                             model_name='base', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='base', data=self.da_dataframe)
+                             sell_color='brown', model_name='base', data=self.da_dataframe, plot_name='invalid_trades')
         plot_holding(self.holding, 'base', da_data=self.da_dataframe)
         kernel_density_estimation(self.trade_log, model_name='base', da_data=self.da_dataframe)
 

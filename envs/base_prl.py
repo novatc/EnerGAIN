@@ -349,9 +349,9 @@ class BasePRL(gym.Env):
         plot_savings(self.savings_log, self.window_size, 'base_prl')
         plot_charge(self.window_size, self.battery, 'base_prl')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
-                             model_name='base_prl', data=self.da_dataframe)
+                             model_name='base_prl', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='base_prl', data=self.da_dataframe)
+                             sell_color='brown', model_name='base_prl', data=self.da_dataframe, plot_name='invalid_trades')
         plot_holding(self.holding, 'base_prl', da_data=self.da_dataframe)
         plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'base_prl')
         kernel_density_estimation(self.trade_log, 'base_prl', da_data=self.da_dataframe)

@@ -370,9 +370,9 @@ class MultiMarket(gym.Env):
         plot_savings(self.savings_log, self.window_size, 'multi')
         plot_charge(self.window_size, self.battery, 'multi')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
-                             model_name='multi', data=self.da_dataframe)
+                             model_name='multi', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='multi', data=self.da_dataframe)
+                             sell_color='brown', model_name='multi', data=self.da_dataframe, plot_name='invalid_trades')
         plot_holding(self.holding, 'multi', da_data=self.da_dataframe)
         plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'multi')
         kernel_density_estimation(self.trade_log, 'multi', da_data=self.da_dataframe)
