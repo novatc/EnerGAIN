@@ -76,9 +76,12 @@ def plot_charge(window_size: int, battery, model_name: str):
     plt.show()
 
 
-def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_color: str, model_name: str, data: pd.DataFrame):
+def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_color: str,
+                         model_name: str, data: pd.DataFrame, plot_name: str):
     """
     Plot the given trades over time.
+    :param plot_name:
+    :param data:
     :param trade_source: list of trades, could be valid or invalid trades
     :param title: name for the plot
     :param buy_color:  color for buy trades
@@ -120,7 +123,7 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
     plt.xlabel('Schritt')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'agent_data/{model_name}/{model_name}_trades_timeline.svg', dpi=1200, format='svg')
+    plt.savefig(f'agent_data/{model_name}/{model_name}_{plot_name}_timeline.svg', dpi=1200, format='svg')
     plt.show()
 
 
