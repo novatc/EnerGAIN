@@ -22,8 +22,8 @@ def plot_reward(reward_log: list, window_size: int, model_name: str):
     plt.plot(reward_log, label='Original', alpha=0.5)
     smoothed_data = moving_average(reward_log, window_size)
     smoothed_steps = np.arange(window_size - 1, len(reward_log))
-    plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {window_size})')
-    plt.title('Reward Over Time')
+    plt.plot(smoothed_steps, smoothed_data, label=f'Durchschnitt (n = {window_size})')
+    plt.title('Reward über die Zeit')
     plt.xlabel('Steps')
     plt.ylabel('Reward')
     plt.legend()
@@ -44,9 +44,9 @@ def plot_savings(savings_log: list, window_size: int, model_name: str):
     plt.plot(savings_log, label='Kapital', alpha=0.5)
     smoothed_data = moving_average(savings_log, window_size)
     smoothed_steps = np.arange(window_size - 1, len(savings_log))
-    plt.title('Savings Over Time')
-    plt.xlabel('Number of trades')
-    plt.ylabel('Savings (€)')
+    plt.title('Kapital über die Zeit')
+    plt.xlabel('Anzahl der Handelssignale')
+    plt.ylabel('Kapital (€)')
     plt.legend()
     plt.tight_layout()
     plt.savefig(f'agent_data/{model_name}/{model_name}_savings.svg', dpi=1200, format='svg')
@@ -65,18 +65,11 @@ def plot_charge(window_size: int, battery, model_name: str):
     charge_log = battery.get_charge_log()
 
     # Original data
-    plt.plot(charge_log, label='Original', alpha=0.5)
+    plt.plot(charge_log, label='SOC', alpha=0.5)
 
-    # Smoothed data
-    smoothed_data = moving_average(charge_log, window_size)
-    smoothed_steps = np.arange(window_size - 1,
-                               len(charge_log))  # Adjust the x-axis for the smoothed data
-
-    plt.plot(smoothed_steps, smoothed_data, label=f'Smoothed (window size = {window_size})')
-
-    plt.title('Charge Over Time')
-    plt.xlabel('Number of trades')
-    plt.ylabel('Charge (kWh)')
+    plt.title('SOC über die Zeit')
+    plt.xlabel('Anzahl der Handelssignale')
+    plt.ylabel('SOC')
     plt.legend()
     plt.tight_layout()
     plt.savefig(f'agent_data/{model_name}/{model_name}_charge.svg', dpi=1200, format='svg')
@@ -109,22 +102,22 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
         return
 
     # Plot real market prices from evaluation dataset
-    plt.plot(eval_data_df.index, eval_data_df['price'], color='blue', label='Real Market Price', alpha=0.6)
+    plt.plot(eval_data_df.index, eval_data_df['price'], color='blue', label='Marktpreis', alpha=0.6)
 
     # Plot trade data if available
     if buys:
         buy_steps, _, _, buy_prices, _, _, _ = zip(*buys)
-        plt.scatter(buy_steps, buy_prices, c=buy_color, marker='o', label='Buy', alpha=0.6, s=10)
+        plt.scatter(buy_steps, buy_prices, c=buy_color, marker='o', label='Kaufen', alpha=0.6, s=10)
     if sells:
         sell_steps, _, _, sell_prices, _, _, _ = zip(*sells)
-        plt.scatter(sell_steps, sell_prices, c=sell_color, marker='x', label='Sell', alpha=0.6, s=10)
+        plt.scatter(sell_steps, sell_prices, c=sell_color, marker='x', label='Verkaufen', alpha=0.6, s=10)
     if reserve:
         reserve_steps, _, _, reserve_price, _, _, _ = zip(*reserve)
         plt.scatter(reserve_steps, reserve_price, c='darkgoldenrod', marker='s', label='Reserve', alpha=0.6, s=10)
 
     plt.title(title + f' ({total_trades} trades)')
-    plt.ylabel('Price (€/kWh)')
-    plt.xlabel('Step')
+    plt.ylabel('Preis (€/kWh)')
+    plt.xlabel('Schritt')
     plt.legend()
     plt.tight_layout()
     plt.savefig(f'agent_data/{model_name}/{model_name}_trades_timeline.svg', dpi=1200, format='svg')
@@ -148,9 +141,9 @@ def plot_holding(holding_logs: list, model_name: str, da_data: pd.DataFrame):
     steps, _ = zip(*holding_logs)
     plt.scatter(steps, [eval_data_timeline['price'][step] for step in steps], c='black', marker='o', label='Hold',
                 alpha=0.6, s=10)
-    plt.title('Hold')
-    plt.ylabel('Price (€/kWh)')
-    plt.xlabel('Step')
+    plt.title('Halten über die Zeit')
+    plt.ylabel('Preis (€/kWh)')
+    plt.xlabel('Schritt')
     plt.legend()
     plt.tight_layout()
     plt.savefig(f'agent_data/{model_name}/{model_name}_hold.svg', dpi=1200, format='svg')
@@ -173,9 +166,9 @@ def kernel_density_estimation(trade_list: list, model_name: str, da_data: pd.Dat
     plt.figure(figsize=(14, 7))
     plt.plot(x_vals, generated_density(x_vals), label='Generated Prices')
     plt.plot(x_vals, historic_density(x_vals), label='Historic Prices')
-    plt.title('Kernel Density Estimate of Generated and Historic Prices')
-    plt.xlabel('Price')
-    plt.ylabel('Density')
+    plt.title('Kerndichteschätzung von generierten und historischen Preisen')
+    plt.xlabel('Preis (€/kWh)')
+    plt.ylabel('Verteilung')
     plt.legend()
     plt.savefig(f'agent_data/{model_name}/{model_name}_KDE.svg', dpi=1200, format='svg')
     plt.show()
@@ -184,12 +177,12 @@ def kernel_density_estimation(trade_list: list, model_name: str, da_data: pd.Dat
 def plot_soc_and_boundaries(soc_log, upper_bound_log, lower_bound_log, model_name: str):
     plt.figure(figsize=(14, 7))
     plt.plot(soc_log, label='SOC', color='blue')
-    plt.plot(upper_bound_log, label='Upper Boundary', color='red', linestyle='--')
-    plt.plot(lower_bound_log, label='Lower Boundary', color='green', linestyle='--')
+    plt.plot(upper_bound_log, label='obere Grenze', color='red', linestyle='--')
+    plt.plot(lower_bound_log, label='untere Grenze', color='green', linestyle='--')
     plt.fill_between(range(len(soc_log)), lower_bound_log, upper_bound_log, color='gray', alpha=0.1)
-    plt.title('SOC and Boundaries over Time')
-    plt.xlabel('Time (steps)')
-    plt.ylabel('Value')
+    plt.title('SOC und Flexibilitätsgrenzen über die Zeit')
+    plt.xlabel('Schritt')
+    plt.ylabel('SOC')
     plt.legend()
     plt.grid(True)
     plt.tight_layout()

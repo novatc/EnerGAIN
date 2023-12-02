@@ -74,9 +74,22 @@ class DayAhead:
         return self.dataset.iloc[step]['price']
 
     def get_average_price(self):
+        """
+        Calculate the exponentially weighted average price.
+
+        The most recent price has the highest weight and the weight decreases
+        exponentially for older prices.
+
+        :return: The exponentially weighted average price.
+        """
         if not self.price_history:
             return 0
-        return sum(self.price_history) / len(self.price_history)
+
+        weights = np.exp(np.linspace(-1, 0, len(self.price_history)))
+        weights /= weights.sum()
+
+        weighted_average = np.dot(np.array(self.price_history), weights)
+        return weighted_average
 
     def random_walk(self, sequence_length: int):
         """

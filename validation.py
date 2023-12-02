@@ -57,7 +57,8 @@ env_params = {
                     'data_path_prl': validation_prl_data_path,
                     'data_path_da': validation_da_data_path},
 
-    'reward_boosting': {'id': 'reward_boosting-v0', 'entry_point': 'envs.base_boost:BaseBoost',
+    'reward_boosting': {'id': 'reward_boosting-v0', 'entry_point': 'envs.reward_boosting:RewardBoosting',
+                        'data_path_prl': validation_prl_data_path,
                         'data_path_da': validation_da_data_path}
 }
 
@@ -89,7 +90,7 @@ except Exception as e:
 # Register and make the environment
 # Register and make the environment
 if (args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings'
-    or args.env == 'multi_trend'):
+    or args.env == 'multi_trend' or args.env == 'reward_boosting'):
     register(id=env_id, entry_point=entry_point,
              kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': True})
 else:
