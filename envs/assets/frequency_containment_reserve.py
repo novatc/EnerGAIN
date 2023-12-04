@@ -70,7 +70,7 @@ class FrequencyContainmentReserve:
             self.current_step = random.randint(0, dataset_length - 1)
             self.steps_since_last_random_start = 0  # Reset the step counter
 
-        # Increment the current step by 120 starting from the current position
+        # Increment the current step by sequence_length starting from the current position
 
         self.current_step = (self.current_step + 1) % len(self.dataset)
         self.steps_since_last_random_start += 1  # Increment the step counter

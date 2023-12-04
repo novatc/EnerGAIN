@@ -8,7 +8,7 @@ from envs.assets.plot_engien import *
 
 
 class RewardBoosting(gym.Env):
-    def __init__(self, da_data_path: str, prl_data_path: str, validation=False):
+    def __init__(self, da_data_path: str, prl_data_path: str, validation):
         super(RewardBoosting, self).__init__()
         self.da_dataframe = pd.read_csv(da_data_path)
         self.prl_dataframe = pd.read_csv(prl_data_path)
@@ -30,8 +30,8 @@ class RewardBoosting(gym.Env):
         # +3 for prl cooldown, upper & lower bounds
         obs_shape = (self.da_dataframe.shape[1] + self.prl_dataframe.shape[1] + 3,)
 
-        action_low = np.array([-1, 0, 0, -0.004, -500.0])  # prl choice, prl price, prl amount, da price, da amount
-        action_high = np.array([1, 1.0, 500, 1, 500.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_low = np.array([-1, 0, 0, 0, -1000.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_high = np.array([1, 0.5, 1000, 1, 1000.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
         self.observation_space = spaces.Box(low=np.append(observation_low, [0, 0]),  # Add 0 for lower and upper bounds
@@ -56,7 +56,7 @@ class RewardBoosting(gym.Env):
 
         self.rewards = []
         self.reward_log = []
-        self.window_size = 1
+        self.window_size = 5
         self.penalty = -30
 
         self.validation = validation
@@ -93,7 +93,7 @@ class RewardBoosting(gym.Env):
             self.prl.step()
         else:
             # make sure the two markets are always in sync
-            should_truncated = self.prl.random_walk(24*7)
+            should_truncated = self.prl.random_walk(24 * 7)
             current_step = self.prl.get_current_step()
             self.day_ahead.set_step(current_step)
 
@@ -167,30 +167,6 @@ class RewardBoosting(gym.Env):
             return True
         return False
 
-    def clip_trade_amount(self, amount, trade_type):
-        """
-        Clips the trade amount to ensure that the state of charge remains within the bounds.
-
-        :param amount: (float) The amount of energy to be traded.
-        :param trade_type: (str) Type of trade to execute, accepted values are 'buy' or 'sell'.
-        :return: (float) The clipped amount of energy that can be safely traded.
-        """
-        new_amount = amount
-        if trade_type == 'buy':
-            potential_soc = self.battery.get_soc() + amount
-            if not (self.lower_bound < potential_soc < self.upper_bound):
-                new_amount = min(amount, self.upper_bound - self.battery.get_soc())
-                # print(f"Clipped buy amount from {amount} to {new_amount}")
-        elif trade_type == 'sell':
-            potential_soc = self.battery.get_soc() - amount
-            if not (self.lower_bound < potential_soc < self.upper_bound):
-                new_amount = max(amount, self.battery.get_soc() - self.upper_bound)
-                # print(f"Clipped sell amount from {amount} to {new_amount}")
-        else:
-            raise ValueError(f"Invalid trade type: {trade_type}")
-
-        return new_amount
-
     def is_trade_valid(self, price, amount, trade_type):
         """
         Check if a trade is valid, i.e. if the battery can handle the trade and if the agent has enough savings.
@@ -216,6 +192,30 @@ class RewardBoosting(gym.Env):
 
         return True
 
+    def clip_trade_amount(self, amount, trade_type):
+        """
+        Clips the trade amount to ensure that the state of charge remains within the bounds.
+
+        :param amount: (float) The amount of energy to be traded.
+        :param trade_type: (str) Type of trade to execute, accepted values are 'buy' or 'sell'.
+        :return: (float) The clipped amount of energy that can be safely traded.
+        """
+        new_amount = amount
+        if trade_type == 'buy':
+            potential_soc = self.battery.get_soc() + amount
+            if not (self.lower_bound < potential_soc < self.upper_bound):
+                new_amount = min(amount, self.upper_bound - self.battery.get_soc())
+                # print(f"Clipped buy amount from {amount} to {new_amount}")
+        elif trade_type == 'sell':
+            potential_soc = self.battery.get_soc() - amount
+            if not (self.lower_bound < potential_soc < self.upper_bound):
+                new_amount = max(amount, self.battery.get_soc() - self.upper_bound)
+                # print(f"Clipped sell amount from {amount} to {new_amount}")
+        else:
+            raise ValueError(f"Invalid trade type: {trade_type}")
+
+        return new_amount
+
     def perform_da_trade(self, energy_amount: float, market_price: float) -> float:
         """
         Perform a trade on the day-ahead market.
@@ -240,7 +240,6 @@ class RewardBoosting(gym.Env):
 
         :raises ValueError: If `trade_type` is neither 'buy' nor 'sell'.
         """
-        profit = 0
         if trade_type not in ['buy', 'sell']:
             raise ValueError(f"Invalid trade type: {trade_type}")
 
@@ -261,32 +260,27 @@ class RewardBoosting(gym.Env):
         """
         current_price = self.day_ahead.get_current_price()
         profit = 0
+        avg_price = self.day_ahead.get_average_price()
+
         if self.day_ahead.accept_offer(price, trade_type):
             if trade_type == 'buy':
                 self.battery.charge(amount)  # Charge battery for buy trades
                 self.savings -= current_price * amount  # Update savings
-                profit = -current_price * amount  # Negative profit for buying
 
-                # If the offered price is lower than the average price,
-                # add 10 to the profit to incentive buying at lower prices
-                if price < self.day_ahead.get_average_price():
-                    # boost profit with the difference between the offered price and the average price
-                    difference = self.day_ahead.get_average_price() - price
-                    profit += difference
+                profit = -current_price * amount  # Negative profit for buying
+                difference = avg_price - current_price  # calculate the difference between
+                profit += difference  # add a positive reward for buying at a lower price
 
             elif trade_type == 'sell':
                 self.battery.charge(amount)  # Discharge battery for sell trades
                 self.savings += current_price * abs(amount)  # Update savings
-                profit = current_price * abs(amount)  # Positive profit for selling
 
-                # if the offered price is higher than the average price,
-                # add 10 to the profit to incentive selling at higher prices
-                if price > self.day_ahead.get_average_price():
-                    difference = price - self.day_ahead.get_average_price()
-                    profit += difference
+                profit = current_price * amount
+                difference = current_price - avg_price
+                profit += difference  # add a positive reward for selling at a higher price
         else:
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
-            return self.penalty
+            return 0
 
         # Logging the trade details
         self.battery.add_charge_log(self.battery.get_soc())
@@ -297,20 +291,24 @@ class RewardBoosting(gym.Env):
 
     def perform_prl_trade(self, price, amount) -> float:
         """
-        Attempt to participate in the PRL market.
+        Attempt to participate in the PRL market. It's a pay as bid market,
+         so the agent will always get the price it offered.
         :param price: Offer price
         :param amount: Amount of energy being offered
         """
         # Check if the offer is accepted by the prl market and the battery can adhere to prl constraints
+        average_prl_price = self.prl.get_average_price()
         if self.prl.accept_offer(price):
             # Update savings based on the transaction in prl market
-            self.savings += (self.prl.get_current_price() * amount)
-            # Set cooldown and reserve amount since participation was successful
+            prl_reward = (price * amount)  # the reward is the price * amount
+            difference = average_prl_price - price  # add a positive reward for buying at a lower price
+            prl_reward += difference
+            self.savings += (price * amount)
             self.battery.charge_log.append(self.battery.get_soc())
             self.savings_log.append(self.savings)
             self.battery.discharge(amount)
             self.reserve_amount = amount
-            # add the next four hours to the trade look. They should be equal to each other and just differ from the
+            # add the next four hours to the trade log. They should be equal to each other and just differ from the
             # step value
             for i in range(4):
                 trade_info = (
@@ -319,7 +317,7 @@ class RewardBoosting(gym.Env):
                     self.prl.get_current_price(),
                     price,
                     amount,
-                    self.prl.get_current_price() * amount,
+                    price * amount,
                     'prl accepted'
                 )
                 self.trade_log.append(trade_info)
@@ -327,9 +325,9 @@ class RewardBoosting(gym.Env):
             self.set_boundaries(amount)
             self.prl_cooldown = 4
 
-            return float((self.prl.get_current_price() * amount))
+            return prl_reward
         else:
-            return self.penalty
+            return 0
 
     def handle_holding(self):
         # Logic for handling the holding scenario
@@ -380,16 +378,16 @@ class RewardBoosting(gym.Env):
         :param mode:
         :return:
         """
-        kernel_density_estimation(self.trade_log, 'multi', da_data=self.da_dataframe)
         plot_reward(self.reward_log, self.window_size, 'multi')
         plot_savings(self.savings_log, self.window_size, 'multi')
         plot_charge(self.window_size, self.battery, 'multi')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
-                             model_name='multi', data=self.da_dataframe)
+                             model_name='multi', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='multi', data=self.da_dataframe)
+                             sell_color='brown', model_name='multi', data=self.da_dataframe, plot_name='invalid_trades')
         plot_holding(self.holding, 'multi', da_data=self.da_dataframe)
         plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'multi')
+        kernel_density_estimation(self.trade_log, 'multi', da_data=self.da_dataframe)
 
     def get_trades(self) -> list:
         """
@@ -411,6 +409,9 @@ class RewardBoosting(gym.Env):
         :return: list of tuples
         """
         return self.prl_trades
+
+    def get_holdings(self):
+        return self.holding
 
     def log_trades(self, valid: bool, type: str, offered_price: float, amount: float, reward: float,
                    case: str) -> None:

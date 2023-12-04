@@ -30,7 +30,7 @@ class MultiMarket(gym.Env):
         # +3 for prl cooldown, upper & lower bounds
         obs_shape = (self.da_dataframe.shape[1] + self.prl_dataframe.shape[1] + 3,)
 
-        action_low = np.array([-1, 0, 0, 0, -1000.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_low = np.array([-1, 0.001, 0, 0, -1000.0])  # prl choice, prl price, prl amount, da price, da amount
         action_high = np.array([1, 0.5, 1000, 1, 1000.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
@@ -93,9 +93,11 @@ class MultiMarket(gym.Env):
             self.prl.step()
         else:
             # make sure the two markets are always in sync
-            should_truncated = self.prl.random_walk(24 * 7)
+            should_truncated = self.prl.random_walk(24 * 30)
             current_step = self.prl.get_current_step()
             self.day_ahead.set_step(current_step)
+            if should_truncated:
+                self.reset()
 
         prl_choice, price_prl, amount_prl, price_da, amount_da = action
 
@@ -119,9 +121,10 @@ class MultiMarket(gym.Env):
         if self.check_prl_constraints(prl_choice):
             reward += self.perform_prl_trade(price_prl, amount_prl)
 
-        # Handle DA trade or holding
         # clip the amount for the day ahead market to ensure that the battery can handle the trade
         amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
+
+        # Handle DA trade or holding
         if -self.trade_threshold < amount_da < self.trade_threshold:
             reward += self.handle_holding()
         elif self.check_boundaries(amount_da):
@@ -260,6 +263,9 @@ class MultiMarket(gym.Env):
         """
         current_price = self.day_ahead.get_current_price()
         profit = 0
+        if trade_type == 'buy' and price < current_price or trade_type == 'sell' and price > current_price:
+            profit = self.penalty
+
         if self.day_ahead.accept_offer(price, trade_type):
             if trade_type == 'buy':
                 self.battery.charge(amount)  # Charge battery for buy trades
@@ -343,8 +349,6 @@ class MultiMarket(gym.Env):
         super().reset(seed=seed, options=options)
         self.savings = 50
         self.battery.reset()
-        self.day_ahead.reset()
-        self.prl.reset()
         observation = self.get_observation().astype(np.float32)
         return observation, {}
 

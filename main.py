@@ -2,13 +2,14 @@ import os
 import time
 import argparse
 
+import numpy as np
 from gymnasium import register
 from gymnasium import make
+from stable_baselines3.common.noise import NormalActionNoise
 
 from callbacks.summary_writer import SummaryWriterCallback
 from cutsom_wrappers.custom_wrappers import CustomNormalizeObservation
 from gymnasium.wrappers import NormalizeReward
-from gymnasium.wrappers import RescaleAction
 
 from stable_baselines3 import SAC
 
@@ -95,10 +96,13 @@ except Exception as e:
 start_time = time.time()  # Get the current time
 
 # Create and train model
-model = SAC("MlpPolicy", env, verbose=0, device='mps', tensorboard_log='logging/'
-                                                                       'tensorboard_logs/')
+n_actions = env.action_space.shape[-1]
+action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+model = SAC("MlpPolicy", env, verbose=0, device='auto', action_noise=action_noise,
+            tensorboard_log='logging/tensorboard_logs/{}/'.format(args.env))
+
 print(f'Training device: {model.device}')
-model.learn(total_timesteps=args.training_steps, callback=SummaryWriterCallback())
+model.learn(total_timesteps=args.training_steps, progress_bar=True)
 now = time.strftime("%d.%m-%H-%M")
 if args.save:
     model.save(f"agents/sac_{args.env}_{args.training_steps / 1000}k_{now}.zip")
@@ -106,4 +110,3 @@ if args.save:
 end_time = time.time()  # Get the current time after running the model
 
 print(f'Total runtime: {(end_time - start_time) / 60} minutes')  # Print the difference, which is the total runtime
-# env.render()

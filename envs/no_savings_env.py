@@ -45,7 +45,9 @@ class NoSavingsEnv(gym.Env):
         if self.validation:
             self.day_ahead.step()
         else:
-            should_truncated = self.day_ahead.random_walk(24 * 7)
+            should_truncated = self.day_ahead.random_walk(24 * 30)
+            if should_truncated:
+                self.reset()
 
         price, amount = action
 
@@ -140,6 +142,8 @@ class NoSavingsEnv(gym.Env):
         """
         current_price = self.day_ahead.get_current_price()
         profit = 0
+        if trade_type == 'buy' and price < current_price or trade_type == 'sell' and price > current_price:
+            profit = self.penalty
         if self.day_ahead.accept_offer(price, trade_type):
             if trade_type == 'buy':
                 self.battery.charge(amount)  # Charge battery for buy trades
@@ -197,9 +201,9 @@ class NoSavingsEnv(gym.Env):
         plot_savings(self.savings_log, self.window_size, 'no_savings')
         plot_charge(self.window_size, self.battery, 'no_savings')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
-                             model_name='no_savings', data=self.da_dataframe)
+                             model_name='no_savings', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='no_savings', data=self.da_dataframe)
+                             sell_color='brown', model_name='no_savings', data=self.da_dataframe, plot_name='invalid_trades')
         plot_holding(self.holding, 'no_savings', da_data=self.da_dataframe)
         kernel_density_estimation(self.trade_log, model_name='no_savings', da_data=self.da_dataframe)
 

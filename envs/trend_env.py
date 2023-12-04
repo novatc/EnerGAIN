@@ -58,7 +58,10 @@ class TrendEnv(gym.Env):
         if self.validation:
             self.day_ahead.step()
         else:
-            should_truncated = self.day_ahead.random_walk(24 * 7)
+            should_truncated = self.day_ahead.random_walk(24 * 30)
+            if should_truncated:
+                self.reset()
+
         reward = 0
 
         price, amount = action
@@ -152,6 +155,8 @@ class TrendEnv(gym.Env):
         """
         current_price = self.day_ahead.get_current_price()
         profit = 0
+        if trade_type == 'buy' and price < current_price or trade_type == 'sell' and price > current_price:
+            profit = self.penalty
         if self.day_ahead.accept_offer(price, trade_type):
             if trade_type == 'buy':
                 self.battery.charge(amount)  # Charge battery for buy trades
@@ -192,7 +197,6 @@ class TrendEnv(gym.Env):
         super().reset(seed=seed, options=options)
         self.savings = 50
         self.battery.reset()
-        self.day_ahead.reset()
         return self.get_observation().astype(np.float32), {}
 
     def render(self, mode='human'):

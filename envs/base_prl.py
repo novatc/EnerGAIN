@@ -93,9 +93,11 @@ class BasePRL(gym.Env):
             self.prl.step()
         else:
             # make sure the two markets are always in sync
-            should_truncated = self.prl.random_walk(24 * 7)
+            should_truncated = self.prl.random_walk(24 * 30)
             current_step = self.prl.get_current_step()
             self.day_ahead.set_step(current_step)
+            if should_truncated:
+                self.reset()
 
         prl_choice, price_prl, amount_prl, price_da, amount_da = action
 
@@ -250,6 +252,8 @@ class BasePRL(gym.Env):
         """
         current_price = self.day_ahead.get_current_price()
         profit = 0
+        if trade_type == 'buy' and price < current_price or trade_type == 'sell' and price > current_price:
+            profit = self.penalty
         if self.day_ahead.accept_offer(price, trade_type):
             if trade_type == 'buy':
                 self.battery.charge(amount)  # Charge battery for buy trades
@@ -334,8 +338,6 @@ class BasePRL(gym.Env):
         super().reset(seed=seed, options=options)
         self.savings = 50
         self.battery.reset()
-        self.day_ahead.reset()
-        self.prl.reset()
         observation = self.get_observation().astype(np.float32)
         return observation, {}
 

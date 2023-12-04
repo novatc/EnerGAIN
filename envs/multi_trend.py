@@ -102,14 +102,13 @@ class MultiTrend(gym.Env):
         if self.validation:
             self.day_ahead.step()
             self.prl.step()
-            # check if this is the last step of the day ahead market
-            if self.day_ahead.get_current_step() == self.day_ahead.get_max_steps():
-                should_truncated = True
         else:
             # make sure the two markets are always in sync
             should_truncated = self.prl.random_walk(24 * 30)
             current_step = self.prl.get_current_step()
             self.day_ahead.set_step(current_step)
+            if should_truncated:
+                self.reset()
 
         prl_choice, price_prl, amount_prl, price_da, amount_da = action
 
@@ -286,7 +285,7 @@ class MultiTrend(gym.Env):
                 profit = current_price * abs(amount)  # Positive profit for selling
         else:
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
-            return self.penalty
+            return 0
 
         # Logging the trade details
         self.battery.add_charge_log(self.battery.get_soc())
@@ -329,7 +328,7 @@ class MultiTrend(gym.Env):
 
             return float(price * amount)
         else:
-            return self.penalty
+            return 0
 
     def handle_holding(self):
         # Logic for handling the holding scenario
@@ -358,8 +357,6 @@ class MultiTrend(gym.Env):
         super().reset(seed=seed, options=options)
         self.savings = 50
         self.battery.reset()
-        self.day_ahead.reset()
-        self.prl.reset()
         observation = self.get_observation().astype(np.float32)
         return observation, {}
 

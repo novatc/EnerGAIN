@@ -42,11 +42,13 @@ class BaseEnv(gym.Env):
         if self.validation:
             self.day_ahead.step()
         else:
-            should_truncated = self.day_ahead.random_walk(24 * 7)
+            should_truncated = self.day_ahead.random_walk(24 * 30)
+            if should_truncated:
+                self.reset()
 
         price, amount = action
 
-        reward = -1
+        reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
         truncated = should_truncated  # this can be false all the time since there is no failure condition the agent could trigger
@@ -136,6 +138,8 @@ class BaseEnv(gym.Env):
         """
         current_price = self.day_ahead.get_current_price()
         profit = 0
+        if trade_type == 'buy' and price < current_price or trade_type == 'sell' and price > current_price:
+            profit = self.penalty
         if self.day_ahead.accept_offer(price, trade_type):
             if trade_type == 'buy':
                 self.battery.charge(amount)  # Charge battery for buy trades
@@ -180,7 +184,6 @@ class BaseEnv(gym.Env):
         super().reset(seed=seed, options=options)
         self.savings = 50
         self.battery.reset()
-        self.day_ahead.reset()
         observation = self.get_observation().astype(np.float32)
         return observation, {}
 
