@@ -30,8 +30,8 @@ class BasePRL(gym.Env):
         # +3 for prl cooldown, upper & lower bounds
         obs_shape = (self.da_dataframe.shape[1] + self.prl_dataframe.shape[1] + 3,)
 
-        action_low = np.array([-1, 0, 0, 0, -1000.0])  # prl choice, prl price, prl amount, da price, da amount
-        action_high = np.array([1, 1.0, 500, 1, 1000.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_low = np.array([-1, 0.001, 0, 0, -1000.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_high = np.array([1, 0.5, 1000, 1, 1000.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
         self.observation_space = spaces.Box(low=np.append(observation_low, [0, 0]),  # Add 0 for lower and upper bounds
@@ -254,6 +254,7 @@ class BasePRL(gym.Env):
         profit = 0
         if trade_type == 'buy' and price < current_price or trade_type == 'sell' and price > current_price:
             profit = self.penalty
+
         if self.day_ahead.accept_offer(price, trade_type):
             if trade_type == 'buy':
                 self.battery.charge(amount)  # Charge battery for buy trades
