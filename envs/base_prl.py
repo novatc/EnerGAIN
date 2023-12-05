@@ -252,8 +252,6 @@ class BasePRL(gym.Env):
         """
         current_price = self.day_ahead.get_current_price()
         profit = 0
-        if trade_type == 'buy' and price < current_price or trade_type == 'sell' and price > current_price:
-            profit = self.penalty
 
         if self.day_ahead.accept_offer(price, trade_type):
             if trade_type == 'buy':
