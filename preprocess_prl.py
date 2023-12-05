@@ -61,11 +61,41 @@ prl.index = pd.to_datetime(prl.index, dayfirst=True)
 prl['price'] = pd.to_numeric(prl['price'], errors='coerce')
 
 # Interpolate missing values in the "price, amount" column using something else than linear interpolation
-# for example, use the method='time'
+# for example, use the method='linear'
+
+# Identifying the indices of missing values before interpolation
+missing_price_indices = prl['price'].isnull()
+missing_amount_indices = prl['amount'].isnull()
+
 prl['price'] = prl['price'].interpolate(method='linear')
 prl['price'] = prl['price'] / 1000  # convert to €/kWh
 prl['amount'] = prl['amount'].interpolate(method='linear')
 
+# Noise scale
+noise_scale = 0.01  # 5% noise scale
+noise_scale_amount = 20  # 5% noise scale
+
+# Adding noise to the originally missing values in 'price' column
+price_noise = np.abs(np.random.normal(0, noise_scale, size=missing_price_indices.sum()))
+prl.loc[missing_price_indices, 'price'] += price_noise
+
+
+# Adding noise to the originally missing values in 'amount' column
+amount_noise = np.random.normal(0, noise_scale_amount, size=missing_amount_indices.sum())
+prl.loc[missing_amount_indices, 'amount'] += amount_noise
+
+# Moving average window size
+window_size = 2
+
+# Applying moving average smoothing only to the noisy data
+smoothed_price = prl.loc[missing_price_indices, 'price'].rolling(window=window_size).mean()
+prl.loc[missing_price_indices, 'price'] = smoothed_price
+
+smoothed_amount = prl.loc[missing_amount_indices, 'amount'].rolling(window=window_size).mean()
+prl.loc[missing_amount_indices, 'amount'] = smoothed_amount
+
+prl['amount'] = prl['amount'].interpolate(method='linear')
+prl['price'] = prl['price'].interpolate(method='linear')
 print(prl.isnull().sum())
 
 # save the number of the day of the week in a new column
