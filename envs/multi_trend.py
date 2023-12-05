@@ -43,7 +43,7 @@ class MultiTrend(gym.Env):
 
         obs_shape = (((self.da_dataframe.shape[1] + self.prl_dataframe.shape[1]) * self.trend_horizon + 1),)
 
-        action_low = np.array([-1, 0, 0, 0, -1000.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_low = np.array([-1, 0.001, 0, 0, -1000.0])  # prl choice, prl price, prl amount, da price, da amount
         action_high = np.array([1, 0.5, 1000, 1, 1000.0])  # prl choice, prl price, prl amount, da price, da amount
 
         self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
@@ -273,6 +273,10 @@ class MultiTrend(gym.Env):
         """
         current_price = self.day_ahead.get_current_price()
         profit = 0
+
+        if trade_type == 'buy' and price < current_price or trade_type == 'sell' and price > current_price:
+            profit = self.penalty
+
         if self.day_ahead.accept_offer(price, trade_type):
             if trade_type == 'buy':
                 self.battery.charge(amount)  # Charge battery for buy trades
@@ -285,7 +289,7 @@ class MultiTrend(gym.Env):
                 profit = current_price * abs(amount)  # Positive profit for selling
         else:
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
-            return 0
+            return self.penalty
 
         # Logging the trade details
         self.battery.add_charge_log(self.battery.get_soc())
@@ -328,7 +332,7 @@ class MultiTrend(gym.Env):
 
             return float(price * amount)
         else:
-            return 0
+            return self.penalty
 
     def handle_holding(self):
         # Logic for handling the holding scenario
