@@ -126,7 +126,7 @@ class MultiTrend(gym.Env):
 
         #
         if not self.lower_bound < self.battery.get_soc() < self.upper_bound:
-            reward -= -10
+            reward += self.penalty
 
         # Handle PRL trade if constraints are met
         if self.check_prl_constraints(prl_choice):
