@@ -78,10 +78,10 @@ os.makedirs('logging', exist_ok=True)
 if (args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings'
         or args.env == 'multi_trend' or args.env == 'reward_boosting'):
     register(id=env_id, entry_point=entry_point,
-             kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': True})
+             kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': False})
 else:
     register(id=env_id, entry_point=entry_point,
-             kwargs={'da_data_path': data_path_da, 'validation': True})
+             kwargs={'da_data_path': data_path_da, 'validation': False})
 
 eval_env = make(env_id)
 env = CustomNormalizeObservation(eval_env)
