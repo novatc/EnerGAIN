@@ -57,7 +57,7 @@ class BasePRL(gym.Env):
         self.rewards = []
         self.reward_log = []
         self.window_size = 5
-        self.penalty = -30
+        self.penalty = -10
 
         self.validation = validation
 
@@ -113,6 +113,7 @@ class BasePRL(gym.Env):
             self.battery.charge(self.reserve_amount)
             self.reserve_amount = 0
 
+
         # Penalty for crossing the battery bounds
         if not self.lower_bound < self.battery.get_soc() < self.upper_bound:
             reward += self.penalty
@@ -124,7 +125,13 @@ class BasePRL(gym.Env):
         # the agent chooses to trade on the DA market outside the 4-hour block
         amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
         if prl_choice < 0 and self.prl_cooldown <= 0:
-            reward = self.perform_da_trade(amount_da, price_da)
+            # Handle DA trade or holding
+            if -self.trade_threshold < amount_da < self.trade_threshold:
+                reward += self.handle_holding()
+            elif self.check_boundaries(amount_da):
+                reward += self.perform_da_trade(amount_da, price_da)
+            else:
+                reward += self.penalty  # Apply penalty if DA boundaries are violated
 
         self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
         self.prl_cooldown = max(0, self.prl_cooldown - 1)  # Ensure it doesn't go below 0
@@ -252,7 +259,6 @@ class BasePRL(gym.Env):
         """
         current_price = self.day_ahead.get_current_price()
         profit = 0
-        penalty = 0
         if trade_type == 'buy' and price < current_price or trade_type == 'sell' and price > current_price:
             profit = self.penalty
 
@@ -270,12 +276,13 @@ class BasePRL(gym.Env):
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
             # return self.penalty
             # return the difference between the offered price and the current price as a penalty
-            if trade_type == 'buy':
-                penalty = float((current_price - price))
-            else:
-                penalty = float((price - current_price))
-
-            return penalty
+            # if trade_type == 'buy':
+            #     penalty = float((current_price - price))
+            # else:
+            #     penalty = float((price - current_price))
+            #
+            # return penalty
+            return 0
 
         # Logging the trade details
         self.battery.add_charge_log(self.battery.get_soc())
@@ -321,7 +328,8 @@ class BasePRL(gym.Env):
             # return penalty if the offer was not accepted
             # return self.penalty
             # return the difference between the offered price and the current price as a penalty
-            return float((self.day_ahead.get_current_price() - price))
+            # return float((self.day_ahead.get_current_price() - price))
+            return 0
 
     def handle_holding(self):
         # Logic for handling the holding scenario

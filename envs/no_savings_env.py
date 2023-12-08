@@ -34,7 +34,7 @@ class NoSavingsEnv(gym.Env):
 
         self.reward_log = []
         self.window_size = 5
-        self.penalty = -30
+        self.penalty = -10
 
         self.trade_threshold = 10
 
@@ -142,7 +142,6 @@ class NoSavingsEnv(gym.Env):
         """
         current_price = self.day_ahead.get_current_price()
         profit = 0
-        penalty = 0
         if trade_type == 'buy' and price < current_price or trade_type == 'sell' and price > current_price:
             profit = self.penalty
 
@@ -160,19 +159,13 @@ class NoSavingsEnv(gym.Env):
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
             # return self.penalty
             # return the difference between the offered price and the current price as a penalty
-            if trade_type == 'buy':
-                penalty = float((current_price - price))
-            else:
-                penalty = float((price - current_price))
-
-            return penalty
-
-        # Logging the trade details
-        self.battery.add_charge_log(self.battery.get_soc())
-        self.savings_log.append(self.savings)
-        self.log_trades(True, trade_type, price, amount, profit, 'accepted')
-
-        return profit
+            # if trade_type == 'buy':
+            #     penalty = float((current_price - price))
+            # else:
+            #     penalty = float((price - current_price))
+            #
+            # return penalty
+            return 0
 
     def handle_holding(self):
         # Logic for handling the holding scenario
