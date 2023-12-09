@@ -90,7 +90,7 @@ except Exception as e:
 # Register and make the environment
 # Register and make the environment
 if (args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings'
-    or args.env == 'multi_trend' or args.env == 'reward_boosting'):
+        or args.env == 'multi_trend' or args.env == 'reward_boosting'):
     register(id=env_id, entry_point=entry_point,
              kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': True})
 else:
@@ -106,11 +106,16 @@ except Exception as e:
 
 ep_length = eval_env.da_dataframe.shape[0]
 
-# Evaluate the agent
+# Initialize variables for trade statistics
+buy_count = sell_count = reserve_count = 0
+total_buy_price = total_sell_price = 0
+buy_price_differences = []  # List to store buy price differences
+sell_price_differences = []  # List to store sell price differences
+
+# Evaluate the agent and gather trade data
 episode_rewards = []
-num_episodes = args.episodes
 obs, _ = eval_env.reset()
-for _ in range(num_episodes):
+for _ in range(args.episodes):
     episode_reward = 0
     done = False
     for _ in range(ep_length - 1):
@@ -125,6 +130,7 @@ trades = eval_env.get_trades()
 trades_log = pd.DataFrame(trades, columns=["step", "type", "market price", "offered_price", "amount", "reward", "case"])
 # write trades to csv
 trades_log.to_csv(f"trade_logs/{model_name}_trades.csv", index=False)
+
 invalid_trades = eval_env.get_invalid_trades()
 invalid_trades_log = pd.DataFrame(invalid_trades, columns=["step", "type", "market price", "offered_price", "amount",
                                                            "reward", "case"])
@@ -132,16 +138,23 @@ invalid_trades_log = pd.DataFrame(invalid_trades, columns=["step", "type", "mark
 invalid_trades_log.to_csv(f"trade_logs/invalid/{model_name}_invalid_trades.csv", index=False)
 
 # count how many times a buy or sell action was taken
-buy_count = 0
-sell_count = 0
-reserve_count = 0
 
+
+# Process trades
+trades = eval_env.get_trades()
 for trade in trades:
-    if trade[1] == 'buy':
+    trade_type, offered_price, market_price = trade[1], trade[3], trade[2]
+    if trade_type == 'buy':
         buy_count += 1
-    if trade[1] == 'sell':
+        total_buy_price += offered_price
+        # Calculate difference for each buy trade and add to list
+        buy_price_differences.append(abs(offered_price - market_price))
+    elif trade_type == 'sell':
         sell_count += 1
-    if trade[1] == 'reserve':
+        total_sell_price += offered_price
+        # Calculate difference for each sell trade and add to list
+        sell_price_differences.append(abs(offered_price - market_price))
+    elif trade_type == 'reserve':
         reserve_count += 1
 
 try:
@@ -153,8 +166,19 @@ try:
 except ZeroDivisionError:
     avg_amount = 0
 
-# could you pretty print these stats?
+# Calculate average statistics
+avg_buy_price = total_buy_price / buy_count if buy_count else 0
+avg_sell_price = total_sell_price / sell_count if sell_count else 0
 
+# Calculate average price differences
+avg_buy_price_difference = np.mean(buy_price_differences) if buy_price_differences else 0
+avg_sell_price_difference = np.mean(sell_price_differences) if sell_price_differences else 0
+
+# Display statistics
+print(f"Average Buy Price: {avg_buy_price:.2f}")
+print(f"Average Sell Price: {avg_sell_price:.2f}")
+print(f"Average Price Difference from Market for Buy Trades: {avg_buy_price_difference:.2f}")
+print(f"Average Price Difference from Market for Sell Trades: {avg_sell_price_difference:.2f}")
 print(f"Average price: {avg_price:.2f}")
 print(f"Average amount: {avg_amount:.2f}")
 print(f"Buy count: {buy_count}")
@@ -172,6 +196,11 @@ stats = {
     "buy_count": buy_count,
     "sell_count": sell_count,
     "reserve_count": reserve_count,
+    "num_holdings": len(eval_env.get_holdings()),
+    "avg_buy_price": avg_buy_price,
+    "avg_sell_price": avg_sell_price,
+    "avg_buy_price_difference": avg_buy_price_difference,
+    "avg_sell_price_difference": avg_sell_price_difference,
     "avg_reward": episode_rewards[0] / len(trades),
     "total_reward": np.sum(episode_rewards),
     "total_profit": eval_env.savings_log[-1]
