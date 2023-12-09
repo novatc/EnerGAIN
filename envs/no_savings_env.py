@@ -34,7 +34,7 @@ class NoSavingsEnv(gym.Env):
 
         self.reward_log = []
         self.window_size = 5
-        self.penalty = -10
+        self.penalty = -30
 
         self.trade_threshold = 10
 
@@ -157,7 +157,7 @@ class NoSavingsEnv(gym.Env):
                 profit = current_price * abs(amount)  # Positive profit for selling
         else:
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
-            # return self.penalty
+            return self.penalty
             # return the difference between the offered price and the current price as a penalty
             # if trade_type == 'buy':
             #     penalty = float((current_price - price))
@@ -165,7 +165,14 @@ class NoSavingsEnv(gym.Env):
             #     penalty = float((price - current_price))
             #
             # return penalty
-            return 0
+            # return 0
+
+        # Logging the trade details
+        self.battery.add_charge_log(self.battery.get_soc())
+        self.savings_log.append(self.savings)
+        self.log_trades(True, trade_type, price, amount, profit, 'accepted')
+
+        return profit
 
     def handle_holding(self):
         # Logic for handling the holding scenario
@@ -205,7 +212,8 @@ class NoSavingsEnv(gym.Env):
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
                              model_name='no_savings', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='no_savings', data=self.da_dataframe, plot_name='invalid_trades')
+                             sell_color='brown', model_name='no_savings', data=self.da_dataframe,
+                             plot_name='invalid_trades')
         plot_holding(self.holding, 'no_savings', da_data=self.da_dataframe)
         kernel_density_estimation(self.trade_log, model_name='no_savings', da_data=self.da_dataframe)
 

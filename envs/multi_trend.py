@@ -68,7 +68,7 @@ class MultiTrend(gym.Env):
         self.rewards = []
         self.reward_log = []
         self.window_size = 5
-        self.penalty = -10
+        self.penalty = -30
 
         self.validation = validation
 
@@ -289,7 +289,7 @@ class MultiTrend(gym.Env):
                 profit = current_price * abs(amount)  # Positive profit for selling
         else:
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
-            # return self.penalty
+            return self.penalty
             # return the difference between the offered price and the current price as a penalty
             # if trade_type == 'buy':
             #     penalty = float((current_price - price))
@@ -297,7 +297,7 @@ class MultiTrend(gym.Env):
             #     penalty = float((price - current_price))
             #
             # return penalty
-            return 0
+            # return 0
 
         # Logging the trade details
         self.battery.add_charge_log(self.battery.get_soc())
@@ -341,10 +341,10 @@ class MultiTrend(gym.Env):
             return float(price * amount)
         else:
             # return penalty if the offer was not accepted
-            # return self.penalty
+            return self.penalty
             # return the difference between the offered price and the current price as a penalty
             # return float((self.day_ahead.get_current_price() - price))
-            return 0
+            # return 0
 
     def handle_holding(self):
         # Logic for handling the holding scenario
