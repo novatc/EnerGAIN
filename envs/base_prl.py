@@ -113,18 +113,17 @@ class BasePRL(gym.Env):
             self.battery.charge(self.reserve_amount)
             self.reserve_amount = 0
 
-
         # Penalty for crossing the battery bounds
         if not self.lower_bound < self.battery.get_soc() < self.upper_bound:
             reward += self.penalty
 
         # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
-        if self.check_prl_constraints(prl_choice) and self.check_boundaries(amount_prl):
+        if self.check_prl_constraints(prl_choice):
             reward = self.perform_prl_trade(price_prl, amount_prl)
 
-        # the agent chooses to trade on the DA market outside the 4-hour block
-        amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
         if prl_choice < 0 and self.prl_cooldown <= 0:
+            # the agent chooses to trade on the DA market outside the 4-hour block
+            amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
             # Handle DA trade or holding
             if -self.trade_threshold < amount_da < self.trade_threshold:
                 reward += self.handle_holding()
