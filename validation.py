@@ -169,6 +169,8 @@ except ZeroDivisionError:
 # Calculate average statistics
 avg_buy_price = total_buy_price / buy_count if buy_count else 0
 avg_sell_price = total_sell_price / sell_count if sell_count else 0
+avg_buy_amount = sum([abs(trade[4]) for trade in trades if trade[1] == 'buy']) / buy_count if buy_count else 0
+avg_sell_amount = sum([abs(trade[4]) for trade in trades if trade[1] == 'sell']) / sell_count if sell_count else 0
 
 # Calculate average price differences
 avg_buy_price_difference = np.mean(buy_price_differences) if buy_price_differences else 0
@@ -181,6 +183,7 @@ print(f"Average Price Difference from Market for Buy Trades: {avg_buy_price_diff
 print(f"Average Price Difference from Market for Sell Trades: {avg_sell_price_difference:.2f}")
 print(f"Average price: {avg_price:.2f}")
 print(f"Average amount: {avg_amount:.2f}")
+print(f"Number of trades: {len(trades)}")
 print(f"Buy count: {buy_count}")
 print(f"Sell count: {sell_count}")
 print(f"Reserve count: {reserve_count}")
@@ -199,6 +202,8 @@ stats = {
     "num_holdings": len(eval_env.get_holdings()),
     "avg_buy_price": avg_buy_price,
     "avg_sell_price": avg_sell_price,
+    "avg_buy_amount": avg_buy_amount,
+    "avg_sell_amount": avg_sell_amount,
     "avg_buy_price_difference": avg_buy_price_difference,
     "avg_sell_price_difference": avg_sell_price_difference,
     "avg_reward": episode_rewards[0] / len(trades),
