@@ -1,12 +1,9 @@
 import gymnasium as gym
-import pandas as pd
 from gymnasium import spaces
-import numpy as np
 
 from envs.assets.battery import Battery
 from envs.assets.dayahead import DayAhead
-from envs.assets.plot_engien import plot_reward, plot_charge, plot_trades_timeline, plot_holding, \
-    kernel_density_estimation, plot_savings
+from envs.assets.plot_engien import *
 
 
 class NoSavingsEnv(gym.Env):
@@ -54,16 +51,15 @@ class NoSavingsEnv(gym.Env):
         reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
-        truncated = should_truncated
+        truncated = should_truncated  # this can be false all the time since there is no failure condition the agent could trigger
 
         # Handle DA trade or holding
         if -self.trade_threshold < amount < self.trade_threshold:
             reward += self.handle_holding()
-
-        reward += self.perform_da_trade(energy_amount=amount, market_price=price)
+        else:
+            reward += self.perform_da_trade(energy_amount=amount, market_price=price)
 
         self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
-
         info = {'current_price': self.day_ahead.get_current_price(),
                 'current_step': self.day_ahead.get_current_step(),
                 'savings': self.savings,
@@ -157,7 +153,7 @@ class NoSavingsEnv(gym.Env):
                 profit = current_price * abs(amount)  # Positive profit for selling
         else:
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
-            return self.penalty
+            # return self.penalty
             # return the difference between the offered price and the current price as a penalty
             # if trade_type == 'buy':
             #     penalty = float((current_price - price))
@@ -165,7 +161,7 @@ class NoSavingsEnv(gym.Env):
             #     penalty = float((price - current_price))
             #
             # return penalty
-            # return 0
+            return 0
 
         # Logging the trade details
         self.battery.add_charge_log(self.battery.get_soc())
@@ -177,7 +173,7 @@ class NoSavingsEnv(gym.Env):
     def handle_holding(self):
         # Logic for handling the holding scenario
         self.holding.append((self.day_ahead.get_current_step(), 'hold'))
-        return 5
+        return 1
 
     def get_observation(self):
         """
@@ -195,8 +191,8 @@ class NoSavingsEnv(gym.Env):
         """
         # Reset the state of the environment to an initial state
         super().reset(seed=seed, options=options)
+        self.savings = 50
         self.battery.reset()
-        self.day_ahead.reset()
         observation = self.get_observation().astype(np.float32)
         return observation, {}
 
@@ -212,8 +208,7 @@ class NoSavingsEnv(gym.Env):
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
                              model_name='no_savings', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='no_savings', data=self.da_dataframe,
-                             plot_name='invalid_trades')
+                             sell_color='brown', model_name='no_savings', data=self.da_dataframe, plot_name='invalid_trades')
         plot_holding(self.holding, 'no_savings', da_data=self.da_dataframe)
         kernel_density_estimation(self.trade_log, model_name='no_savings', da_data=self.da_dataframe)
 
