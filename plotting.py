@@ -43,7 +43,7 @@ def plot_cumulative_reward(dfs, colors):
     Zeichnet die kumulative Belohnung über die Zeit für jeden Agenten.
     Optionaler Filter nach Handelstyp (z.B. 'buy' oder 'sell').
     """
-    plt.figure(figsize=(15, 10))
+    plt.figure(figsize=(14, 7))
     for i, (name, df) in enumerate(dfs.items()):
         name = name.split('.')[0]
         plt.plot(df['reward'].cumsum(), label=name, color=colors[i % len(colors)])
@@ -68,7 +68,7 @@ def plot_capital_over_time(dfs, colors):
         dfs (dict): Ein Dictionary, bei dem die Schlüssel Dateinamen und die Werte DataFrames sind.
         colors (list): Eine Liste von unterschiedlichen Farben für jeden Agenten.
     """
-    plt.figure(figsize=(15, 10))
+    plt.figure(figsize=(14, 7))
     for i, (name, df) in enumerate(dfs.items()):
         # Berechnet die kumulative Summe der 'reward'-Spalte
         df['kumulative_belohnung'] = df['reward'].cumsum()
@@ -91,7 +91,7 @@ def plot_trade_durations(dfs, colors):
         colors (list): Eine Liste von unterschiedlichen Farben für jeden Agenten.
     """
     # Initialisiert das Diagramm mit einer größeren Größe
-    plt.figure(figsize=(20, 8))
+    plt.figure(figsize=(14, 7))
 
     # Durchläuft jede Handelsstrategie und berechnet die Handelsdauern
     for i, (name, df) in enumerate(dfs.items()):
@@ -129,7 +129,7 @@ def plot_trade_sizes(dfs, colors):
         colors (list): Eine Liste von unterschiedlichen Farben für jeden Agenten.
     """
     # Initialisiert zwei Unterdiagramme: eins für 'buy'-Handel und ein weiteres für 'sell'-Handel
-    fig, axs = plt.subplots(1, 2, figsize=(20, 8))
+    fig, axs = plt.subplots(1, 2, figsize=(14, 7))
 
     # Titel für die Unterdiagramme
     axs[0].set_title('Verteilung der Handelsgrößen (Kaufen)')
