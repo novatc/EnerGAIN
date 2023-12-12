@@ -19,9 +19,13 @@ class SimpleThresholdBot:
         self.inventory_over_time = [self.inventory]
         self.trade_log = []
 
-    def log_trade(self, step, offer_price, offer_amount, trade_type):
-        self.trade_log.append((step, trade_type, self.market.get_current_price(), offer_price, offer_amount,
-                               abs(float(offer_price) * offer_amount)))
+    def log_trade(self, step, market_price, offer_amount, trade_type, reason):
+        if trade_type == 'buy':
+            profit = -1 * (float(market_price) * offer_amount)
+        else:
+            profit = float(market_price) * offer_amount
+        self.trade_log.append((step, trade_type, self.market.get_current_price(), market_price, offer_amount,
+                               profit, reason))
 
     def trade(self):
         "Perform a trade based on the set thresholds."
@@ -39,7 +43,7 @@ class SimpleThresholdBot:
                     excess_units = self.inventory - self.max_inventory
                     self.inventory = self.max_inventory
                     self.money += excess_units * current_price
-                self.log_trade(step, adjusted_buy_price, self.unit_buy_sell, 'buy')
+                self.log_trade(step, current_price, self.unit_buy_sell, 'buy', 'moving_avg')
 
         # Check if we should sell
         elif current_price >= self.sell_threshold and self.inventory >= self.unit_buy_sell and self.inventory - 100 > 0:
@@ -47,7 +51,7 @@ class SimpleThresholdBot:
             if self.market.accept_offer(adjusted_sell_price, 'sell'):
                 self.money += self.unit_buy_sell * current_price  # Receive the actual current price
                 self.inventory -= self.unit_buy_sell
-                self.log_trade(step, adjusted_sell_price, self.unit_buy_sell, 'sell')
+                self.log_trade(step, adjusted_sell_price, self.unit_buy_sell, 'sell', 'moving_avg')
 
         # Record the state for this time
         self.money_over_time.append(self.money)
@@ -74,20 +78,13 @@ data = pd.read_csv(file_path)
 # Basic statistical analysis of the price data
 price_stats = data['price'].describe()
 
-# Calculate additional statistics like variance and specific percentiles
-price_variance = data['price'].var()
-percentiles = data['price'].quantile([0.25, 0.5, 0.75])
 
-# Compile and print the statistics
-stats_summary = pd.concat([price_stats, pd.Series(price_variance, index=['variance']), percentiles])
-print(stats_summary)
-
-bot = SimpleThresholdBot(market, buy_threshold=0.047847, sell_threshold=0.226536, initial_money=50.0,
-                         initial_inventory=500, max_inventory=1000, unit_buy_sell=10)
+bot = SimpleThresholdBot(market, buy_threshold=0.067847, sell_threshold=0.126536, initial_money=50.0,
+                         initial_inventory=500, max_inventory=1000, unit_buy_sell=50)
 money, inventory = bot.run_simulation()
 print(f"Money: {money}, Inventory: {inventory}")
 
 trades = bot.get_trades()
 trades_log = pd.DataFrame(trades,
-                          columns=["step", "type", "market price", "offered_price", "amount", "reward"])
+                          columns=["step", "type", "market price", "offered_price", "amount", "reward", "case"])
 trades_log.to_csv("../trade_logs/simple_threshold_bot_trades.csv", index=False)
