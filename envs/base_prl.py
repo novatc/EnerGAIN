@@ -135,6 +135,8 @@ class BasePRL(gym.Env):
         self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
         self.prl_cooldown = max(0, self.prl_cooldown - 1)  # Ensure it doesn't go below 0
 
+        self.log_step(reward)
+
         info = {'current_price': self.day_ahead.get_current_price(),
                 'current_step': self.day_ahead.get_current_step(),
                 'savings': self.savings,
@@ -400,6 +402,18 @@ class BasePRL(gym.Env):
 
     def get_holdings(self):
         return self.holding
+
+    def log_step(self, reward):
+        """
+        Update the logs for the current step.
+
+        :param reward: The reward obtained in this step.
+        """
+        self.rewards.append(reward)
+        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
+        self.upper_bound_log.append(self.upper_bound)
+        self.lower_bound_log.append(self.lower_bound)
+        self.soc_log.append(self.battery.get_soc())
 
     def log_trades(self, valid: bool, type: str, offered_price: float, amount: float, reward: float,
                    case: str) -> None:
