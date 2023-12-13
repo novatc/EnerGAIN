@@ -188,6 +188,7 @@ print(f"Buy count: {buy_count}")
 print(f"Sell count: {sell_count}")
 print(f"Reserve count: {reserve_count}")
 print(f"Number of Hold actions:{len(eval_env.get_holdings())}")
+print(f"Number of invalid trades: {len(invalid_trades)}")
 print(f"Average reward: {(episode_rewards[0] / len(trades)):.2f}")
 print(f"Total reward: {np.sum(episode_rewards):.2f}")
 print(f"Total profit: {eval_env.savings_log[-1]:.2f}")
@@ -200,6 +201,7 @@ stats = {
     "sell_count": sell_count,
     "reserve_count": reserve_count,
     "num_holdings": len(eval_env.get_holdings()),
+    "num_invalid_trades": len(invalid_trades),
     "avg_buy_price": avg_buy_price,
     "avg_sell_price": avg_sell_price,
     "avg_buy_amount": avg_buy_amount,

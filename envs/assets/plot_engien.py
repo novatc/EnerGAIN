@@ -142,8 +142,7 @@ def plot_holding(holding_logs: list, model_name: str, da_data: pd.DataFrame):
     eval_data_timeline = da_data
     plt.plot(eval_data_timeline.index, eval_data_timeline['price'], color='blue', label='Real Market Price', alpha=0.6)
     steps, _ = zip(*holding_logs)
-    plt.scatter(steps, [eval_data_timeline['price'][step] for step in steps], c='black', marker='o', label='Hold',
-                alpha=0.6, s=10)
+    plt.scatter(steps, [eval_data_timeline['price'][step] for step in steps], c='red', marker='o', label='Hold', s=15)
     plt.title('Halten über die Zeit')
     plt.ylabel('Preis (€/kWh)')
     plt.xlabel('Schritt')

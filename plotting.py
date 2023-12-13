@@ -51,13 +51,12 @@ def plot_cumulative_reward(dfs, colors):
     plt.title('Kapitalgewinne/-verluste im Zeitverlauf')
     plt.xlabel('Anzahl der Handel')
     plt.ylabel('Kapital')
-    #plt.yscale('log')
+    # plt.yscale('log')
     plt.legend(fontsize=24)
     plt.legend()
     plt.tight_layout()
     plt.savefig('img/money_over_time.svg', dpi=1200, format='svg')
     plt.show()
-
 
 
 def plot_capital_over_time(dfs, colors):
@@ -196,7 +195,7 @@ colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 # Call the function to plot trade sizes
 
 # Example usage
-folder_path = 'trade_logs'  # Update this path
+folder_path = 'trade_logs/invalid'  # Update this path
 colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 
 dfs = load_csv_files_from_folder(folder_path)
@@ -207,3 +206,4 @@ dfs = load_csv_files_from_folder(folder_path)
 # plot_trade_durations(dfs, colors)
 plot_trade_sizes(dfs, colors)
 plot_cumulative_reward(dfs, colors)
+plot_invalid_trades(dfs, colors)
