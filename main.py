@@ -88,7 +88,7 @@ env = CustomNormalizeObservation(eval_env)
 try:
     eval_env = make(env_id)
     env = CustomNormalizeObservation(eval_env)
-    # env = NormalizeReward(env)
+    env = NormalizeReward(env)
 except Exception as e:
     print("Error creating environment: ", e)
     exit()

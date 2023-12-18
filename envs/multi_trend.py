@@ -43,10 +43,10 @@ class MultiTrend(gym.Env):
 
         obs_shape = (((self.da_dataframe.shape[1] + self.prl_dataframe.shape[1]) * self.trend_horizon + 1),)
 
-        action_low = np.array([-1, 0.001, 0, 0, -1000.0])  # prl choice, prl price, prl amount, da price, da amount
-        action_high = np.array([1, 0.5, 1000, 1, 1000.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_low = np.array([0.001, 0, 0, -1000.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_high = np.array([0.5, 1000, 1, 1000.0])  # prl choice, prl price, prl amount, da price, da amount
 
-        self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
+        self.action_space = spaces.Box(low=action_low, high=action_high, shape=(4,), dtype=np.float32)
         self.observation_space = spaces.Box(low=observation_low, high=observation_high,
                                             shape=obs_shape)
 
@@ -110,40 +110,39 @@ class MultiTrend(gym.Env):
             if should_truncated:
                 self.reset()
 
-        prl_choice, price_prl, amount_prl, price_da, amount_da = action
+        price_prl, amount_prl, price_da, amount_da = action
 
         reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
-        truncated = should_truncated  # this will be true if the agent does a time jump
+        truncated = should_truncated
 
         # Reset boundaries if PRL cooldown has expired
         if self.prl_cooldown == 0:
             self.upper_bound = self.battery.capacity
             self.lower_bound = 0
-            self.battery.charge(self.reserve_amount)
             self.reserve_amount = 0
 
-        #
+        # Penalty for crossing the battery bounds
         if not self.lower_bound < self.battery.get_soc() < self.upper_bound:
             reward += self.penalty
 
-        # Handle PRL trade if constraints are met
-        if self.check_prl_constraints(prl_choice):
-            reward += self.perform_prl_trade(price_prl, amount_prl)
+        # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
+        if self.check_prl_constraints():
+            if -self.trade_threshold < amount_prl < self.trade_threshold:
+                reward += self.handle_holding()
+            else:
+                reward += self.perform_prl_trade(price_prl, amount_prl)
 
         # Handle DA trade or holding
-        # clip the amount for the day ahead market to ensure that the battery can handle the trade
-        amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
-        if -self.trade_threshold < amount_da < self.trade_threshold:
-            reward += self.handle_holding()
-        elif self.check_boundaries(amount_da):
-            reward += self.perform_da_trade(amount_da, price_da)
-        else:
-            reward += self.penalty  # Apply penalty if DA boundaries are violated
+        if self.check_boundaries(amount_da):
+            if -self.trade_threshold < amount_da < self.trade_threshold:
+                reward += self.handle_holding()
+            else:
+                reward += self.perform_da_trade(amount_da, price_da)
 
-        # Decrement PRL cooldown
-        self.prl_cooldown = max(0, self.prl_cooldown - 1)
+        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
+        self.prl_cooldown = max(0, self.prl_cooldown - 1)  # Ensure it doesn't go below 0
 
         self.log_step(reward)
 
@@ -151,34 +150,13 @@ class MultiTrend(gym.Env):
                 'current_step': self.day_ahead.get_current_step(),
                 'savings': self.savings,
                 'charge': self.battery.get_soc(),
-                'prl choice': prl_choice,
                 'prl price': price_prl,
                 'prl amount': amount_prl,
                 'da price': price_da,
                 'da amount': amount_da,
                 'reward': reward
                 }
-
-        obs = self.get_observation()
-
-        return obs, reward, terminated, truncated, info
-
-    def set_boundaries(self, amount_prl):
-        """Set boundaries based on PRL amount."""
-        self.upper_bound = ((self.battery.capacity - 0.5 * amount_prl) / self.battery.capacity) * 1000
-        self.lower_bound = ((0.5 * amount_prl) / self.battery.capacity) * 1000
-
-    def check_boundaries(self, amount):
-        """Check if the battery can charge or discharge the given amount of energy."""
-        if self.lower_bound < self.battery.get_soc() + amount < self.upper_bound:
-            return True
-        return False
-
-    def check_prl_constraints(self, choice_value):
-        """Check if all constraints for PRL participation are met."""
-        if choice_value > 0 >= self.prl_cooldown and self.prl.get_current_step() % 4 == 0:
-            return True
-        return False
+        return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
     def is_trade_valid(self, price, amount, trade_type):
         """
@@ -229,6 +207,23 @@ class MultiTrend(gym.Env):
 
         return new_amount
 
+    def set_boundaries(self, amount_prl):
+        """Set boundaries based on PRL amount."""
+        self.upper_bound = ((self.battery.capacity - 0.5 * amount_prl) / self.battery.capacity) * 1000
+        self.lower_bound = ((0.5 * amount_prl) / self.battery.capacity) * 1000
+
+    def check_boundaries(self, amount):
+        """Check if the battery can charge or discharge the given amount of energy."""
+        if self.lower_bound < self.battery.get_soc() + amount < self.upper_bound:
+            return True
+        return False
+
+    def check_prl_constraints(self):
+        """Check if all constraints for PRL participation are met."""
+        if self.prl_cooldown <= 0 == self.prl.get_current_step() % 4:
+            return True
+        return False
+
     def perform_da_trade(self, energy_amount: float, market_price: float) -> float:
         """
         Perform a trade on the day-ahead market.
@@ -237,6 +232,8 @@ class MultiTrend(gym.Env):
         :param market_price: Price at which the trade is attempted.
         :return: Reward based on the trade outcome.
         """
+        energy_amount = self.clip_trade_amount(energy_amount, 'buy' if energy_amount > 0 else 'sell')
+
         return self.trade(market_price, energy_amount, 'buy' if energy_amount > 0 else 'sell')
 
     def trade(self, price, amount, trade_type):
@@ -273,7 +270,6 @@ class MultiTrend(gym.Env):
         """
         current_price = self.day_ahead.get_current_price()
         profit = 0
-        penalty = 0
         if trade_type == 'buy' and price < current_price or trade_type == 'sell' and price > current_price:
             profit = self.penalty
 
@@ -319,7 +315,6 @@ class MultiTrend(gym.Env):
             self.savings += (price * amount)
             self.battery.charge_log.append(self.battery.get_soc())
             self.savings_log.append(self.savings)
-            self.battery.discharge(amount)
             self.reserve_amount = amount
             # add the next four hours to the trade log. They should be equal to each other and just differ from the
             # step value
@@ -338,7 +333,7 @@ class MultiTrend(gym.Env):
             self.set_boundaries(amount)
             self.prl_cooldown = 4
 
-            return float(price * amount)
+            return float(price * amount) * 4
         else:
             # return penalty if the offer was not accepted
             return self.penalty

@@ -30,10 +30,10 @@ class MultiNoSavings(gym.Env):
         # +3 for prl cooldown, upper & lower bounds
         obs_shape = (self.da_dataframe.shape[1] + self.prl_dataframe.shape[1] + 3,)
 
-        action_low = np.array([-1, 0.001, 0, 0, -1000.0])  # prl choice, prl price, prl amount, da price, da amount
-        action_high = np.array([1, 0.5, 1000, 1, 1000.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_low = np.array([0.001, 0, 0, -1000.0])  # prl price, prl amount, da price, da amount
+        action_high = np.array([0.5, 1000, 1, 1000.0])  # prl price, prl amount, da price, da amount
 
-        self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
+        self.action_space = spaces.Box(low=action_low, high=action_high, shape=(4,), dtype=np.float32)
         self.observation_space = spaces.Box(low=np.append(observation_low, [0, 0]),  # Add 0 for lower and upper bounds
                                             high=np.append(observation_high, [1000, 1000]),
                                             # Assuming 1000 is the max bound
@@ -99,41 +99,38 @@ class MultiNoSavings(gym.Env):
             if should_truncated:
                 self.reset()
 
-        prl_choice, price_prl, amount_prl, price_da, amount_da = action
+        price_prl, amount_prl, price_da, amount_da = action
 
         reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
-        truncated = should_truncated  # this will be true if the agent does a time jump
+        truncated = should_truncated
 
         # Reset boundaries if PRL cooldown has expired
         if self.prl_cooldown == 0:
             self.upper_bound = self.battery.capacity
             self.lower_bound = 0
-            self.battery.charge(self.reserve_amount)
-            self.reserve_amount = 0
 
-        # Reward for staying within battery bounds
+        # Penalty for crossing the battery bounds
         if not self.lower_bound < self.battery.get_soc() < self.upper_bound:
             reward += self.penalty
 
-        # Handle PRL trade if constraints are met
-        if self.check_prl_constraints(prl_choice):
-            reward += self.perform_prl_trade(price_prl, amount_prl)
-
-        # clip the amount for the day ahead market to ensure that the battery can handle the trade
-        amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
+        # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
+        if self.check_prl_constraints():
+            if -self.trade_threshold < amount_prl < self.trade_threshold:
+                reward += self.handle_holding()
+            else:
+                reward += self.perform_prl_trade(price_prl, amount_prl)
 
         # Handle DA trade or holding
-        if -self.trade_threshold < amount_da < self.trade_threshold:
-            reward += self.handle_holding()
-        elif self.check_boundaries(amount_da):
-            reward += self.perform_da_trade(amount_da, price_da)
-        else:
-            reward += self.penalty  # Apply penalty if DA boundaries are violated
+        if self.check_boundaries(amount_da):
+            if -self.trade_threshold < amount_da < self.trade_threshold:
+                reward += self.handle_holding()
+            else:
+                reward += self.perform_da_trade(amount_da, price_da)
 
-        # Decrement PRL cooldown
-        self.prl_cooldown = max(0, self.prl_cooldown - 1)
+        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
+        self.prl_cooldown = max(0, self.prl_cooldown - 1)  # Ensure it doesn't go below 0
 
         self.log_step(reward)
 
@@ -141,34 +138,13 @@ class MultiNoSavings(gym.Env):
                 'current_step': self.day_ahead.get_current_step(),
                 'savings': self.savings,
                 'charge': self.battery.get_soc(),
-                'prl choice': prl_choice,
                 'prl price': price_prl,
                 'prl amount': amount_prl,
                 'da price': price_da,
                 'da amount': amount_da,
                 'reward': reward
                 }
-
-        obs = self.get_observation()
-
-        return obs, reward, terminated, truncated, info
-
-    def set_boundaries(self, amount_prl):
-        """Set boundaries based on PRL amount."""
-        self.upper_bound = ((self.battery.capacity - 0.5 * amount_prl) / self.battery.capacity) * 1000
-        self.lower_bound = ((0.5 * amount_prl) / self.battery.capacity) * 1000
-
-    def check_boundaries(self, amount):
-        """Check if the battery can charge or discharge the given amount of energy."""
-        if self.lower_bound < self.battery.get_soc() + amount < self.upper_bound:
-            return True
-        return False
-
-    def check_prl_constraints(self, choice_value):
-        """Check if all constraints for PRL participation are met."""
-        if choice_value > 0 >= self.prl_cooldown and self.prl.get_current_step() % 4 == 0:
-            return True
-        return False
+        return self.get_observation().astype(np.float32), reward, terminated, truncated, info
 
     def is_trade_valid(self, price, amount, trade_type):
         """
@@ -219,6 +195,23 @@ class MultiNoSavings(gym.Env):
 
         return new_amount
 
+    def set_boundaries(self, amount_prl):
+        """Set boundaries based on PRL amount."""
+        self.upper_bound = ((self.battery.capacity - 0.5 * amount_prl) / self.battery.capacity) * 1000
+        self.lower_bound = ((0.5 * amount_prl) / self.battery.capacity) * 1000
+
+    def check_boundaries(self, amount):
+        """Check if the battery can charge or discharge the given amount of energy."""
+        if self.lower_bound < self.battery.get_soc() + amount < self.upper_bound:
+            return True
+        return False
+
+    def check_prl_constraints(self):
+        """Check if all constraints for PRL participation are met."""
+        if self.prl_cooldown <= 0 == self.prl.get_current_step() % 4:
+            return True
+        return False
+
     def perform_da_trade(self, energy_amount: float, market_price: float) -> float:
         """
         Perform a trade on the day-ahead market.
@@ -227,6 +220,8 @@ class MultiNoSavings(gym.Env):
         :param market_price: Price at which the trade is attempted.
         :return: Reward based on the trade outcome.
         """
+        energy_amount = self.clip_trade_amount(energy_amount, 'buy' if energy_amount > 0 else 'sell')
+
         return self.trade(market_price, energy_amount, 'buy' if energy_amount > 0 else 'sell')
 
     def trade(self, price, amount, trade_type):
@@ -263,7 +258,6 @@ class MultiNoSavings(gym.Env):
         """
         current_price = self.day_ahead.get_current_price()
         profit = 0
-        penalty = 0
         if trade_type == 'buy' and price < current_price or trade_type == 'sell' and price > current_price:
             profit = self.penalty
 
@@ -309,8 +303,6 @@ class MultiNoSavings(gym.Env):
             self.savings += (price * amount)
             self.battery.charge_log.append(self.battery.get_soc())
             self.savings_log.append(self.savings)
-            self.battery.discharge(amount)
-            self.reserve_amount = amount
             # add the next four hours to the trade log. They should be equal to each other and just differ from the
             # step value
             for i in range(4):
@@ -328,7 +320,7 @@ class MultiNoSavings(gym.Env):
             self.set_boundaries(amount)
             self.prl_cooldown = 4
 
-            return float(price * amount)
+            return float(price * amount) * 4
         else:
             # return penalty if the offer was not accepted
             return self.penalty
@@ -383,16 +375,17 @@ class MultiNoSavings(gym.Env):
         :param mode:
         :return:
         """
-        plot_reward(self.reward_log, self.window_size, 'multi')
-        plot_savings(self.savings_log, self.window_size, 'multi')
-        plot_charge(self.window_size, self.battery, 'multi')
+        plot_reward(self.reward_log, self.window_size, 'MultiNoSavings')
+        plot_savings(self.savings_log, self.window_size, 'MultiNoSavings')
+        plot_charge(self.window_size, self.battery, 'MultiNoSavings')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
-                             model_name='multi', data=self.da_dataframe, plot_name='trades')
+                             model_name='MultiNoSavings', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='multi', data=self.da_dataframe, plot_name='invalid_trades')
-        plot_holding(self.holding, 'multi', da_data=self.da_dataframe)
-        plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'multi')
-        kernel_density_estimation(self.trade_log, 'multi', da_data=self.da_dataframe)
+                             sell_color='brown', model_name='MultiNoSavings', data=self.da_dataframe,
+                             plot_name='invalid_trades')
+        plot_holding(self.holding, 'MultiNoSavings', da_data=self.da_dataframe)
+        plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'MultiNoSavings')
+        kernel_density_estimation(self.trade_log, 'MultiNoSavings', da_data=self.da_dataframe)
 
     def get_trades(self) -> list:
         """

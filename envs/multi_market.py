@@ -8,7 +8,7 @@ from envs.assets.plot_engien import *
 
 
 class MultiMarket(gym.Env):
-    def __init__(self, da_data_path: str, prl_data_path: str, validation=False):
+    def __init__(self, da_data_path: str, prl_data_path: str, validation):
         super(MultiMarket, self).__init__()
         self.da_dataframe = pd.read_csv(da_data_path)
         self.prl_dataframe = pd.read_csv(prl_data_path)
@@ -30,10 +30,10 @@ class MultiMarket(gym.Env):
         # +3 for prl cooldown, upper & lower bounds
         obs_shape = (self.da_dataframe.shape[1] + self.prl_dataframe.shape[1] + 3,)
 
-        action_low = np.array([-1, 0.001, 0, 0, -1000.0])  # prl choice, prl price, prl amount, da price, da amount
-        action_high = np.array([1, 0.5, 1000, 1, 1000.0])  # prl choice, prl price, prl amount, da price, da amount
+        action_low = np.array([0.001, 0, 0, -1000.0])  # prl price, prl amount, da price, da amount
+        action_high = np.array([0.5, 1000, 1, 1000.0])  # prl price, prl amount, da price, da amount
 
-        self.action_space = spaces.Box(low=action_low, high=action_high, shape=(5,), dtype=np.float32)
+        self.action_space = spaces.Box(low=action_low, high=action_high, shape=(4,), dtype=np.float32)
         self.observation_space = spaces.Box(low=np.append(observation_low, [0, 0]),  # Add 0 for lower and upper bounds
                                             high=np.append(observation_high, [1000, 1000]),
                                             # Assuming 1000 is the max bound
@@ -99,7 +99,7 @@ class MultiMarket(gym.Env):
             if should_truncated:
                 self.reset()
 
-        prl_choice, price_prl, amount_prl, price_da, amount_da = action
+        price_prl, amount_prl, price_da, amount_da = action
 
         reward = 0
 
@@ -110,26 +110,27 @@ class MultiMarket(gym.Env):
         if self.prl_cooldown == 0:
             self.upper_bound = self.battery.capacity
             self.lower_bound = 0
-            self.battery.charge(self.reserve_amount)
-            self.reserve_amount = 0
 
         # Penalty for crossing the battery bounds
         if not self.lower_bound < self.battery.get_soc() < self.upper_bound:
             reward += self.penalty
 
         # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
-        if self.check_prl_constraints(prl_choice):
-            reward = self.perform_prl_trade(price_prl, amount_prl)
+        if self.check_prl_constraints():
+            if -self.trade_threshold < amount_prl < self.trade_threshold:
+                reward += self.handle_holding()
+            else:
+                reward += self.perform_prl_trade(price_prl, amount_prl)
 
-        # the agent chooses to trade on the DA market outside the 4-hour block
-        amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
         # Handle DA trade or holding
-        if -self.trade_threshold < amount_da < self.trade_threshold:
-            reward += self.handle_holding()
-        elif self.check_boundaries(amount_da):
-            reward += self.perform_da_trade(amount_da, price_da)
-        else:
-            reward += self.penalty  # Apply penalty if DA boundaries are violated
+        if self.check_boundaries(amount_da):
+            # Clip the amount to ensure that the battery state of charge remains within the bounds and decide based on
+            # the new amount if the agent should hold or trade
+            amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
+            if -self.trade_threshold < amount_da < self.trade_threshold:
+                reward += self.handle_holding()
+            else:
+                reward += self.perform_da_trade(amount_da, price_da)
 
         self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
         self.prl_cooldown = max(0, self.prl_cooldown - 1)  # Ensure it doesn't go below 0
@@ -140,7 +141,6 @@ class MultiMarket(gym.Env):
                 'current_step': self.day_ahead.get_current_step(),
                 'savings': self.savings,
                 'charge': self.battery.get_soc(),
-                'prl choice': prl_choice,
                 'prl price': price_prl,
                 'prl amount': amount_prl,
                 'da price': price_da,
@@ -209,9 +209,9 @@ class MultiMarket(gym.Env):
             return True
         return False
 
-    def check_prl_constraints(self, choice_value):
+    def check_prl_constraints(self):
         """Check if all constraints for PRL participation are met."""
-        if choice_value > 0 >= self.prl_cooldown and self.prl.get_current_step() % 4 == 0:
+        if self.prl_cooldown <= 0 == self.prl.get_current_step() % 4:
             return True
         return False
 
@@ -223,6 +223,7 @@ class MultiMarket(gym.Env):
         :param market_price: Price at which the trade is attempted.
         :return: Reward based on the trade outcome.
         """
+
         return self.trade(market_price, energy_amount, 'buy' if energy_amount > 0 else 'sell')
 
     def trade(self, price, amount, trade_type):
@@ -304,7 +305,6 @@ class MultiMarket(gym.Env):
             self.savings += (price * amount)
             self.battery.charge_log.append(self.battery.get_soc())
             self.savings_log.append(self.savings)
-            self.battery.discharge(amount)
             self.reserve_amount = amount
             # add the next four hours to the trade log. They should be equal to each other and just differ from the
             # step value
@@ -323,7 +323,7 @@ class MultiMarket(gym.Env):
             self.set_boundaries(amount)
             self.prl_cooldown = 4
 
-            return float(price * amount)
+            return float(price * amount) * 4
         else:
             # return penalty if the offer was not accepted
             return self.penalty
@@ -360,6 +360,18 @@ class MultiMarket(gym.Env):
         observation = self.get_observation().astype(np.float32)
         return observation, {}
 
+    def log_step(self, reward):
+        """
+        Update the logs for the current step.
+
+        :param reward: The reward obtained in this step.
+        """
+        self.rewards.append(reward)
+        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
+        self.upper_bound_log.append(self.upper_bound)
+        self.lower_bound_log.append(self.lower_bound)
+        self.soc_log.append(self.battery.get_soc())
+
     def render(self, mode='human'):
         """
         Render the environment to the screen
@@ -372,8 +384,7 @@ class MultiMarket(gym.Env):
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
                              model_name='multi', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='multi', data=self.da_dataframe,
-                             plot_name='invalid_trades')
+                             sell_color='brown', model_name='multi', data=self.da_dataframe, plot_name='invalid_trades')
         plot_holding(self.holding, 'multi', da_data=self.da_dataframe)
         plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'multi')
         kernel_density_estimation(self.trade_log, 'multi', da_data=self.da_dataframe)
@@ -385,13 +396,6 @@ class MultiMarket(gym.Env):
         """
         return self.trade_log
 
-    def get_prl_trades(self) -> list:
-        """
-        Returns the trade log for the PRL market
-        :return: list of tuples
-        """
-        return self.prl_trades
-
     def get_invalid_trades(self) -> list:
         """
         Returns the trade log
@@ -399,20 +403,16 @@ class MultiMarket(gym.Env):
         """
         return self.invalid_trades
 
+    def get_prl_trades(self) -> list:
+        """
+        Returns the trade log for the PRL market
+        :return: list of tuples
+        """
+        return self.prl_trades
+
     def get_holdings(self):
         return self.holding
 
-    def log_step(self, reward):
-        """
-        Update the logs for the current step.
-
-        :param reward: The reward obtained in this step.
-        """
-        self.rewards.append(reward)
-        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
-        self.upper_bound_log.append(self.upper_bound)
-        self.lower_bound_log.append(self.lower_bound)
-        self.soc_log.append(self.battery.get_soc())
     def log_trades(self, valid: bool, type: str, offered_price: float, amount: float, reward: float,
                    case: str) -> None:
         """
