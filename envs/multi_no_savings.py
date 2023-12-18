@@ -124,6 +124,9 @@ class MultiNoSavings(gym.Env):
 
         # Handle DA trade or holding
         if self.check_boundaries(amount_da):
+            # Clip the amount to ensure that the battery state of charge remains within the bounds and decide based on
+            # the new amount if the agent should hold or trade
+            amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
             if -self.trade_threshold < amount_da < self.trade_threshold:
                 reward += self.handle_holding()
             else:

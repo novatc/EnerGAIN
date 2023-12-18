@@ -121,7 +121,6 @@ class MultiTrend(gym.Env):
         if self.prl_cooldown == 0:
             self.upper_bound = self.battery.capacity
             self.lower_bound = 0
-            self.reserve_amount = 0
 
         # Penalty for crossing the battery bounds
         if not self.lower_bound < self.battery.get_soc() < self.upper_bound:
@@ -136,6 +135,9 @@ class MultiTrend(gym.Env):
 
         # Handle DA trade or holding
         if self.check_boundaries(amount_da):
+            # Clip the amount to ensure that the battery state of charge remains within the bounds and decide based on
+            # the new amount if the agent should hold or trade
+            amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
             if -self.trade_threshold < amount_da < self.trade_threshold:
                 reward += self.handle_holding()
             else:
