@@ -105,13 +105,13 @@ def plot_trades_timeline(trade_source: list, title: str, buy_color: str, sell_co
 
     # Plot trade data if available
     if buys:
-        buy_steps, _, _, buy_prices, _, _, _ = zip(*buys)
+        buy_steps, _, _, buy_prices, _, _, _, _ = zip(*buys)
         plt.scatter(buy_steps, buy_prices, c=buy_color, marker='o', label='Kaufen', alpha=0.6, s=10)
     if sells:
-        sell_steps, _, _, sell_prices, _, _, _ = zip(*sells)
+        sell_steps, _, _, sell_prices, _, _, _, _ = zip(*sells)
         plt.scatter(sell_steps, sell_prices, c=sell_color, marker='x', label='Verkaufen', alpha=0.6, s=10)
     if reserve:
-        reserve_steps, _, _, reserve_price, _, _, _ = zip(*reserve)
+        reserve_steps, _, _, reserve_price, _, _, _, _ = zip(*reserve)
         plt.scatter(reserve_steps, reserve_price, c='darkgoldenrod', marker='s', label='Reserve', alpha=0.6, s=10)
 
     plt.title(title + f' ({total_trades} Signale)', fontsize=14)
@@ -176,7 +176,6 @@ def kernel_density_estimation(trade_list: list, model_name: str, da_data: pd.Dat
     plt.legend(fontsize=12)
     plt.savefig(f'agent_data/{model_name}/{model_name}_KDE.svg', dpi=1200, format='svg')
     plt.show()
-
 
 
 def plot_soc_and_boundaries(soc_log, upper_bound_log, lower_bound_log, model_name: str):

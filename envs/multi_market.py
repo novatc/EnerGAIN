@@ -57,14 +57,13 @@ class MultiMarket(gym.Env):
         self.rewards = []
         self.reward_log = []
         self.window_size = 5
-        self.penalty = -30
+        self.penalty = -10
 
         self.validation = validation
 
         # this indicates, if the agent is in a 4-hour block or not. A normal step will decrease it by 1,
         # participation in the PRL market will set it to 4
         self.prl_cooldown = 0
-        self.reserve_amount = 0
         self.upper_bound = self.battery.capacity
         self.lower_bound = 0
 
@@ -111,10 +110,7 @@ class MultiMarket(gym.Env):
             self.upper_bound = self.battery.capacity
             self.lower_bound = 0
 
-        # Penalty for crossing the battery bounds
-        if not self.lower_bound < self.battery.get_soc() < self.upper_bound:
-            reward += self.penalty
-
+        amount_prl = min(amount_prl, self.battery.get_soc())
         # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
         if self.check_prl_constraints():
             if -self.trade_threshold < amount_prl < self.trade_threshold:
@@ -305,7 +301,6 @@ class MultiMarket(gym.Env):
             self.savings += (price * amount)
             self.battery.charge_log.append(self.battery.get_soc())
             self.savings_log.append(self.savings)
-            self.reserve_amount = amount
             # add the next four hours to the trade log. They should be equal to each other and just differ from the
             # step value
             for i in range(4):
@@ -315,8 +310,9 @@ class MultiMarket(gym.Env):
                     self.prl.get_current_price(),
                     price,
                     amount,
-                    price * amount,
-                    'prl accepted'
+                    (price * amount) * 4,
+                    'prl accepted',
+                    self.battery.get_soc()
                 )
                 self.trade_log.append(trade_info)
 
@@ -428,8 +424,8 @@ class MultiMarket(gym.Env):
         if valid:
             self.trade_log.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case))
+                 reward, case, self.battery.get_soc()))
         else:
             self.invalid_trades.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case))
+                 reward, case, self.battery.get_soc()))

@@ -127,13 +127,14 @@ for _ in range(args.episodes):
 
 trades = eval_env.get_trades()
 
-trades_log = pd.DataFrame(trades, columns=["step", "type", "market price", "offered_price", "amount", "reward", "case"])
+trades_log = pd.DataFrame(trades, columns=["step", "type", "market price", "offered_price", "amount", "reward", "case",
+                                           "soc"])
 # write trades to csv
 trades_log.to_csv(f"trade_logs/{model_name}_trades.csv", index=False)
 
 invalid_trades = eval_env.get_invalid_trades()
 invalid_trades_log = pd.DataFrame(invalid_trades, columns=["step", "type", "market price", "offered_price", "amount",
-                                                           "reward", "case"])
+                                                           "reward", "case", "soc"])
 # write invalid trades to csv
 invalid_trades_log.to_csv(f"trade_logs/invalid/{model_name}_invalid_trades.csv", index=False)
 

@@ -68,14 +68,13 @@ class MultiTrend(gym.Env):
         self.rewards = []
         self.reward_log = []
         self.window_size = 5
-        self.penalty = -30
+        self.penalty = -10
 
         self.validation = validation
 
         # this indicates, if the agent is in a 4-hour block or not. A normal step will decrease it by 1,
         # participation in the PRL market will set it to 4
         self.prl_cooldown = 0
-        self.reserve_amount = 0
         self.upper_bound = self.battery.capacity
         self.lower_bound = 0
 
@@ -122,12 +121,10 @@ class MultiTrend(gym.Env):
             self.upper_bound = self.battery.capacity
             self.lower_bound = 0
 
-        # Penalty for crossing the battery bounds
-        if not self.lower_bound < self.battery.get_soc() < self.upper_bound:
-            reward += self.penalty
+        amount_prl = min(amount_prl, self.battery.get_soc())
 
         # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
-        if self.check_prl_constraints():
+        if self.check_prl_constraints() and self.battery.can_discharge(amount_prl):
             if -self.trade_threshold < amount_prl < self.trade_threshold:
                 reward += self.handle_holding()
             else:
@@ -317,7 +314,6 @@ class MultiTrend(gym.Env):
             self.savings += (price * amount)
             self.battery.charge_log.append(self.battery.get_soc())
             self.savings_log.append(self.savings)
-            self.reserve_amount = amount
             # add the next four hours to the trade log. They should be equal to each other and just differ from the
             # step value
             for i in range(4):
@@ -328,7 +324,8 @@ class MultiTrend(gym.Env):
                     price,
                     amount,
                     price * amount,
-                    'prl accepted'
+                    'prl accepted',
+                    self.battery.get_soc()
                 )
                 self.trade_log.append(trade_info)
 
@@ -391,16 +388,16 @@ class MultiTrend(gym.Env):
         :param mode:
         :return:
         """
-        kernel_density_estimation(self.trade_log, 'multi', da_data=self.da_dataframe)
-        plot_reward(self.reward_log, self.window_size, 'multi')
-        plot_savings(self.savings_log, self.window_size, 'multi')
-        plot_charge(self.window_size, self.battery, 'multi')
+        plot_reward(self.reward_log, self.window_size, 'multi_trend')
+        kernel_density_estimation(self.trade_log, 'multi_trend', da_data=self.da_dataframe)
+        plot_savings(self.savings_log, self.window_size, 'multi_trend')
+        plot_charge(self.window_size, self.battery, 'multi_trend')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
-                             model_name='multi', data=self.da_dataframe, plot_name='trades')
+                             model_name='multi_trend', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='multi', data=self.da_dataframe, plot_name='invalid')
-        plot_holding(self.holding, 'multi', da_data=self.da_dataframe)
-        plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'multi')
+                             sell_color='brown', model_name='multi_trend', data=self.da_dataframe, plot_name='invalid')
+        plot_holding(self.holding, 'multi_trend', da_data=self.da_dataframe)
+        plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'multi_trend')
 
     def get_trades(self) -> list:
         """
@@ -441,8 +438,9 @@ class MultiTrend(gym.Env):
         if valid:
             self.trade_log.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case))
+                 reward, case, self.battery.get_soc()))
         else:
             self.invalid_trades.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case))
+                 reward, case, self.battery.get_soc()))
+

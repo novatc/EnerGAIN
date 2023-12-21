@@ -113,9 +113,7 @@ class BasePRL(gym.Env):
             self.battery.charge(self.reserve_amount)
             self.reserve_amount = 0
 
-        # Penalty for crossing the battery bounds
-        if not self.lower_bound < self.battery.get_soc() < self.upper_bound:
-            reward += self.penalty
+        amount_prl = min(amount_prl, self.battery.get_soc())
 
         # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
         if self.check_prl_constraints(prl_choice):
@@ -317,14 +315,15 @@ class BasePRL(gym.Env):
                     price,
                     amount,
                     price * amount,
-                    'prl accepted'
+                    'prl accepted',
+                    self.battery.get_soc()
                 )
                 self.trade_log.append(trade_info)
 
             self.set_boundaries(amount)
             self.prl_cooldown = 4
 
-            return float(price * amount)
+            return float(price * amount) * 4
         else:
             # return penalty if the offer was not accepted
             return self.penalty
@@ -430,8 +429,9 @@ class BasePRL(gym.Env):
         if valid:
             self.trade_log.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case))
+                 reward, case, self.battery.get_soc()))
         else:
             self.invalid_trades.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case))
+                 reward, case, self.battery.get_soc()))
+

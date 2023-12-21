@@ -240,8 +240,8 @@ class BaseEnv(gym.Env):
         if valid:
             self.trade_log.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case))
+                 reward, case, self.battery.get_soc()))
         else:
             self.invalid_trades.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case))
+                 reward, case, self.battery.get_soc()))
