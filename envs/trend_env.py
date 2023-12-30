@@ -6,7 +6,7 @@ import numpy as np
 from envs.assets.battery import Battery
 from envs.assets.dayahead import DayAhead
 from envs.assets.plot_engien import plot_reward, plot_savings, plot_charge, plot_trades_timeline, plot_holding, \
-    kernel_density_estimation
+    kernel_density_estimation, plot_savings_on_trade_steps
 
 
 class TrendEnv(gym.Env):
@@ -214,15 +214,17 @@ class TrendEnv(gym.Env):
         :param mode:
         :return:
         """
-        plot_reward(self.reward_log, self.window_size, 'trend')
-        plot_savings(self.savings_log, self.window_size, 'trend')
-        plot_charge(self.window_size, self.battery, 'trend')
+        plot_savings(self.trade_log, 'trend')
+        plot_savings_on_trade_steps(trade_log=self.trade_log, total_steps=self.da_dataframe.shape[0],
+                                    model_name='trend')
+        plot_charge(self.battery, 'trend')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
                              model_name='trend', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='trend', data=self.da_dataframe, plot_name='invalid_trades')
+                             sell_color='brown', model_name='trend', data=self.da_dataframe,
+                             plot_name='invalid_trades')
         plot_holding(self.holding, 'trend', da_data=self.da_dataframe)
-        kernel_density_estimation(self.trade_log, model_name='trend', da_data=self.da_dataframe)
+        kernel_density_estimation(self.trade_log, 'trend', da_data=self.da_dataframe)
 
     def get_trades(self):
         """
@@ -252,9 +254,9 @@ class TrendEnv(gym.Env):
         if valid:
             self.trade_log.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case))
+                 reward, case, self.battery.get_soc(), self.savings))
         else:
             self.invalid_trades.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case))
+                 reward, case, self.battery.get_soc(), self.savings))
 
