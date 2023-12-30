@@ -26,6 +26,7 @@ class Battery:
 
         :param amount: Amount of energy to discharge the battery with.
         """
+        amount = abs(amount)
         self.soc = max(0, self.soc - amount * self.discharge_rate)
 
     def get_soc(self):
