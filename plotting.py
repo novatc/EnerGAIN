@@ -46,12 +46,11 @@ def plot_cumulative_reward(dfs, colors):
     plt.figure(figsize=(14, 7))
     for i, (name, df) in enumerate(dfs.items()):
         name = name.split('.')[0]
-        plt.plot(df['reward'].cumsum(), label=name, color=colors[i % len(colors)])
+        plt.plot(df['savings'], label=name, color=colors[i % len(colors)])
 
     plt.title('Kapitalgewinne/-verluste im Zeitverlauf')
     plt.xlabel('Anzahl der Handel')
     plt.ylabel('Kapital')
-    # plt.yscale('log')
     plt.legend(fontsize=24)
     plt.legend()
     plt.tight_layout()
@@ -59,23 +58,27 @@ def plot_cumulative_reward(dfs, colors):
     plt.show()
 
 
-def plot_capital_over_time(dfs, colors):
+def plot_capital_over_time(dfs, colors, total_steps=8785):
     """
-    Zeichnet die kumulative Kapitalgewinne oder -verluste über die Zeit für jeden Agenten.
+    Zeichnet die kumulative Kapitalgewinne oder -verluste über die Zeit für jeden Agenten, aktualisiert nur bei Handel.
 
     Parameter:
         dfs (dict): Ein Dictionary, bei dem die Schlüssel Dateinamen und die Werte DataFrames sind.
         colors (list): Eine Liste von unterschiedlichen Farben für jeden Agenten.
+        total_steps (int): Gesamtanzahl der Schritte (standardmäßig 8785).
     """
     plt.figure(figsize=(14, 7))
+
     for i, (name, df) in enumerate(dfs.items()):
         # Berechnet die kumulative Summe der 'reward'-Spalte
         df['kumulative_belohnung'] = df['reward'].cumsum()
-        plt.plot(df['kumulative_belohnung'], label=name.split('.')[0], color=colors[i % len(colors)])
+        # Plot the cumulative reward against the steps
+        plt.plot(df['Step'], df['kumulative_belohnung'], drawstyle='steps-post', label=name.split('.')[0],
+                 color=colors[i % len(colors)])
 
-    plt.title('Kumulative Kapitalgewinne/-verluste im Zeitverlauf')
-    plt.xlabel('Anzahl der Handel')
-    plt.ylabel('Kumulative Belohnung (Kapitalgewinn/-verlust)')
+    plt.xlabel('Schritte', fontsize=12)
+    plt.ylabel('Kumulative Belohnung (Kapitalgewinn/-verlust)', fontsize=12)
+    plt.xlim(0, total_steps)
     plt.legend()
     plt.show()
 
@@ -131,8 +134,8 @@ def plot_trade_sizes(dfs, colors):
     fig, axs = plt.subplots(1, 2, figsize=(14, 7))
 
     # Titel für die Unterdiagramme
-    axs[0].set_title('Verteilung der Handelsgrößen (Kaufen)')
-    axs[1].set_title('Verteilung der Handelsgrößen (Verkaufen)')
+    axs[0].set_title('Kaufen')
+    axs[1].set_title('Verkaufen')
 
     # Durchläuft jede Handelsstrategie und berechnet die Handelsgrößen
     for i, (name, df) in enumerate(dfs.items()):
@@ -148,14 +151,13 @@ def plot_trade_sizes(dfs, colors):
             axs[j].hist(handelsgrößen, bins=50, alpha=0.5, color=colors[i % len(colors)], label=name)
 
     # Beschriftungen für die Unterdiagramme
-    axs[0].set_xlabel('Handelsgröße (Menge)')
-    axs[0].set_ylabel('Häufigkeit')
-    axs[1].set_xlabel('Handelsgröße (Menge)')
-    axs[1].set_ylabel('Häufigkeit')
+    axs[0].set_xlabel('Handelsgröße (Menge)', fontsize=12)
+    axs[0].set_ylabel('Häufigkeit', fontsize=12)
+    axs[1].set_xlabel('Handelsgröße (Menge)', fontsize=12)
+    axs[1].set_ylabel('Häufigkeit', fontsize=12)
 
     # Fügt eine Legende zu jedem Unterdiagramm hinzu
     axs[0].legend()
-    axs[1].legend()
     plt.savefig('img/trade_amount_dist.svg', dpi=1200, format='svg')
 
     # Zeigt die Diagramme
@@ -195,7 +197,7 @@ colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 # Call the function to plot trade sizes
 
 # Example usage
-folder_path = 'trade_logs/invalid'  # Update this path
+folder_path = 'trade_logs'  # Update this path
 colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 
 dfs = load_csv_files_from_folder(folder_path)
@@ -206,4 +208,3 @@ dfs = load_csv_files_from_folder(folder_path)
 # plot_trade_durations(dfs, colors)
 plot_trade_sizes(dfs, colors)
 plot_cumulative_reward(dfs, colors)
-plot_invalid_trades(dfs, colors)
