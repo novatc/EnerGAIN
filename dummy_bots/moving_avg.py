@@ -28,7 +28,7 @@ class SimpleThresholdBot:
         else:
             profit = float(market_price) * offer_amount
         self.trade_log.append((step, trade_type, self.market.get_current_price(), market_price, offer_amount,
-                               profit, reason))
+                               profit, reason, self.inventory, self.money))
 
     def update_moving_average(self, current_price):
         """ Update the moving average with the current price. """
@@ -47,15 +47,15 @@ class SimpleThresholdBot:
             adjusted_buy_price = current_price * 1.1  # 10% higher to ensure market acceptance
             if self.market.accept_offer(adjusted_buy_price, 'buy'):
                 self.money -= self.unit_buy_sell * current_price
-                self.inventory += self.unit_buy_sell
+                self.inventory += self.unit_buy_sell * 0.975
                 self.log_trade(step, current_price, self.unit_buy_sell, 'buy', 'moving_avg')
 
         # Sell logic based on moving average
-        elif (moving_avg_price >= self.sell_threshold and self.inventory >= self.unit_buy_sell):
+        elif moving_avg_price >= self.sell_threshold and self.inventory >= self.unit_buy_sell:
             adjusted_sell_price = current_price * 0.9  # 10% lower to ensure market acceptance
             if self.market.accept_offer(adjusted_sell_price, 'sell'):
                 self.money += self.unit_buy_sell * current_price
-                self.inventory -= self.unit_buy_sell
+                self.inventory -= self.unit_buy_sell * 0.975
                 self.log_trade(step, adjusted_sell_price, self.unit_buy_sell, 'sell', 'moving_avg')
 
         self.money_over_time.append(self.money)
@@ -80,11 +80,13 @@ moving_average_window = 5  # For example, a 5-step moving average
 
 bot = SimpleThresholdBot(market, buy_threshold=0.067847, sell_threshold=0.126536,
                          moving_average_window=moving_average_window, initial_money=50.0,
-                         initial_inventory=500, max_inventory=1000, unit_buy_sell=50)
+                         initial_inventory=500, max_inventory=1000, unit_buy_sell=200)
 
 money, inventory = bot.run_simulation()
 print(f"Money: {money}, Inventory: {inventory}")
 
 trades = bot.get_trades()
-trades_log = pd.DataFrame(trades, columns=["step", "type", "market price", "offered_price", "amount", "reward", "case"])
+trades_log = pd.DataFrame(trades,
+                          columns=["step", "type", "market price", "offered_price", "amount", "reward", "case", "soc",
+                                   "savings"])
 trades_log.to_csv("../trade_logs/moving_average_bot_trades.csv", index=False)

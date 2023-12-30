@@ -25,7 +25,7 @@ class SimpleThresholdBot:
         else:
             profit = float(market_price) * offer_amount
         self.trade_log.append((step, trade_type, self.market.get_current_price(), market_price, offer_amount,
-                               profit, reason))
+                               profit, reason, self.inventory, self.money))
 
     def trade(self):
         "Perform a trade based on the set thresholds."
@@ -77,14 +77,16 @@ data = pd.read_csv(file_path)
 
 # Basic statistical analysis of the price data
 price_stats = data['price'].describe()
+# print(price_stats)
 
 
 bot = SimpleThresholdBot(market, buy_threshold=0.067847, sell_threshold=0.126536, initial_money=50.0,
-                         initial_inventory=500, max_inventory=1000, unit_buy_sell=50)
+                         initial_inventory=500, max_inventory=1000, unit_buy_sell=200)
 money, inventory = bot.run_simulation()
 print(f"Money: {money}, Inventory: {inventory}")
 
 trades = bot.get_trades()
 trades_log = pd.DataFrame(trades,
-                          columns=["step", "type", "market price", "offered_price", "amount", "reward", "case"])
+                          columns=["step", "type", "market price", "offered_price", "amount", "reward", "case", "soc",
+                                   "savings"])
 trades_log.to_csv("../trade_logs/simple_threshold_bot_trades.csv", index=False)
