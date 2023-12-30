@@ -54,9 +54,6 @@ env_params = {
                     'data_path_prl': 'data/prm/preprocessed_prl.csv',
                     'data_path_da': 'data/in-use/unscaled_train_data.csv'},
 
-    'reward_boosting': {'id': 'reward_boosting-v0', 'entry_point': 'envs.reward_boosting:RewardBoosting',
-                        'data_path_prl': 'data/prm/preprocessed_prl.csv',
-                        'data_path_da': 'data/in-use/unscaled_train_data.csv'}
 }
 
 # Check if chosen environment is valid
