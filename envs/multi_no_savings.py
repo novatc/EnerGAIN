@@ -43,7 +43,6 @@ class MultiNoSavings(gym.Env):
         self.prl = FrequencyContainmentReserve(self.prl_dataframe)
         self.battery = Battery(1000, 500)
         self.savings = 50  # €
-        self.savings_log = []
 
         self.trade_log = []
         self.invalid_trades = []
@@ -111,19 +110,18 @@ class MultiNoSavings(gym.Env):
             self.lower_bound = 0
 
         amount_prl = min(amount_prl, self.battery.get_soc())
-
         # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
-        if self.check_prl_constraints() and self.battery.can_discharge(amount_prl):
+        if self.check_prl_constraints():
             if -self.trade_threshold < amount_prl < self.trade_threshold:
                 reward += self.handle_holding()
             else:
                 reward += self.perform_prl_trade(price_prl, amount_prl)
 
         # Handle DA trade or holding
+        amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
         if self.check_boundaries(amount_da):
             # Clip the amount to ensure that the battery state of charge remains within the bounds and decide based on
             # the new amount if the agent should hold or trade
-            amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
             if -self.trade_threshold < amount_da < self.trade_threshold:
                 reward += self.handle_holding()
             else:
@@ -159,8 +157,7 @@ class MultiNoSavings(gym.Env):
         """
         if trade_type == 'buy':
             if self.battery.can_charge(amount) is False:
-                self.log_trades(False, 'buy', price, amount, self.penalty,
-                                'savings' if self.savings <= 0 else 'battery')
+                self.log_trades(False, 'buy', price, amount, self.penalty, 'battery')
                 return False
         elif trade_type == 'sell':
             if self.battery.can_discharge(amount) is False:
@@ -184,12 +181,10 @@ class MultiNoSavings(gym.Env):
             potential_soc = self.battery.get_soc() + amount
             if not (self.lower_bound < potential_soc < self.upper_bound):
                 new_amount = min(amount, self.upper_bound - self.battery.get_soc())
-                # print(f"Clipped buy amount from {amount} to {new_amount}")
         elif trade_type == 'sell':
             potential_soc = self.battery.get_soc() - amount
             if not (self.lower_bound < potential_soc < self.upper_bound):
                 new_amount = max(amount, self.battery.get_soc() - self.upper_bound)
-                # print(f"Clipped sell amount from {amount} to {new_amount}")
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
 
@@ -220,7 +215,6 @@ class MultiNoSavings(gym.Env):
         :param market_price: Price at which the trade is attempted.
         :return: Reward based on the trade outcome.
         """
-        energy_amount = self.clip_trade_amount(energy_amount, 'buy' if energy_amount > 0 else 'sell')
 
         return self.trade(market_price, energy_amount, 'buy' if energy_amount > 0 else 'sell')
 
@@ -264,28 +258,18 @@ class MultiNoSavings(gym.Env):
         if self.day_ahead.accept_offer(price, trade_type):
             if trade_type == 'buy':
                 self.battery.charge(amount)  # Charge battery for buy trades
-                self.savings -= current_price * amount  # Update savings
                 profit = -current_price * amount  # Negative profit for buying
 
             elif trade_type == 'sell':
-                self.battery.charge(amount)  # Discharge battery for sell trades
-                self.savings += current_price * abs(amount)  # Update savings
+                self.battery.discharge(amount)  # Discharge battery for sell trades
                 profit = current_price * abs(amount)  # Positive profit for selling
         else:
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
             return self.penalty
-            # return the difference between the offered price and the current price as a penalty
-            # if trade_type == 'buy':
-            #     penalty = float((current_price - price))
-            # else:
-            #     penalty = float((price - current_price))
-            #
-            # return penalty
-            # return 0
 
         # Logging the trade details
         self.battery.add_charge_log(self.battery.get_soc())
-        self.savings_log.append(self.savings)
+        self.savings = self.savings + profit
         self.log_trades(True, trade_type, price, amount, profit, 'accepted')
 
         return profit
@@ -300,9 +284,9 @@ class MultiNoSavings(gym.Env):
         # Check if the offer is accepted by the prl market and the battery can adhere to prl constraints
         if self.prl.accept_offer(price):
             # Update savings based on the transaction in prl market
-            self.savings += (price * amount)
+            profit = float((price * amount) * 4)
             self.battery.charge_log.append(self.battery.get_soc())
-            self.savings_log.append(self.savings)
+            self.savings += profit
             # add the next four hours to the trade log. They should be equal to each other and just differ from the
             # step value
             for i in range(4):
@@ -312,9 +296,10 @@ class MultiNoSavings(gym.Env):
                     self.prl.get_current_price(),
                     price,
                     amount,
-                    price * amount,
+                    profit,
                     'prl accepted',
-                    self.battery.get_soc()
+                    self.battery.get_soc(),
+                    self.savings
                 )
                 self.trade_log.append(trade_info)
 
@@ -325,9 +310,6 @@ class MultiNoSavings(gym.Env):
         else:
             # return penalty if the offer was not accepted
             return self.penalty
-            # return the difference between the offered price and the current price as a penalty
-            # return float((self.day_ahead.get_current_price() - price))
-            # return 0
 
     def handle_holding(self):
         # Logic for handling the holding scenario
@@ -376,17 +358,17 @@ class MultiNoSavings(gym.Env):
         :param mode:
         :return:
         """
-        plot_reward(self.reward_log, self.window_size, 'MultiNoSavings')
-        plot_savings(self.savings_log, self.window_size, 'MultiNoSavings')
-        plot_charge(self.window_size, self.battery, 'MultiNoSavings')
+        plot_savings(self.trade_log, 'multi_no_savings')
+        plot_savings_on_trade_steps(trade_log=self.trade_log, total_steps=self.da_dataframe.shape[0],
+                                    model_name='multi_no_savings')
+        plot_charge(self.battery, 'multi_no_savings')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
-                             model_name='MultiNoSavings', data=self.da_dataframe, plot_name='trades')
+                             model_name='multi_no_savings', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='MultiNoSavings', data=self.da_dataframe,
-                             plot_name='invalid_trades')
-        plot_holding(self.holding, 'MultiNoSavings', da_data=self.da_dataframe)
-        plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'MultiNoSavings')
-        kernel_density_estimation(self.trade_log, 'MultiNoSavings', da_data=self.da_dataframe)
+                             sell_color='brown', model_name='multi_no_savings', data=self.da_dataframe, plot_name='invalid_trades')
+        plot_holding(self.holding, 'multi_no_savings', da_data=self.da_dataframe)
+        plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'multi_no_savings')
+        kernel_density_estimation(self.trade_log, 'multi_no_savings', da_data=self.da_dataframe)
 
     def get_trades(self) -> list:
         """
@@ -427,8 +409,8 @@ class MultiNoSavings(gym.Env):
         if valid:
             self.trade_log.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case, self.battery.get_soc()))
+                 reward, case, self.battery.get_soc(), self.savings))
         else:
             self.invalid_trades.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case, self.battery.get_soc()))
+                 reward, case, self.battery.get_soc(), self.savings))

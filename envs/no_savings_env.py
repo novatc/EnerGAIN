@@ -82,8 +82,7 @@ class NoSavingsEnv(gym.Env):
         """
         if trade_type == 'buy':
             if self.battery.can_charge(amount) is False:
-                self.log_trades(False, 'buy', price, amount, self.penalty,
-                                'savings' if self.savings <= 0 else 'battery')
+                self.log_trades(False, 'buy', price, amount, self.penalty,'battery')
                 return False
         elif trade_type == 'sell':
             if self.battery.can_discharge(amount) is False:
@@ -240,8 +239,8 @@ class NoSavingsEnv(gym.Env):
         if valid:
             self.trade_log.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case))
+                 reward, case, self.battery.get_soc(), self.savings))
         else:
             self.invalid_trades.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
-                 reward, case))
+                 reward, case, self.battery.get_soc(), self.savings))
