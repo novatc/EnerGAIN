@@ -30,10 +30,9 @@ class NoSavingsEnv(gym.Env):
         self.holding = []
 
         self.reward_log = []
-        self.window_size = 5
-        self.penalty = -10
+        self.penalty = -10  # penalty for invalid trades and breaking the rules
 
-        self.trade_threshold = 10
+        self.trade_threshold = 10  # kWh, if the trade is within this threshold, it is considered as holding
 
         self.validation = validation
 
@@ -51,7 +50,8 @@ class NoSavingsEnv(gym.Env):
         reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
-        truncated = should_truncated  # this can be false all the time since there is no failure condition the agent could trigger
+        truncated = should_truncated  # this can be false all the time since there is no failure condition the agent
+        # could trigger
 
         # Handle DA trade or holding
         if -self.trade_threshold < amount < self.trade_threshold:
@@ -81,8 +81,9 @@ class NoSavingsEnv(gym.Env):
         :return: (bool) True if the trade is valid, False otherwise.
         """
         if trade_type == 'buy':
-            if self.battery.can_charge(amount) is False:
-                self.log_trades(False, 'buy', price, amount, self.penalty,'battery')
+            if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
+                self.log_trades(False, 'buy', price, amount, self.penalty,
+                                'savings' if self.savings <= 0 else 'battery')
                 return False
         elif trade_type == 'sell':
             if self.battery.can_discharge(amount) is False:
@@ -152,15 +153,7 @@ class NoSavingsEnv(gym.Env):
                 profit = current_price * abs(amount)  # Positive profit for selling
         else:
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
-            # return self.penalty
-            # return the difference between the offered price and the current price as a penalty
-            # if trade_type == 'buy':
-            #     penalty = float((current_price - price))
-            # else:
-            #     penalty = float((price - current_price))
-            #
-            # return penalty
-            return 0
+            return self.penalty
 
         # Logging the trade details
         self.battery.add_charge_log(self.battery.get_soc())
@@ -201,15 +194,17 @@ class NoSavingsEnv(gym.Env):
         :param mode:
         :return:
         """
-        plot_reward(self.reward_log, self.window_size, 'no_savings')
-        plot_savings(self.savings_log, self.window_size, 'no_savings')
-        plot_charge(self.window_size, self.battery, 'no_savings')
+        plot_savings(self.trade_log, 'no_savings')
+        plot_savings_on_trade_steps(trade_log=self.trade_log, total_steps=self.da_dataframe.shape[0],
+                                    model_name='no_savings')
+        plot_charge(self.battery, 'no_savings')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
                              model_name='no_savings', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='no_savings', data=self.da_dataframe, plot_name='invalid_trades')
+                             sell_color='brown', model_name='no_savings', data=self.da_dataframe,
+                             plot_name='invalid_trades')
         plot_holding(self.holding, 'no_savings', da_data=self.da_dataframe)
-        kernel_density_estimation(self.trade_log, model_name='no_savings', da_data=self.da_dataframe)
+        kernel_density_estimation(self.trade_log, 'no_savings', da_data=self.da_dataframe)
 
     def get_trades(self):
         """

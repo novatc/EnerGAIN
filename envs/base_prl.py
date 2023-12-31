@@ -56,15 +56,15 @@ class BasePRL(gym.Env):
 
         self.rewards = []
         self.reward_log = []
-        self.window_size = 5
-        self.penalty = -10
+        self.penalty = -10 # Penalty for invalid trades and breaking constraints
 
         self.validation = validation
 
         # this indicates, if the agent is in a 4-hour block or not. A normal step will decrease it by 1,
         # participation in the PRL market will set it to 4
         self.prl_cooldown = 0
-        self.reserve_amount = 0
+        # The upper and lower boundaries for the SOC. They are set based on the amount of energy the agent offers in the
+        # PRL market
         self.upper_bound = self.battery.capacity
         self.lower_bound = 0
 
@@ -110,8 +110,6 @@ class BasePRL(gym.Env):
         if self.prl_cooldown == 0:
             self.upper_bound = self.battery.capacity
             self.lower_bound = 0
-            self.battery.charge(self.reserve_amount)
-            self.reserve_amount = 0
 
         amount_prl = min(amount_prl, self.battery.get_soc())
 
@@ -188,12 +186,10 @@ class BasePRL(gym.Env):
             potential_soc = self.battery.get_soc() + amount
             if not (self.lower_bound < potential_soc < self.upper_bound):
                 new_amount = min(amount, self.upper_bound - self.battery.get_soc())
-                # print(f"Clipped buy amount from {amount} to {new_amount}")
         elif trade_type == 'sell':
             potential_soc = self.battery.get_soc() - amount
             if not (self.lower_bound < potential_soc < self.upper_bound):
                 new_amount = max(amount, self.battery.get_soc() - self.upper_bound)
-                # print(f"Clipped sell amount from {amount} to {new_amount}")
         else:
             raise ValueError(f"Invalid trade type: {trade_type}")
 

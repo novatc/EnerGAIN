@@ -30,6 +30,7 @@ class MultiTrend(gym.Env):
         prl_high_boundary = np.tile(prl_high_boundary, self.trend_horizon)
 
         # add 10 to each value in the high boundary to make sure the agent can't reach the upper boundary
+        # without it, it somehow results in an error
         da_high_boundary += 10
         prl_high_boundary += 10
 
@@ -67,14 +68,15 @@ class MultiTrend(gym.Env):
 
         self.rewards = []
         self.reward_log = []
-        self.window_size = 5
-        self.penalty = -10
+        self.penalty = -10  # Penalty for invalid trades and breaking constraints
 
         self.validation = validation
 
         # this indicates, if the agent is in a 4-hour block or not. A normal step will decrease it by 1,
         # participation in the PRL market will set it to 4
         self.prl_cooldown = 0
+        # The upper and lower boundaries for the SOC. They are set based on the amount of energy the agent offers in the
+        # PRL market
         self.upper_bound = self.battery.capacity
         self.lower_bound = 0
 
@@ -328,7 +330,6 @@ class MultiTrend(gym.Env):
             # return penalty if the offer was not accepted
             return self.penalty
 
-
     def handle_holding(self):
         # Logic for handling the holding scenario
         self.holding.append((self.day_ahead.get_current_step(), 'hold'))
@@ -378,12 +379,14 @@ class MultiTrend(gym.Env):
         :return:
         """
         plot_savings(self.trade_log, 'multi_trend')
-        plot_savings_on_trade_steps(trade_log=self.trade_log, total_steps=self.da_dataframe.shape[0], model_name='multi_trend')
+        plot_savings_on_trade_steps(trade_log=self.trade_log, total_steps=self.da_dataframe.shape[0],
+                                    model_name='multi_trend')
         plot_charge(self.battery, 'multi_trend')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
                              model_name='multi_trend', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='multi_trend', data=self.da_dataframe, plot_name='invalid_trades')
+                             sell_color='brown', model_name='multi_trend', data=self.da_dataframe,
+                             plot_name='invalid_trades')
         plot_holding(self.holding, 'multi_trend', da_data=self.da_dataframe)
         plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'multi_trend')
         kernel_density_estimation(self.trade_log, 'multi_trend', da_data=self.da_dataframe)
@@ -432,4 +435,3 @@ class MultiTrend(gym.Env):
             self.invalid_trades.append(
                 (self.day_ahead.get_current_step(), type, self.day_ahead.get_current_price(), offered_price, amount,
                  reward, case, self.battery.get_soc(), self.savings))
-

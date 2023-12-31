@@ -55,18 +55,19 @@ class MultiNoSavings(gym.Env):
 
         self.rewards = []
         self.reward_log = []
-        self.window_size = 5
-        self.penalty = -10
+        self.penalty = -10  # Penalty for invalid trades and breaking constraints
 
         self.validation = validation
 
         # this indicates, if the agent is in a 4-hour block or not. A normal step will decrease it by 1,
         # participation in the PRL market will set it to 4
         self.prl_cooldown = 0
+        # The upper and lower boundaries for the SOC. They are set based on the amount of energy the agent offers in the
+        # PRL market
         self.upper_bound = self.battery.capacity
         self.lower_bound = 0
 
-        self.trade_threshold = 10
+        self.trade_threshold = 10  # Threshold for deciding if the agent should hold or trade
 
     def step(self, action):
         """
@@ -365,7 +366,8 @@ class MultiNoSavings(gym.Env):
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
                              model_name='multi_no_savings', data=self.da_dataframe, plot_name='trades')
         plot_trades_timeline(trade_source=self.invalid_trades, title='Invalid Trades', buy_color='black',
-                             sell_color='brown', model_name='multi_no_savings', data=self.da_dataframe, plot_name='invalid_trades')
+                             sell_color='brown', model_name='multi_no_savings', data=self.da_dataframe,
+                             plot_name='invalid_trades')
         plot_holding(self.holding, 'multi_no_savings', da_data=self.da_dataframe)
         plot_soc_and_boundaries(self.soc_log, self.upper_bound_log, self.lower_bound_log, 'multi_no_savings')
         kernel_density_estimation(self.trade_log, 'multi_no_savings', da_data=self.da_dataframe)

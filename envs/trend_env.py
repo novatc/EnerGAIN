@@ -13,7 +13,7 @@ class TrendEnv(gym.Env):
     def __init__(self, da_data_path, validation=False):
         super(TrendEnv, self).__init__()
         self.da_dataframe = pd.read_csv(da_data_path)
-        self.trend_horizon = 8
+        self.trend_horizon = 8  # the number of hours to be used as the observation space
 
         low_boundary = self.da_dataframe.min().values
 
@@ -46,10 +46,9 @@ class TrendEnv(gym.Env):
 
         self.rewards = []
         self.reward_log = []
-        self.window_size = 5
-        self.penalty = -10
+        self.penalty = -10  # for invalid trades and breaking the rules
 
-        self.trade_threshold = 10
+        self.trade_threshold = 10 # the threshold for the amount of energy to be traded
 
         self.validation = validation
 
@@ -171,14 +170,6 @@ class TrendEnv(gym.Env):
         else:
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
             return self.penalty
-            # return the difference between the offered price and the current price as a penalty
-            # if trade_type == 'buy':
-            #     penalty = float((current_price - price))
-            # else:
-            #     penalty = float((price - current_price))
-            #
-            # return penalty
-            # return 0
 
         # Logging the trade details
         self.battery.add_charge_log(self.battery.get_soc())

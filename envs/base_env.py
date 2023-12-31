@@ -30,10 +30,9 @@ class BaseEnv(gym.Env):
         self.holding = []
 
         self.reward_log = []
-        self.window_size = 5
-        self.penalty = -10
+        self.penalty = -10  # penalty for invalid trades and breaking the rules
 
-        self.trade_threshold = 10
+        self.trade_threshold = 10  # kWh, if the trade is within this threshold, it is considered as holding
 
         self.validation = validation
 
@@ -51,7 +50,8 @@ class BaseEnv(gym.Env):
         reward = 0
 
         terminated = False  # Whether the agent reaches the terminal state
-        truncated = should_truncated  # this can be false all the time since there is no failure condition the agent could trigger
+        truncated = should_truncated  # this can be false all the time since there is no failure condition the agent
+        # could trigger
 
         # Handle DA trade or holding
         if -self.trade_threshold < amount < self.trade_threshold:
@@ -154,14 +154,6 @@ class BaseEnv(gym.Env):
         else:
             self.log_trades(False, trade_type, price, amount, self.penalty, 'market rejected')
             return self.penalty
-            # return the difference between the offered price and the current price as a penalty
-            # if trade_type == 'buy':
-            #     penalty = float((current_price - price))
-            # else:
-            #     penalty = float((price - current_price))
-            #
-            # return penalty
-            # return 0
 
         # Logging the trade details
         self.battery.add_charge_log(self.battery.get_soc())

@@ -55,14 +55,15 @@ class MultiMarket(gym.Env):
 
         self.rewards = []
         self.reward_log = []
-        self.window_size = 5
-        self.penalty = -10
+        self.penalty = -10  # Penalty for invalid trades and breaking constraints
 
         self.validation = validation
 
         # this indicates, if the agent is in a 4-hour block or not. A normal step will decrease it by 1,
         # participation in the PRL market will set it to 4
-        self.prl_cooldown = 0
+        self.prl_cooldown = 0   # 0 means the agent can participate in the PRL market
+        # The upper and lower boundaries for the SOC. They are set based on the amount of energy the agent offers in the
+        # PRL market
         self.upper_bound = self.battery.capacity
         self.lower_bound = 0
 
@@ -362,7 +363,8 @@ class MultiMarket(gym.Env):
         :return:
         """
         plot_savings(self.trade_log, 'multi')
-        plot_savings_on_trade_steps(trade_log=self.trade_log, total_steps=self.da_dataframe.shape[0], model_name='multi')
+        plot_savings_on_trade_steps(trade_log=self.trade_log, total_steps=self.da_dataframe.shape[0],
+                                    model_name='multi')
         plot_charge(self.battery, 'multi')
         plot_trades_timeline(trade_source=self.trade_log, title='Trades', buy_color='green', sell_color='red',
                              model_name='multi', data=self.da_dataframe, plot_name='trades')
