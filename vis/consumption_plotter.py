@@ -17,9 +17,8 @@ grouped_by_hour['time'] = grouped_by_hour.index
 plt.figure(figsize=(14, 7))
 x_axis_labels = [f"{hour:02d}:00" for hour in range(24)]
 plt.plot(x_axis_labels, grouped_by_hour['consumption'] / 1000, label='Durchschnittlicher Verbrauch', marker='o')
-plt.title('Durchschnittlicher Verbrauch in Tsd. MWh')
-plt.xlabel('Stunde')
-plt.ylabel('Verbrauch [Tsd. MWh]')
+plt.xlabel('Stunde', fontsize=12)
+plt.ylabel('Verbrauch [Tsd. MWh]', fontsize=12)
 plt.xticks(rotation=45)
 
 plt.tight_layout()  # Adjust layout to prevent clipping of datetime labels

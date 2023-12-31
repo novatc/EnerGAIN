@@ -16,15 +16,15 @@ data.set_index('DateTime', inplace=True)
 fig, ax1 = plt.subplots(figsize=(14, 7))
 
 color = 'tab:blue'
-ax1.set_xlabel('DateTime')
-ax1.set_ylabel('Vorgehaltene Menge [MW]', color=color)
+ax1.set_xlabel('Zeit', fontsize=12)
+ax1.set_ylabel('Vorgehaltene Menge [MW]', color=color, fontsize=12)
 line1 = ax1.plot(data.index, data['Vorgehaltene Menge [MW]'], color=color, label='Vorgehaltene Menge [MW]')
 ax1.tick_params(axis='y', labelcolor=color)
 
 # Instantiate a second axes that shares the same x-axis
 ax2 = ax1.twinx()
 color = 'tab:green'
-ax2.set_ylabel('Leistungspreis', color=color)
+ax2.set_ylabel('Leistungspreis', color=color, fontsize=12)
 line2 = ax2.plot(data.index, data['Leistungspreis'], color=color, label='Leistungspreis')
 ax2.tick_params(axis='y', labelcolor=color)
 
@@ -34,10 +34,9 @@ ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m.%Y'))
 # Creating a combined legend for both axes
 lns = line1 + line2
 labs = [l.get_label() for l in lns]
-ax1.legend(lns, labs, loc='upper left')
+ax1.legend(lns, labs, loc='upper left', fontsize=12)
 
 # Title and grid
-plt.title('Vorgehaltene Menge [MW] und Leistungspreis')
 fig.tight_layout()
 plt.savefig('../plots/prl_missing_values.svg', format='svg', dpi=1200)
 plt.show()
@@ -54,14 +53,14 @@ fixed_data.set_index('DateTime', inplace=True)
 fig, ax1 = plt.subplots(figsize=(14, 7))
 
 color = 'tab:blue'
-ax1.set_xlabel('DateTime')
-ax1.set_ylabel('Vorgehaltene Menge [MW]', color=color)
+ax1.set_ylabel('Vorgehaltene Menge [MW]', color=color, fontsize=12)
 line1 = ax1.plot(fixed_data.index, fixed_data['amount'], color=color, label='Vorgehaltene Menge [MW]')
 ax1.tick_params(axis='y', labelcolor=color)
 
 # Instantiate a second axes that shares the same x-axis
 ax2 = ax1.twinx()
 color = 'tab:green'
+ax1.set_xlabel('Zeit', fontsize=12)
 ax2.set_ylabel('Leistungspreis', color=color)
 line2 = ax2.plot(fixed_data.index, fixed_data['price'], color=color, label='Leistungspreis')
 ax2.tick_params(axis='y', labelcolor=color)
@@ -72,10 +71,9 @@ ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m.%Y'))
 # Creating a combined legend for both axes
 lns = line1 + line2
 labs = [l.get_label() for l in lns]
-ax1.legend(lns, labs, loc='upper left')
+ax1.legend(lns, labs, loc='upper left', fontsize=12)
 
 # Title and grid
-plt.title('Vorgehaltene Menge [MW] und Leistungspreis mit interpolierten Werten')
 fig.tight_layout()
 plt.savefig('../plots/prl_interpolated_values.svg', format='svg', dpi=1200)
 plt.show()

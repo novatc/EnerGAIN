@@ -23,11 +23,9 @@ plt.plot(years[year_2021]['day_of_year'], years[year_2021]['price'], label='2021
 plt.plot(years[year_2022]['day_of_year'], years[year_2022]['price'], label='2022', linewidth=0.2)
 plt.plot(average_year['day_of_year'], average_year['price'], label='Durchschnitt', linewidth=2)
 
-
-plt.title('Preisverlauf der einzelnen Jahre im Vergleich zum Durchschnitt')
-plt.xlabel('Tag des Jahres')
-plt.ylabel('Preis [€]')
-plt.legend()
+plt.xlabel('Tag des Jahres', fontsize=12)
+plt.ylabel('Preis [€]', fontsize=12)
+plt.legend(fontsize=12)
 plt.tight_layout()
 plt.savefig('../plots/price_year_average.svg', format='svg')
 plt.show()
@@ -39,10 +37,9 @@ plt.plot(years[year_2020]['date'], years[year_2020]['price'], label='2020', line
 plt.plot(years[year_2021]['date'], years[year_2021]['price'], label='2021', linewidth=0.2)
 plt.plot(years[year_2022]['date'], years[year_2022]['price'], label='2022', linewidth=0.2)
 
-plt.title('Preisverlauf')
-plt.xlabel('Tag des Jahres')
-plt.ylabel('Preis [€]')
-plt.legend()
+plt.xlabel('Tag des Jahres', fontsize=12)
+plt.ylabel('Preis [€]', fontsize=12)
+plt.legend(fontsize=12)
 plt.tight_layout()
 plt.savefig('../plots/price_timeline.svg', format='svg')
 plt.show()

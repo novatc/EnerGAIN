@@ -25,9 +25,9 @@ hour_labels = [f'{hour:02d}:00' for hour in range(24)]
 
 # Plotting
 plt.figure(figsize=(14, 7))
-average_per_hour.plot(kind='line', marker='o', color='blue', title='Durchschnittsmenge pro Stunde')
-plt.xlabel('Stunde')
-plt.ylabel('Menge [MWh]')
+average_per_hour.plot(kind='line', marker='o', color='blue')
+plt.xlabel('Stunde', fontsize=12)
+plt.ylabel('Menge [MWh]', fontsize=12)
 plt.xticks(range(0, 24), hour_labels, rotation=45)
 plt.tight_layout()
 plt.savefig('../plots/avg_prl_amount.svg', format='svg', dpi=1200)
