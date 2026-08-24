@@ -142,7 +142,6 @@ class MultiTrend(gym.Env):
             else:
                 reward += self.perform_da_trade(amount_da, price_da)
 
-        self.reward_log.append((self.reward_log[-1] + reward) if self.reward_log else reward)
         self.prl_cooldown = max(0, self.prl_cooldown - 1)  # Ensure it doesn't go below 0
 
         self.log_step(reward)

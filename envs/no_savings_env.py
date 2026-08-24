@@ -71,7 +71,8 @@ class NoSavingsEnv(gym.Env):
 
     def is_trade_valid(self, price, amount, trade_type):
         """
-        Check if a trade is valid, i.e. if the battery can handle the trade and if the agent has enough savings.
+        Check if a trade is valid. Unlike BaseEnv this variant does NOT check the savings, so the agent may buy
+        with capital it does not have; only the battery capacity constrains a trade.
 
         :param price: (float) The price at which the trade is attempted.
         :param amount: (float) The amount of energy to be traded. Positive values indicate buying or charging,
@@ -81,9 +82,8 @@ class NoSavingsEnv(gym.Env):
         :return: (bool) True if the trade is valid, False otherwise.
         """
         if trade_type == 'buy':
-            if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
-                self.log_trades(False, 'buy', price, amount, self.penalty,
-                                'savings' if self.savings <= 0 else 'battery')
+            if self.battery.can_charge(amount) is False:
+                self.log_trades(False, 'buy', price, amount, self.penalty, 'battery')
                 return False
         elif trade_type == 'sell':
             if self.battery.can_discharge(amount) is False:

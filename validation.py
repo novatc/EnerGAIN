@@ -14,7 +14,7 @@ import json
 parser = argparse.ArgumentParser(description='Evaluate a SAC model.')
 parser.add_argument('--env',
                     choices=['base', 'trend', 'no_savings', 'base_prl', 'multi', 'multi_no_savings',
-                             'multi_trend', 'reward_boosting'],
+                             'multi_trend'],
                     default="base",
                     required=True,
                     help='Environment to use.')
@@ -62,8 +62,8 @@ env_params = {
 # Check if chosen environment is valid
 if args.env not in env_params:
     raise ValueError(
-        f"Invalid environment '{args.env}'. "
-        f"Choices are 'base', 'trend', 'savings_reward', 'unscaled' and 'no_savings'.")
+        f"Invalid environment '{args.env}'. Choices are 'base', 'trend', 'no_savings', 'base_prl', "
+        f"'multi', 'multi_no_savings' and 'multi_trend'.")
 
 # Set chosen environment parameters
 env_id = env_params[args.env]['id']

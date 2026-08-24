@@ -8,6 +8,7 @@ class Battery:
         """
         self.capacity = capacity
         self.soc = soc
+        self.initial_soc = soc
         self.charge_rate = 0.925
         self.discharge_rate = 0.925
         self.charge_log = []
@@ -66,7 +67,7 @@ class Battery:
         """
         Reset the battery to its initial state.
         """
-        self.soc = 500
+        self.soc = self.initial_soc
 
     def get_charge_log(self):
         """

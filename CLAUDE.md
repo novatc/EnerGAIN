@@ -193,7 +193,8 @@ cd vis && MPLBACKEND=Agg python year_price_plotter.py
 ### Cluster
 
 `*.job` are SLURM scripts (`sbatch base.job`); some use `--array=1-3` to sweep step counts and
-all hardcode a `--mail-user`. `reward_boosting.job` requests a GPU and is dead (§7).
+all hardcode a `--mail-user`. None request a GPU; training runs on CPU by default
+(`device='auto'`).
 
 ## 5. Environment design
 
@@ -277,8 +278,8 @@ SAC itself (`main.py` passes no `seed=`). Validation *is* deterministic (sequent
 `reset()` restores **only** `savings` and `battery`. It does **not** reset
 `day_ahead.current_step`, `trade_log`, `invalid_trades`, `holding`, `reward_log`,
 `prl_cooldown`, or the SOC bounds — so logs accumulate across episode boundaries during
-training. `Battery.reset()` additionally hardcodes `soc = 500` instead of the constructor's
-initial value, so changing `Battery(1000, 500)` silently won't take effect on reset.
+training. (`Battery.reset()` used to hardcode `soc = 500`; it now restores the constructor's
+`soc`, so changing `Battery(1000, 500)` takes effect.)
 
 Separately, `step()` calls `self.reset()` itself when `random_walk` truncates *and* returns
 `truncated=True`, which inverts the Gymnasium contract (the algorithm owns reset) and
@@ -287,24 +288,42 @@ likely thing to confuse someone modifying an env.
 
 ## 7. Known inconsistencies between variants
 
-Real differences in committed code. Flag them before "fixing" — they may be how the published
-results were produced.
+### Still open — flag before "fixing"
 
-- **`no_savings_env.py` is byte-for-byte `base_env.py`** apart from the class name and plot
-  labels: its `is_trade_valid` **still enforces the savings check**. Only the multi-market
-  `MultiNoSavings` actually drops it. Compounding this, the only committed `no_savings` model
-  is 0 bytes — that variant is not reproducible from this repo at all.
+These are real differences in committed code that may be how the published results were
+produced. Leave them unless asked.
+
 - `BaseEnv` / `NoSavingsEnv` / `TrendEnv` sell via `battery.charge(negative_amount)` and update
   `savings` directly; the multi-market envs call `battery.discharge()` and do
   `savings += profit`.
-- `MultiMarket.step` calls `self.reward_log.append(...)` **and** `log_step(reward)`, which
-  appends again — the multi-market reward log is double-counted.
-- `--env reward_boosting` is in the `argparse` `choices` of both scripts but has no
-  `env_params` entry, so it raises `ValueError` immediately. `reward_boosting.job` is dead.
 - `main.py` builds the env twice (once outside the `try`, once inside) — redundant, harmless.
 - `SummaryWriterCallback` is imported by `main.py` but never passed to `model.learn()`.
 - `multi_no_savings` (the job file) has no `.job` extension, unlike its siblings.
-- The README lists fewer `--env` choices than the code supports.
+- The README lists fewer `--env` choices than the code supports, and its install section pins
+  an `sb3` alpha that is not required (§3).
+
+### Fixed (2026-08) — history before this point behaves differently
+
+- **`NoSavingsEnv` now actually drops the savings check.** It used to be byte-for-byte
+  `base_env.py` apart from the class name and plot labels, so it still rejected buys the agent
+  could not afford. `is_trade_valid` now checks battery capacity only, mirroring
+  `MultiNoSavings`. **This changes the variant's semantics**: retraining `no_savings` no longer
+  reproduces whatever produced the README's "No Savings" row. Revert the `is_trade_valid` hunk
+  if you need the old behaviour.
+- **`reward_log` is no longer double-counted.** `base_prl`, `multi`, `multi_no_savings` and
+  `multi_trend` each appended to `self.reward_log` in `step()` *and* again in `log_step()`, so
+  the log held two entries per step. The direct append in `step()` was removed. Nothing reads
+  `self.reward_log` or `self.rewards` — they are write-only — so results are unaffected;
+  `plot_reward()` derives its own local `reward_log` from `trade_log`.
+- **`Battery.reset()` honours the constructor SOC** via a new `self.initial_soc`, instead of
+  hardcoding `500`. No behaviour change while every env uses `Battery(1000, 500)`.
+- **`--env reward_boosting` is gone** from the `argparse` `choices` of both scripts, along with
+  the dead `reward_boosting.job`. It had no `env_params` entry and raised `ValueError`
+  immediately. The stale "Invalid environment" messages in both scripts (which listed a
+  nonexistent `unscaled` and omitted `multi_trend`) were corrected at the same time.
+
+`base` and `multi` were re-validated against their committed models after these changes and
+reproduce their previous numbers exactly.
 
 ## 8. Reproducing the README results table
 
@@ -314,7 +333,7 @@ Row identity is unambiguous, but the figures are **indicative, not reproducible*
 | README row | `--env` | model |
 |---|---|---|
 | Base | `base` | `agents/results/base/sac_base_500.0k_22.12-13-49.zip` |
-| No Savings | `no_savings` | **0-byte file — unusable** |
+| No Savings | `no_savings` | **0-byte file — unusable** (and see §7: the variant's semantics changed) |
 | Trend | `trend` | `agents/results/base/sac_trend_1000.0k_22.12-16-16.zip` |
 | Multi-Markt | `base_prl` | `agents/results/multi/sac_base_prl_500.0k_21.12-12-02.zip` |
 | parallel Multi Markt | `multi` | `agents/results/multi/sac_multi_1500.0k_25.12-19-47.zip` |
