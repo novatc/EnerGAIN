@@ -557,20 +557,23 @@ these ran for 20 000. Closing capital, mean ± sd over seeds 0/1/2:
 | `base_state` | 4163,61 | 2712,97 | 790 | 1689 | **0** | 6304 |
 | `trend` | 935,82 | 998,71 | 606 | 8177 | 6844 | 39 |
 | `trend_compact` | 5299,25 | 4051,43 | 1026 | 2729 | **0** | 5028 |
-
-The `multi` / `multi_compact` pair is deliberately absent: `multi_compact` was changed after
-that arm ran (budget clipping and the label fix, which it had been missing), so its old numbers
-no longer describe the code. For reference the unchanged `multi` scored 4831,06 ± 1891,81.
+| `multi` | 4831,06 | 1891,81 | 1303 | 722 | 49 | 2061 |
+| `multi_compact` | 5084,76 | 1846,22 | 1188 | 347 | **0** | 3860 |
 
 **None of the profit differences are statistically significant at n = 3** (Welch:
-base→base_state p = 0,41; trend→trend_compact p = 0,20; and the pre-fix
-multi→multi_compact p = 0,96). Seed variance in this environment is
+base→base_state p = 0,41; trend→trend_compact p = 0,20; multi→multi_compact p = 0,88). Seed variance in this environment is
 large enough to swamp the effect at this sample size. Do not quote the capital figures as a
 result — run more seeds and more steps first.
 
 What *is* solid is structural, because clipping removes the failure mode by construction rather
-than by learning: battery rejections go to zero, and total invalid trades drop 79 % (`base`) and
-67 % (`trend`).
+than by learning: battery rejections go to zero in all three new variants, and total invalid
+trades drop 79 % (`base`), 67 % (`trend`) and 52 % (`multi`).
+
+The multi-market pair is the weakest case for the change, and expectedly so: `MultiMarket`
+already clipped against the PRL flexibility band via `clip_trade_amount`, so it only had 49
+battery rejections to remove. `multi_compact` gains 5 % of capital, which at p = 0,88 is
+indistinguishable from noise. Item 1 of the improvement list only ever mattered for the
+day-ahead-only envs.
 
 One incidental observation worth noting: at this budget `trend` (935) underperforms plain `base`
 (2533), while `trend_compact` (5299) leads. That is consistent with the sample-efficiency
