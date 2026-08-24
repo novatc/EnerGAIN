@@ -3,7 +3,7 @@ from gymnasium import spaces
 
 from envs.assets.battery import Battery
 from envs.assets.dayahead import DayAhead
-from envs.assets.features import price_feature_count, price_features
+from envs.assets.features import clip_to_budget, price_feature_count, price_features
 from envs.assets.frequency_containment_reserve import FrequencyContainmentReserve
 from envs.assets.plot_engien import *
 
@@ -131,6 +131,7 @@ class MultiCompact(gym.Env):
 
         # Handle DA trade or holding
         amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
+        amount_da = clip_to_budget(amount_da, price_da, self.savings)
 
         if self.check_boundaries(amount_da):
             # Clip the amount to ensure that the battery state of charge remains within the bounds and decide based on
@@ -170,8 +171,11 @@ class MultiCompact(gym.Env):
         """
         if trade_type == 'buy':
             if price * amount > self.savings or self.savings <= 0 or self.battery.can_charge(amount) is False:
+                # Report the actual cause. MultiMarket labels an unaffordable buy 'battery'
+                # whenever savings is still positive, which conflates the two.
+                affordable = price * amount <= self.savings and self.savings > 0
                 self.log_trades(False, 'buy', price, amount, self.penalty,
-                                'savings' if self.savings <= 0 else 'battery')
+                                'battery' if affordable else 'savings')
                 return False
         elif trade_type == 'sell':
             if self.battery.can_discharge(amount) is False:

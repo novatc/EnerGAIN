@@ -485,7 +485,7 @@ existing envs, because changing an observation shape breaks the committed models
 |---|---|
 | `base_state` | `[soc, savings]` in the observation; DA amount clipped to battery + budget |
 | `trend_compact` | `base_state` + a compact price-history block (lags 1/2/24/168 h, 24 h mean & std, price/mean ratio, EWMA) |
-| `multi_compact` | `MultiMarket` + that price block + `[soc, savings]` |
+| `multi_compact` | `MultiMarket` + that price block + `[soc, savings]`, plus budget clipping |
 | `*_ext` | the same three pointed at `*_ext` data: DA + 7 solar columns, PRL + 6 time columns |
 
 ### Why each one
@@ -545,6 +545,37 @@ python benchmark.py --envs base base_state --training_steps 20000 --seeds 0 1 2 
 
 It reports mean and standard deviation of closing capital plus the trade/invalid/battery/hold
 counts. Read any profit difference against the std before believing it.
+
+### Pilot results (20 000 steps, 3 seeds, `--month 0`)
+
+**This is a pilot, not a verdict.** The committed models were trained for 500 k-1 500 k steps;
+these ran for 20 000. Closing capital, mean ± sd over seeds 0/1/2:
+
+| env | Kapital mean | sd | trades | invalid | battery | holds |
+|---|---|---|---|---|---|---|
+| `base` | 2533,73 | 979,19 | 817 | 7894 | 5891 | 72 |
+| `base_state` | 4163,61 | 2712,97 | 790 | 1689 | **0** | 6304 |
+| `trend` | 935,82 | 998,71 | 606 | 8177 | 6844 | 39 |
+| `trend_compact` | 5299,25 | 4051,43 | 1026 | 2729 | **0** | 5028 |
+
+The `multi` / `multi_compact` pair is deliberately absent: `multi_compact` was changed after
+that arm ran (budget clipping and the label fix, which it had been missing), so its old numbers
+no longer describe the code. For reference the unchanged `multi` scored 4831,06 ± 1891,81.
+
+**None of the profit differences are statistically significant at n = 3** (Welch:
+base→base_state p = 0,41; trend→trend_compact p = 0,20; and the pre-fix
+multi→multi_compact p = 0,96). Seed variance in this environment is
+large enough to swamp the effect at this sample size. Do not quote the capital figures as a
+result — run more seeds and more steps first.
+
+What *is* solid is structural, because clipping removes the failure mode by construction rather
+than by learning: battery rejections go to zero, and total invalid trades drop 79 % (`base`) and
+67 % (`trend`).
+
+One incidental observation worth noting: at this budget `trend` (935) underperforms plain `base`
+(2533), while `trend_compact` (5299) leads. That is consistent with the sample-efficiency
+argument — a 72-dimensional observation needs far more samples than 19 to become useful — and
+with the committed `trend` model needing 1 000 k steps to beat `base`.
 
 ### Regenerating the extended data
 
