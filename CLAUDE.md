@@ -166,6 +166,9 @@ Four failure modes, all verified:
    `env_utilities.get_model_names()` scans `agents/` **non-recursively** and takes the *first*
    file starting with `sac_{env}_`. The committed models live one level down in
    `agents/results/{base,multi}/`, so copy the one you want up.
+   **Stage exactly one model at a time.** The match is a bare prefix, so `sac_base_prl_*.zip`
+   also matches `--env base`, and `os.listdir` order decides which wins — `--env base` can
+   silently load the `base_prl` model (5-dim action space against a 2-dim env).
 2. **The 0-byte `no_savings` model** → `Error: the file agents/sac_no_savings_500.0k_09.12-21-09.zip wasn't a zip-file`.
 3. **Missing output dirs** → `OSError: Cannot save file into a non-existent directory: 'trade_logs'`.
    This fires *after* the full evaluation loop, so you lose the run. `mkdir -p trade_logs/invalid agent_data`.
@@ -343,16 +346,27 @@ Row identity is unambiguous, but the figures are **indicative, not reproducible*
 Note "Multi-Markt" is `base_prl` (explicit market choice) and "parallel Multi Markt" is `multi`
 (both markets each step) — the naming inverts what you might guess.
 
-Observed vs. published on `--month 0` (deviations of roughly 5–20 %):
+### The DA-only rows reproduce exactly; the PRL rows do not
 
-| | README Kauf / Reserve / Kapital | observed |
-|---|---|---|
-| `base_prl` | 3 / 7532 / 16 853,94 | 3 / 7632 / 20 202,63 |
-| `multi` | 118 / 3592 / 13 863,22 | 144 / 3964 / 12 015,04 |
+Every usable model was re-run on `--month 0`. Kauf / Verkauf / Reserve / Halte / invalide,
+published vs. observed:
 
-The signature matches unmistakably, but exact numbers do not — the table likely predates the
-committed "final models" (see the `added final models` / `removed old models` commits). Treat
-it as indicative and re-run rather than quoting it.
+| `--env` | README | observed | |
+|---|---|---|---|
+| `base` | 1179 / 814 / – / 428 / 6362 → €1982,69 | 1179 / 814 / 0 / 428 / 6362 → €1982,69 | **exact** |
+| `trend` | 1421 / 1536 / – / 500 / 5826 → €3868 | 1421 / 1536 / 0 / 500 / 5826 → €3868,74 | **exact** |
+| `base_prl` | 3 / 3 / 7532 / 10 / 22 → €16 853,94 | 3 / 0 / 7632 / 6 / 13 → €20 202,63 | differs |
+| `multi` | 118 / 392 / 3592 / 359 / 533 → €13 863,22 | 144 / 414 / 3964 / 197 / 628 → €12 015,04 | differs |
+| `multi_no_savings` | 192 / 461 / 4404 / 207 / 519 → €12 510,99 | 31 / 72 / 8152 / 36 / 106 → €12 334,03 | differs |
+| `multi_trend` | 113 / 249 / 4388 / 133 / 521 → €12 149,91 | 195 / 408 / 3880 / 38 / 414 → €14 251,64 | differs |
+
+So the two DA-only rows are reproducible to the cent, and all four PRL rows are not. The
+likeliest explanation is that the PRL models were replaced after the table was written (see the
+`added final models` / `removed old models` commits) while the DA-only models were not. Quote
+the `base` and `trend` rows freely; re-run the PRL rows rather than quoting them.
+
+Note this is measured with the current code. The `no_savings` row cannot be checked at all —
+its model is 0 bytes — and that variant's semantics have since changed (§7).
 
 ## 9. Data pipeline
 
