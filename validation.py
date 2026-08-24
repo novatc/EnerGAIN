@@ -14,7 +14,8 @@ import json
 parser = argparse.ArgumentParser(description='Evaluate a SAC model.')
 parser.add_argument('--env',
                     choices=['base', 'trend', 'no_savings', 'base_prl', 'multi', 'multi_no_savings',
-                             'multi_trend'],
+                             'multi_trend', 'base_state', 'trend_compact', 'multi_compact',
+                             'base_state_ext', 'trend_compact_ext', 'multi_compact_ext'],
                     default="base",
                     required=True,
                     help='Environment to use.')
@@ -26,12 +27,37 @@ args = parser.parse_args()
 validation_da_data_path = f'data/in-use/eval_data/month_{args.month}_data_da.csv'
 validation_prl_data_path = f'data/in-use/eval_data/month_{args.month}_data_prl.csv'
 
+validation_da_ext_path = f'data/in-use/eval_data/month_{args.month}_data_ext_da.csv'
+validation_prl_ext_path = f'data/in-use/eval_data/month_{args.month}_data_ext_prl.csv'
+
 if args.month == 0:
     validation_da_data_path = f'data/in-use/eval_data/average_da_year.csv'
     validation_prl_data_path = f'data/in-use/eval_data/average_prl_year.csv'
+    validation_da_ext_path = f'data/in-use/eval_data/average_da_year_ext.csv'
+    validation_prl_ext_path = f'data/in-use/eval_data/average_prl_year_ext.csv'
 
 # Define environment parameters
 env_params = {
+    'base_state': {'id': 'base_state-v0', 'entry_point': 'envs.base_state:BaseState',
+                   'data_path_da': validation_da_data_path},
+
+    'trend_compact': {'id': 'trend_compact-v0', 'entry_point': 'envs.trend_compact:TrendCompact',
+                      'data_path_da': validation_da_data_path},
+
+    'multi_compact': {'id': 'multi_compact-v0', 'entry_point': 'envs.multi_compact:MultiCompact',
+                      'data_path_prl': validation_prl_data_path,
+                      'data_path_da': validation_da_data_path},
+
+    'base_state_ext': {'id': 'base_state_ext-v0', 'entry_point': 'envs.base_state:BaseState',
+                       'data_path_da': validation_da_ext_path},
+
+    'trend_compact_ext': {'id': 'trend_compact_ext-v0', 'entry_point': 'envs.trend_compact:TrendCompact',
+                          'data_path_da': validation_da_ext_path},
+
+    'multi_compact_ext': {'id': 'multi_compact_ext-v0', 'entry_point': 'envs.multi_compact:MultiCompact',
+                          'data_path_prl': validation_prl_ext_path,
+                          'data_path_da': validation_da_ext_path},
+
     'base': {'id': 'base_env-v0', 'entry_point': 'envs.base_env:BaseEnv',
              'data_path_da': validation_da_data_path},
 
@@ -69,7 +95,7 @@ if args.env not in env_params:
 env_id = env_params[args.env]['id']
 entry_point = env_params[args.env]['entry_point']
 data_path_da = env_params[args.env]['data_path_da']
-data_path_prl = env_params["base_prl"]['data_path_prl']
+data_path_prl = env_params[args.env].get('data_path_prl', env_params["base_prl"]['data_path_prl'])
 
 # suppress any warnings
 warnings.filterwarnings("ignore")
@@ -86,8 +112,8 @@ except Exception as e:
 
 # Register and make the environment
 # Register and make the environment
-if (args.env == 'base_prl' or args.env == 'multi' or args.env == 'multi_no_savings'
-        or args.env == 'multi_trend'):
+if args.env in ('base_prl', 'multi', 'multi_no_savings', 'multi_trend',
+                'multi_compact', 'multi_compact_ext'):
     register(id=env_id, entry_point=entry_point,
              kwargs={'da_data_path': data_path_da, 'prl_data_path': data_path_prl, 'validation': True})
 else:

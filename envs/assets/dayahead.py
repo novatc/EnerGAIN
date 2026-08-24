@@ -113,6 +113,10 @@ class DayAhead:
 
         self.current_step = (self.current_step + 1) % len(self.dataset)
         self.steps_since_last_random_start += 1  # Increment the step counter
+        # Keep the price history fed during training too. Only step() used to append, so in
+        # training (which walks via random_walk) the deque stayed empty and get_average_price()
+        # always returned 0.
+        self.price_history.append(self.get_current_price())
         return truncated
 
     def previous_hours(self, hours: int) -> np.array:

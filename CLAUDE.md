@@ -28,6 +28,9 @@ mkdir -p agent_data/base
 
 python main.py --training_steps 500_000 --env base --save
 MPLBACKEND=Agg python validation.py --env base --month 0 --plot
+
+# 7. Only for the *_ext variants (§13): build their data once. Deterministic, gitignored.
+python preprocess_ext.py
 ```
 
 **Do not** trust `agents/results/base/sac_no_savings_500.0k_09.12-21-09.zip` — it is **0 bytes**
@@ -69,6 +72,8 @@ preprocess_data.py          data/clean/* -> data/in-use/{unscaled_train_data,env
 preprocess_prl.py           data/prm/prl.csv -> data/prm/{env_prl,preprocessed_prl}.csv
 create_da_eval_set.py       data/in-use/env_data.csv -> data/in-use/eval_data/*_da.csv
 create_prl_eval_set.py      data/prm/env_prl.csv     -> data/in-use/eval_data/*_prl.csv
+preprocess_ext.py           Builds the *_ext datasets: DA + solar columns, PRL + time features
+benchmark.py                Seeded multi-run comparison of env variants (§13)
 
 envs/                       Gymnasium envs — one file per experiment variant
   base_env.py               BaseEnv         — DA only
@@ -78,7 +83,11 @@ envs/                       Gymnasium envs — one file per experiment variant
   multi_market.py           MultiMarket     — DA + PRL in parallel each step
   multi_no_savings.py       MultiNoSavings  — MultiMarket without the savings check
   multi_trend.py            MultiTrend      — MultiMarket + 8-hour lookback
+  base_state.py             BaseState       — BaseEnv + own state in obs + trade clipping (§13)
+  trend_compact.py          TrendCompact    — BaseState + compact price-history features (§13)
+  multi_compact.py          MultiCompact    — MultiMarket + those features + own state (§13)
   assets/
+    features.py                       Price-history features + trade clipping helpers
     battery.py                        Battery (capacity, SOC, charge/discharge efficiency)
     dayahead.py                       DA market sim (stepping, offer acceptance)
     frequency_containment_reserve.py  PRL/FCR market sim
@@ -212,6 +221,12 @@ all hardcode a `--mail-user`. None request a GPU; training runs on CPU by defaul
 | `multi` | `MultiMarket` | DA+PRL | 14 | 4 | `[prl_price, prl_amount, da_price, da_amount]` |
 | `multi_no_savings` | `MultiNoSavings` | DA+PRL | 14 | 4 | as `multi` |
 | `multi_trend` | `MultiTrend` | DA+PRL | 89 ((9+2)×8h+1) | 4 | as `multi` |
+| `base_state` | `BaseState` | DA | 11 (9+2) | 2 | as `base` |
+| `trend_compact` | `TrendCompact` | DA | 19 (9+8+2) | 2 | as `base` |
+| `multi_compact` | `MultiCompact` | DA+PRL | 24 (9+2+8+5) | 4 | as `multi` |
+| `base_state_ext` | `BaseState` | DA | 18 (16+2) | 2 | as `base` |
+| `trend_compact_ext` | `TrendCompact` | DA | 26 (16+8+2) | 2 | as `base` |
+| `multi_compact_ext` | `MultiCompact` | DA+PRL | 37 (16+8+8+5) | 4 | as `multi` |
 
 Dims assume the current CSVs (9 DA columns, 2 PRL columns) and were checked against the
 declared `observation_space` — all seven match. Multi-market observations append
@@ -272,9 +287,11 @@ Workaround — seed the stdlib global RNG before constructing the env (verified 
 import random; random.seed(7)
 ```
 
-Also unseeded: the `np.random.normal` noise in `preprocess_data.py` / `preprocess_prl.py`, and
-SAC itself (`main.py` passes no `seed=`). Validation *is* deterministic (sequential stepping,
-`model.predict(deterministic=True)`).
+`main.py` now takes `--seed`, which seeds the stdlib RNG, numpy and SAC together; `benchmark.py`
+does the same per run. Without it nothing is reproducible. Still unseeded: the
+`np.random.normal` noise in `preprocess_data.py` / `preprocess_prl.py` (`preprocess_ext.py`
+omits that noise entirely, so its output *is* reproducible). Validation was always deterministic
+(sequential stepping, `model.predict(deterministic=True)`).
 
 ### `reset()` is partial, and is called from inside `step()`
 
@@ -456,3 +473,85 @@ positional index in `plot_engien.py` (`trade[3]`, `trade[4]`, `trade[8]`, …), 
 - Commit messages are short, lowercase, imperative-ish ("added final models", "latest env
   changes"). Match that style.
 - Do not open a pull request unless explicitly asked.
+
+## 13. Improved variants (2026-08)
+
+Six env variants added on top of the original seven. **The original seven and their data files
+are untouched**, so every committed model still loads and `base` / `trend` still reproduce the
+README to the cent (§8). Register-and-copy was used deliberately rather than editing the
+existing envs, because changing an observation shape breaks the committed models.
+
+| variant | what it adds |
+|---|---|
+| `base_state` | `[soc, savings]` in the observation; DA amount clipped to battery + budget |
+| `trend_compact` | `base_state` + a compact price-history block (lags 1/2/24/168 h, 24 h mean & std, price/mean ratio, EWMA) |
+| `multi_compact` | `MultiMarket` + that price block + `[soc, savings]` |
+| `*_ext` | the same three pointed at `*_ext` data: DA + 7 solar columns, PRL + 6 time columns |
+
+### Why each one
+
+- **The agent could not see its own battery.** `BaseEnv.get_observation()` returns the market
+  row only — no SOC, no savings — yet `is_trade_valid` rejects on exactly those. On the average
+  year 5860 of `base`'s 6362 rejected trades carried the `'battery'` label. The multi-market
+  envs had already solved this mechanically with `clip_trade_amount`; the DA-only envs never
+  got it. Measured with a **random** policy (so the policy cannot confound it), over one pass of
+  the average year:
+
+  | | invalid | battery | market rejected | trades | holds |
+  |---|---|---|---|---|---|
+  | `base` | 7676 | 4221 | 3455 | 1035 | 72 |
+  | `base_state` | 3994 | **0** | 3994 | 1091 | 3698 |
+
+  Infeasible-trade rejections go to zero. What remains is `'market rejected'`, which is a real
+  market outcome — you must bid above market to buy and below it to sell. Holds rise sharply
+  because a clipped-to-nothing trade falls under `trade_threshold` and scores `+1` instead of
+  the `-10` penalty.
+
+- **`is_trade_valid` conflates two rejection causes.** It labels an unaffordable buy `'battery'`
+  whenever `savings > 0`, and only says `'savings'` when savings has actually hit zero. So the
+  published `'battery'` counts overstate genuine battery infeasibility. The new envs report the
+  real cause and clip to affordability as well; the original envs are left as-is.
+
+- **The signal is the price's own history, not the exogenous columns.** Measured on the training
+  set: price autocorrelation is 0.988 at 1 h, 0.914 at 24 h, 0.844 at 168 h, while hour-of-day
+  alone explains only 2 % of price variance (R² = 0.020) and the best exogenous column is
+  `prediction` at r = 0.148. `TrendEnv` spends 48 of its 72 dimensions on cyclical time columns
+  tiled over 8 hours — near-duplicates — and its window is too short to reach the daily or
+  weekly lag. `TrendCompact` gets the daily and weekly structure in 19 dimensions.
+
+- **`get_average_price()` already existed and was never called.** Both market sims maintain a
+  `price_history` deque and expose the accessor; no env used it. Worse, only `step()` appended,
+  never `random_walk()`, so during *training* the deque stayed empty and the accessor returned
+  0. `random_walk` now appends too. This is behaviourally inert for the original envs, which
+  never read it.
+
+- **Solar and PRL time features are computed and thrown away.** `preprocess_data.py` loads
+  `solar_power_*.csv` purely to borrow its date index, then selects
+  `['price','consumption','prediction']` and drops all 7 solar columns. `preprocess_prl.py`
+  computes `day_of_week`/`month`/`hour`, writes them to `env_prl.csv`, then drops them, leaving
+  PRL observations as bare `(price, amount)`. `preprocess_ext.py` keeps both, writing new
+  `*_ext` files. **Temper expectations**: the solar columns correlate with price at |r| ≤ 0.13,
+  about the same as `consumption` (0.070) which is already used. The one mild standout is
+  `sun_elevation` against the price *change* (r = +0.084), higher than any currently-used column.
+
+### Measuring a change
+
+Training is not reproducible by default (§6), so a single before/after run is noise. Use
+`benchmark.py`, which seeds every RNG and repeats each variant:
+
+```bash
+python benchmark.py --envs base base_state --training_steps 20000 --seeds 0 1 2 --month 0
+```
+
+It reports mean and standard deviation of closing capital plus the trade/invalid/battery/hold
+counts. Read any profit difference against the std before believing it.
+
+### Regenerating the extended data
+
+The `*_ext` CSVs are **gitignored, not committed** — unlike the repo's committed `eval_data/`,
+they are fully reproducible from committed inputs, so run `python preprocess_ext.py` once before
+using any `*_ext` variant (about 16 MB, a few seconds). `preprocess_ext.py` writes only `*_ext`
+files and never touches the committed CSVs. It joins the
+solar columns onto `unscaled_train_data.csv` positionally, asserting first that the row counts
+match and the price columns agree row-for-row. It skips the unseeded noise injection that
+`preprocess_prl.py` applies, so its output is reproducible.
