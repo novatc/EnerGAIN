@@ -664,7 +664,18 @@ A penalty is deliberately **not** used to deter the infeasible PRL commitment: a
 block earns €34,05 (p90 €56,64) against a penalty of −10, so the agent would simply pay it and
 sell undeliverable reserve. That case is fixed structurally by `clamp_prl_to_band()` instead.
 
-Whether the penalty actually helps is unmeasured. `benchmark.py` has an ablation arm:
+**The first implementation was miscalibrated and its measurement is void.** `boundary_cost()`
+originally charged for *any* clip, including the ordinary battery-capacity clipping that happens
+with no PRL commitment active. Measured over the average year it fired on **50,1 % of steps** at
+a mean of −3,26, totalling −28 647 against a closing capital in the low thousands — a constant
+tax, not a signal. It now charges only when a PRL commitment has actually narrowed the band
+(1,4 % of steps), and `clip_trade_amount()` shaves 1e-9 off the limit so a routine clip no longer
+lands exactly on the bound and get refused by `check_boundaries()`'s strict `<` (boundary
+refusals 4293 → 23).
+
+Any ablation run before this fix compared against a broken penalty and needs re-running.
+
+`benchmark.py` has the ablation arm:
 
 ```bash
 python benchmark.py --envs multi multi_compact multi_compact_nopen \

@@ -211,10 +211,14 @@ class MultiCompact(gym.Env):
         :return: (float) The clipped amount, never sign-flipped.
         """
         soc = self.battery.get_soc()
+        # Shave a hair off so the resulting SOC lands strictly inside the band: check_boundaries()
+        # compares with a strict <, so clipping to exactly the bound would still be refused and
+        # logged as a violation, on what is really a routine capacity clip.
+        margin = 1.0 - 1e-9
         if trade_type == 'buy':
-            return float(min(amount, max(0.0, self.upper_bound - soc)))
+            return float(min(amount, max(0.0, self.upper_bound - soc) * margin))
         if trade_type == 'sell':
-            return float(max(amount, -max(0.0, soc - self.lower_bound)))
+            return float(max(amount, -max(0.0, soc - self.lower_bound) * margin))
         raise ValueError(f"Invalid trade type: {trade_type}")
 
     def set_boundaries(self, amount_prl):
@@ -265,6 +269,13 @@ class MultiCompact(gym.Env):
         :return: the penalty contribution, always <= 0.
         """
         if not self.boundary_penalty or abs(requested) < 1e-9:
+            return 0.0
+        # Only charge when a PRL commitment has actually narrowed the band. With no commitment
+        # the band is the whole battery range, and clipping there is ordinary capacity limiting -
+        # which the day-ahead envs handle silently via clip_to_battery. Charging for it made the
+        # penalty fire on 50 % of steps at a mean of -3.26, a near-constant tax rather than a
+        # signal about the reserve obligation.
+        if self.lower_bound <= 0.0 and self.upper_bound >= self.battery.capacity:
             return 0.0
         removed = abs(requested) - abs(granted)
         if removed <= 0:

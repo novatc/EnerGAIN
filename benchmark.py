@@ -139,10 +139,14 @@ def run_once(env_key: str, seed: int, training_steps: int, month: int,
     trades = inner.get_trades()
     invalid = inner.get_invalid_trades()
     battery_rejects = sum(1 for t in invalid if t[6] == 'battery')
+    # 'boundary' entries only exist in MultiCompact, which records a refusal MultiMarket
+    # silently swallows. Reported separately so the invalid column stays comparable.
+    boundary = sum(1 for t in invalid if t[6] == 'boundary')
     return {
         'profit': trades[-1][8] if trades else 0.0,
         'trades': len(trades),
-        'invalid': len(invalid),
+        'invalid': len(invalid) - boundary,
+        'boundary': boundary,
         'battery_rejects': battery_rejects,
         'holds': len(inner.get_holdings()),
     }
@@ -180,10 +184,12 @@ def main():
             print(f"  [{done:>2}/{total}] {env_key:<20} seed {seed}  "
                   f"Kapital {runs[-1]['profit']:>10.2f}  "
                   f"invalid {runs[-1]['invalid']:>5}  battery {runs[-1]['battery_rejects']:>5}  "
+                  f"bound {runs[-1]['boundary']:>5}  "
                   f"({time.time() - run_start:.0f}s)", flush=True)
         results[env_key] = (runs, time.time() - started)
 
-    header = f"{'env':<20}{'Kapital mean':>14}{'std':>10}{'trades':>9}{'invalid':>9}{'battery':>9}{'holds':>8}"
+    header = (f"{'env':<20}{'Kapital mean':>14}{'std':>10}{'trades':>9}{'invalid':>9}"
+              f"{'battery':>9}{'bound':>8}{'holds':>8}")
     print(f"\n{header}")
     print('-' * len(header))
     for env_key, (runs, elapsed) in results.items():
@@ -192,8 +198,8 @@ def main():
         std = statistics.stdev(profits) if len(profits) > 1 else 0.0
         avg = lambda k: statistics.mean(r[k] for r in runs)
         print(f"{env_key:<20}{mean:>14.2f}{std:>10.2f}{avg('trades'):>9.0f}"
-              f"{avg('invalid'):>9.0f}{avg('battery_rejects'):>9.0f}{avg('holds'):>8.0f}"
-              f"   [{elapsed:.0f}s]")
+              f"{avg('invalid'):>9.0f}{avg('battery_rejects'):>9.0f}{avg('boundary'):>8.0f}"
+              f"{avg('holds'):>8.0f}   [{elapsed:.0f}s]")
 
 
 if __name__ == '__main__':
