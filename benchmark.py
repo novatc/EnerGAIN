@@ -98,7 +98,8 @@ def build(env_key: str, run_id: str, da_path: str, prl_path, validation: bool):
     return make(env_id)
 
 
-def run_once(env_key: str, seed: int, training_steps: int, month: int) -> dict:
+def run_once(env_key: str, seed: int, training_steps: int, month: int,
+             tensorboard: bool = False) -> dict:
     """
     Train one seed of one variant and evaluate it.
 
@@ -106,6 +107,8 @@ def run_once(env_key: str, seed: int, training_steps: int, month: int) -> dict:
     :param seed: the seed applied to the stdlib, numpy and SAC RNGs.
     :param training_steps: SAC training timesteps.
     :param month: evaluation month, 0 for the average year.
+    :param tensorboard: write TensorBoard logs. Off by default because setting tensorboard_log
+                        makes SAC import tensorboard, which benchmark.py otherwise does not need.
     :return: a dict of evaluation metrics.
     """
     _, da_train, prl_train, extended = VARIANTS[env_key]
@@ -117,8 +120,11 @@ def run_once(env_key: str, seed: int, training_steps: int, month: int) -> dict:
         build(env_key, f'train_{seed}', da_train, prl_train, False)))
     n_actions = train_env.action_space.shape[-1]
     noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
-    model = SAC("MlpPolicy", train_env, verbose=0, device='auto', action_noise=noise, seed=seed)
-    model.learn(total_timesteps=training_steps, progress_bar=False)
+    log_dir = f'logging/tensorboard_logs/bench_{env_key}/' if tensorboard else None
+    model = SAC("MlpPolicy", train_env, verbose=0, device='auto', action_noise=noise, seed=seed,
+                tensorboard_log=log_dir)
+    model.learn(total_timesteps=training_steps, progress_bar=False,
+                tb_log_name=f'seed_{seed}')
 
     da_eval, prl_eval = eval_paths(month, extended)
     eval_env = CustomNormalizeObservation(
@@ -149,25 +155,45 @@ def main():
     parser.add_argument('--training_steps', type=int, default=20000)
     parser.add_argument('--seeds', nargs='+', type=int, default=[0, 1, 2])
     parser.add_argument('--month', type=int, default=0)
+    parser.add_argument('--tensorboard', action='store_true',
+                        help='Write TensorBoard logs to logging/tensorboard_logs/bench_<env>/. '
+                             'Requires tensorboard to be installed.')
     args = parser.parse_args()
 
-    print(f"steps={args.training_steps}  seeds={args.seeds}  month={args.month}\n")
-    header = f"{'env':<20}{'Kapital mean':>14}{'std':>10}{'trades':>9}{'invalid':>9}{'battery':>9}{'holds':>8}"
-    print(header)
-    print('-' * len(header))
+    print(f"steps={args.training_steps}  seeds={args.seeds}  month={args.month}", flush=True)
+    if args.tensorboard:
+        print("tensorboard: logging/tensorboard_logs/bench_<env>/", flush=True)
+    total = len(args.envs) * len(args.seeds)
+    print(f"{total} runs to do\n", flush=True)
 
+    results = {}
+    done = 0
     for env_key in args.envs:
         runs = []
         started = time.time()
         for seed in args.seeds:
-            runs.append(run_once(env_key, seed, args.training_steps, args.month))
+            run_start = time.time()
+            runs.append(run_once(env_key, seed, args.training_steps, args.month, args.tensorboard))
+            done += 1
+            # Print as each run lands. A long sweep would otherwise show nothing until every
+            # seed of a variant had finished.
+            print(f"  [{done:>2}/{total}] {env_key:<20} seed {seed}  "
+                  f"Kapital {runs[-1]['profit']:>10.2f}  "
+                  f"invalid {runs[-1]['invalid']:>5}  battery {runs[-1]['battery_rejects']:>5}  "
+                  f"({time.time() - run_start:.0f}s)", flush=True)
+        results[env_key] = (runs, time.time() - started)
+
+    header = f"{'env':<20}{'Kapital mean':>14}{'std':>10}{'trades':>9}{'invalid':>9}{'battery':>9}{'holds':>8}"
+    print(f"\n{header}")
+    print('-' * len(header))
+    for env_key, (runs, elapsed) in results.items():
         profits = [r['profit'] for r in runs]
         mean = statistics.mean(profits)
         std = statistics.stdev(profits) if len(profits) > 1 else 0.0
         avg = lambda k: statistics.mean(r[k] for r in runs)
         print(f"{env_key:<20}{mean:>14.2f}{std:>10.2f}{avg('trades'):>9.0f}"
               f"{avg('invalid'):>9.0f}{avg('battery_rejects'):>9.0f}{avg('holds'):>8.0f}"
-              f"   [{time.time() - started:.0f}s]")
+              f"   [{elapsed:.0f}s]")
 
 
 if __name__ == '__main__':
