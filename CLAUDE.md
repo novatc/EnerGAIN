@@ -558,7 +558,10 @@ these ran for 20 000. Closing capital, mean ± sd over seeds 0/1/2:
 | `trend` | 935,82 | 998,71 | 606 | 8177 | 6844 | 39 |
 | `trend_compact` | 5299,25 | 4051,43 | 1026 | 2729 | **0** | 5028 |
 | `multi` | 4831,06 | 1891,81 | 1303 | 722 | 49 | 2061 |
-| `multi_compact` | 5084,76 | 1846,22 | 1188 | 347 | **0** | 3860 |
+| `multi_compact` † | 5084,76 | 1846,22 | 1188 | 347 | **0** | 3860 |
+
+† Measured **before** the flexibility-band fix in §14. `multi_compact` has changed since, so this
+row no longer describes the code — re-run it before quoting.
 
 **None of the profit differences are statistically significant at n = 3** (Welch:
 base→base_state p = 0,41; trend→trend_compact p = 0,20; multi→multi_compact p = 0,88). Seed variance in this environment is
@@ -589,3 +592,82 @@ files and never touches the committed CSVs. It joins the
 solar columns onto `unscaled_train_data.csv` positionally, asserting first that the row counts
 match and the price columns agree row-for-row. It skips the unseeded noise injection that
 `preprocess_prl.py` applies, so its output is reproducible.
+
+
+## 14. The PRL flexibility band is broken in the original multi-market envs
+
+Spotted in the `*_soc_and_boundaries.svg` plots: the SOC sits **above** the upper bound for long
+stretches. It is real, not a plotting artefact. On the average year the committed `multi` model
+spends **580 steps (6,6 %) above the upper bound, by up to 400,7 kWh**.
+
+### Cause
+
+`set_boundaries()` derives the band from the PRL offer alone and never looks at the SOC:
+
+```python
+self.upper_bound = ((capacity - 0.5 * amount_prl) / capacity) * 1000   # = 1000 - 0.5a
+self.lower_bound = ((0.5 * amount_prl) / capacity) * 1000              # =        0.5a
+```
+
+The band is always centred on 500 and narrows as the commitment grows, and nothing ever moves
+the SOC into it. Because `amount_prl = min(amount_prl, soc)`, an agent committing its whole
+charge satisfies `soc > 1000 - 0.5·soc` whenever **`soc > 2/3 · capacity ≈ 667`**, which puts the
+SOC outside its own band. The worst observed step matches exactly: `soc = 933,8`, band
+`[466,9, 533,1]`, i.e. `amount_prl = 933,8`.
+
+Two consequences:
+
+1. **It sells reserve it cannot deliver.** FCR is symmetric — committing 933,8 kW means being
+   able to absorb *and* deliver about 467 kWh, but at SOC 933,8 there are only 66 kWh of upward
+   headroom. The revenue is booked anyway. PRL revenue dominates the multi-market results, so
+   this likely inflates the published PRL rows (§8, where they already do not reproduce).
+2. **`clip_trade_amount` silently inverts trades.** Once the SOC is outside the band,
+   `min(amount, upper - soc)` goes negative for a buy and `perform_da_trade` then classifies it
+   as a sell. On the average year: **403 buys executed as sells, 177 sells as buys** — exactly
+   the 580 out-of-band steps. The sell branch is independently wrong too: `potential_soc =
+   soc - amount` with `amount` already negative computes `soc + |amount|`, the wrong direction.
+
+The `* 1000` is also a hardcoded capacity; it is only correct for `Battery(1000, ...)`.
+
+### Fixed in `multi_compact` only
+
+`multi`, `base_prl`, `multi_no_savings` and `multi_trend` are **left untouched** — they produced
+the published results, and their committed models still load. `MultiCompact` gets:
+
+- `clamp_prl_to_band()` — caps the offer at `2 · min(soc, capacity − soc)` so the band always
+  contains the SOC.
+- a rewritten `clip_trade_amount()` that never flips sign and treats the sell direction
+  correctly.
+- `set_boundaries()` scaled by the real capacity.
+
+Verified with a random policy over the average year:
+
+| | above upper | below lower | sign flips | max excess |
+|---|---|---|---|---|
+| `multi` | 184 | 0 | 184 | 487,9 kWh |
+| `multi_compact` | **0** | **0** | **0** | **0** |
+
+### The boundary penalty
+
+`MultiMarket` adds **no reward at all** when `check_boundaries()` refuses a day-ahead trade —
+not a penalty, not the hold bonus, just `reward += 0`. The policy gets no signal that it asked
+for something impossible. Clipping alone has the same blind spot: it corrects the request
+silently.
+
+`MultiCompact` therefore charges `boundary_cost()`, **proportional to the fraction of the
+request the band refused** — zero when the request survives untouched, the full `penalty` when
+none of it does. A flat penalty was rejected because it would fire on nearly every step and
+drown out the trade rewards.
+
+A penalty is deliberately **not** used to deter the infeasible PRL commitment: a median accepted
+block earns €34,05 (p90 €56,64) against a penalty of −10, so the agent would simply pay it and
+sell undeliverable reserve. That case is fixed structurally by `clamp_prl_to_band()` instead.
+
+Whether the penalty actually helps is unmeasured. `benchmark.py` has an ablation arm:
+
+```bash
+python benchmark.py --envs multi multi_compact multi_compact_nopen \
+                    --training_steps 100000 --seeds 0 1 2 3 4 5 6 7 --month 0
+```
+
+`multi_compact_nopen` is the same env with `boundary_penalty=False`.

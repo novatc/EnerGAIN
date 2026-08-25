@@ -19,8 +19,10 @@ class MultiCompact(gym.Env):
     preprocessing computes and then discards.
     """
 
-    def __init__(self, da_data_path: str, prl_data_path: str, validation):
+    def __init__(self, da_data_path: str, prl_data_path: str, validation, boundary_penalty=True):
         super(MultiCompact, self).__init__()
+        # Whether to charge for a day-ahead request the flexibility band had to cut down.
+        self.boundary_penalty = boundary_penalty
         self.da_dataframe = pd.read_csv(da_data_path)
         self.prl_dataframe = pd.read_csv(prl_data_path)
 
@@ -122,6 +124,7 @@ class MultiCompact(gym.Env):
             self.lower_bound = 0
 
         amount_prl = min(amount_prl, self.battery.get_soc())
+        amount_prl = self.clamp_prl_to_band(amount_prl)
         # agent chooses to participate in the PRL market. The cooldown checks, if a new 4-hour block is ready
         if self.check_prl_constraints():
             if -self.trade_threshold < amount_prl < self.trade_threshold:
@@ -130,7 +133,9 @@ class MultiCompact(gym.Env):
                 reward += self.perform_prl_trade(price_prl, amount_prl)
 
         # Handle DA trade or holding
+        requested_da = amount_da
         amount_da = self.clip_trade_amount(amount_da, 'buy' if amount_da > 0 else 'sell')
+        reward += self.boundary_cost(requested_da, amount_da)
         amount_da = clip_to_budget(amount_da, price_da, self.savings)
 
         if self.check_boundaries(amount_da):
@@ -141,6 +146,11 @@ class MultiCompact(gym.Env):
                 reward += self.handle_holding()
             else:
                 reward += self.perform_da_trade(amount_da, price_da)
+        else:
+            # MultiMarket silently does nothing here. Record it so the refusal is visible in the
+            # trade log; boundary_cost() has already charged for it.
+            self.log_trades(False, 'buy' if amount_da > 0 else 'sell', price_da, amount_da,
+                            self.penalty, 'boundary')
 
         self.prl_cooldown = max(0, self.prl_cooldown - 1)  # Ensure it doesn't go below 0
 
@@ -188,30 +198,78 @@ class MultiCompact(gym.Env):
 
     def clip_trade_amount(self, amount, trade_type):
         """
-        Clips the trade amount to ensure that the state of charge remains within the bounds.
+        Clip a trade so the state of charge stays inside the flexibility band.
+
+        MultiMarket's version can invert the trade: with the SOC above the upper bound,
+        min(amount, upper - soc) returns a negative number for a buy, and perform_da_trade() then
+        classifies it as a sell. On the average year that flipped 403 buys into sells and 177
+        sells into buys. Its sell branch also computes soc - amount with amount already negative,
+        which is the wrong direction for a discharge.
 
         :param amount: (float) The amount of energy to be traded.
-        :param trade_type: (str) Type of trade to execute, accepted values are 'buy' or 'sell'.
-        :return: (float) The clipped amount of energy that can be safely traded.
+        :param trade_type: (str) 'buy' or 'sell'.
+        :return: (float) The clipped amount, never sign-flipped.
         """
-        new_amount = amount
+        soc = self.battery.get_soc()
         if trade_type == 'buy':
-            potential_soc = self.battery.get_soc() + amount
-            if not (self.lower_bound < potential_soc < self.upper_bound):
-                new_amount = min(amount, self.upper_bound - self.battery.get_soc())
-        elif trade_type == 'sell':
-            potential_soc = self.battery.get_soc() - amount
-            if not (self.lower_bound < potential_soc < self.upper_bound):
-                new_amount = max(amount, self.battery.get_soc() - self.upper_bound)
-        else:
-            raise ValueError(f"Invalid trade type: {trade_type}")
-
-        return new_amount
+            return float(min(amount, max(0.0, self.upper_bound - soc)))
+        if trade_type == 'sell':
+            return float(max(amount, -max(0.0, soc - self.lower_bound)))
+        raise ValueError(f"Invalid trade type: {trade_type}")
 
     def set_boundaries(self, amount_prl):
-        """Set boundaries based on PRL amount."""
-        self.upper_bound = ((self.battery.capacity - 0.5 * amount_prl) / self.battery.capacity) * 1000
-        self.lower_bound = ((0.5 * amount_prl) / self.battery.capacity) * 1000
+        """
+        Set the flexibility band a PRL commitment reserves.
+
+        MultiMarket scales by a hardcoded 1000 rather than the capacity, which is only correct
+        for Battery(1000, ...).
+
+        :param amount_prl: the committed reserve amount in kW.
+        :return: None, the bounds are set in place.
+        """
+        half = 0.5 * amount_prl
+        self.upper_bound = self.battery.capacity - half
+        self.lower_bound = half
+
+    def clamp_prl_to_band(self, amount_prl):
+        """
+        Cap a PRL offer at what the current state of charge can actually back.
+
+        Committing amount_prl reserves the band [0.5a, capacity - 0.5a], so the SOC has to sit
+        inside it for the commitment to be deliverable in both directions. set_boundaries()
+        derives the band from the offer alone and never looks at the SOC, so an offer made at a
+        high SOC put the SOC outside its own band: the committed multi model spent 580 steps
+        (6.6 %) of the average year above the upper bound, by up to 400 kWh, selling reserve it
+        could not have delivered. Feasibility requires a < 2 * min(soc, capacity - soc).
+
+        :param amount_prl: the offered reserve amount in kW.
+        :return: the offer capped so the band strictly contains the current SOC.
+        """
+        soc = self.battery.get_soc()
+        feasible = 2.0 * min(soc, self.battery.capacity - soc)
+        return max(0.0, min(amount_prl, feasible * (1.0 - 1e-9)))
+
+    def boundary_cost(self, requested, granted):
+        """
+        Penalty proportional to how much of a day-ahead request the band refused.
+
+        Clipping on its own corrects an infeasible request silently, so the policy never learns
+        that it asked for something the band could not take - and when check_boundaries() refuses
+        outright, MultiMarket adds no reward at all, neither penalty nor hold bonus. A flat
+        penalty would fire on nearly every step and drown out the trade rewards, so this scales
+        with the fraction clipped away: zero when the request survives untouched, the full
+        penalty when none of it does.
+
+        :param requested: the amount the agent asked for.
+        :param granted: what is left after clipping to the band.
+        :return: the penalty contribution, always <= 0.
+        """
+        if not self.boundary_penalty or abs(requested) < 1e-9:
+            return 0.0
+        removed = abs(requested) - abs(granted)
+        if removed <= 0:
+            return 0.0
+        return self.penalty * min(1.0, removed / abs(requested))
 
     def check_boundaries(self, amount):
         """Check if the battery can charge or discharge the given amount of energy."""

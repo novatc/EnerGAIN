@@ -47,6 +47,14 @@ VARIANTS = {
     'base_state_ext':    ('envs.base_state:BaseState',       TRAIN_DA_EXT, None,          True),
     'trend_compact_ext': ('envs.trend_compact:TrendCompact', TRAIN_DA_EXT, None,          True),
     'multi_compact_ext': ('envs.multi_compact:MultiCompact', TRAIN_DA_EXT, TRAIN_PRL_EXT, True),
+    # Ablation: multi_compact with the boundary penalty switched off, to test whether charging
+    # for a clipped request actually helps or whether clipping alone is enough.
+    'multi_compact_nopen': ('envs.multi_compact:MultiCompact', TRAIN_DA, TRAIN_PRL, False),
+}
+
+# Extra constructor kwargs per variant.
+EXTRA_KWARGS = {
+    'multi_compact_nopen': {'boundary_penalty': False},
 }
 
 
@@ -84,6 +92,7 @@ def build(env_key: str, run_id: str, da_path: str, prl_path, validation: bool):
     kwargs = {'da_data_path': da_path, 'validation': validation}
     if prl_path is not None:
         kwargs['prl_data_path'] = prl_path
+    kwargs.update(EXTRA_KWARGS.get(env_key, {}))
     env_id = f'bench_{env_key}_{run_id}-v0'
     register(id=env_id, entry_point=entry_point, kwargs=kwargs)
     return make(env_id)
