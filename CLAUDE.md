@@ -462,9 +462,10 @@ positional index in `plot_engien.py` (`trade[3]`, `trade[4]`, `trade[8]`, …), 
   (€/kWh)", "Kaufen"/"Verkaufen", "Marktpreis"). Keep new plots German to match the thesis.
 - **Language**: code, comments and docstrings are English; user-facing plot text and many
   comments in `plotting.py` are German. Follow the file you are editing.
-- **Do not commit** generated `agent_data/`, `trade_logs/`, `logging/`, `img/`, or newly
-  trained `.zip` models, or model copies staged into `agents/`. `.gitignore` covers none of
-  these.
+- **Generated output is gitignored**: `trade_logs/`, `agent_data/`, `logging/`, `img/` and
+  `agents/*.zip` (staged model copies). The rule is `/agents/*.zip`, anchored and non-recursive,
+  so the committed models under `agents/results/` stay tracked. The `*_ext` data files are
+  ignored too (§13). Nothing else generated should be committed.
 
 ## 12. Git workflow
 
